@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "419122333745",
+    "project_id": "can-image-729a0",
+    "storage_bucket": "can-image-729a0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:419122333745:android:38225922c4ae78f80fed10",
+        "android_client_info": {
+          "package_name": "canimagemediatech.com.canimage"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBL74U8nVfhugVP_Y1aFzBG71oqTvrNj54"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

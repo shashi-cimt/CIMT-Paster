@@ -1,0 +1,56 @@
+import 'dart:io';
+
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+class DeviceIdManager {
+  DeviceIdManager._();
+
+  static const String _deviceIdKey = "device_id";
+
+  static String deviceId = "";
+
+  static Future<void> init() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    deviceId = prefs.getString(_deviceIdKey) ?? "";
+
+    if (deviceId.isEmpty) {
+      deviceId = await _getPlatformDeviceId();
+      await prefs.setString(_deviceIdKey, deviceId);
+    }
+  }
+
+  static Future<String> getDeviceId() async {
+    if (deviceId.isNotEmpty) {
+      return deviceId;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+
+    deviceId = prefs.getString(_deviceIdKey) ?? "";
+
+    if (deviceId.isEmpty) {
+      deviceId = await _getPlatformDeviceId();
+      await prefs.setString(_deviceIdKey, deviceId);
+    }
+
+    return deviceId;
+  }
+
+  static Future<String> _getPlatformDeviceId() async {
+    final deviceInfo = DeviceInfoPlugin();
+
+    if (Platform.isAndroid) {
+      final androidInfo = await deviceInfo.androidInfo;
+      return androidInfo.id;
+    }
+
+    if (Platform.isIOS) {
+      final iosInfo = await deviceInfo.iosInfo;
+      return iosInfo.identifierForVendor ?? "";
+    }
+
+    return "";
+  }
+}
