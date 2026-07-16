@@ -39,9 +39,9 @@ class TokenManager {
 
       _isInitialized = true;
 
-      // print('✅ Token monitoring initialized. Expires at: $_tokenExpiryTime');
+      // print(' Token monitoring initialized. Expires at: $_tokenExpiryTime');
     } catch (e) {
-      // print('❌ Error initializing token monitoring: $e');
+      // print(' Error initializing token monitoring: $e');
       // Fallback: assume 1 hour expiry if JWT decode fails
       _tokenExpiryTime = DateTime.now().add(Duration(hours: 1));
       await _saveTokenWithExpiry(token, _tokenExpiryTime!);
@@ -61,7 +61,7 @@ class TokenManager {
       final token = await getAuthToken();
 
       if (token == null || token.isEmpty) {
-        // print('⚠️ Token is null or empty');
+        // print(' Token is null or empty');
         return false;
       }
 
@@ -69,7 +69,7 @@ class TokenManager {
       final expiryString = prefs.getString('token_expiry');
 
       if (expiryString == null) {
-        // print('⚠️ Token expiry not found in preferences');
+        // print(' Token expiry not found in preferences');
         return false;
       }
 
@@ -77,12 +77,12 @@ class TokenManager {
       final isValid = DateTime.now().isBefore(expiryTime);
 
       if (!isValid) {
-        // print('⚠️ Token has expired');
+        // print(' Token has expired');
       }
 
       return isValid;
     } catch (e) {
-      // print('❌ Error checking token validity: $e');
+      // print(' Error checking token validity: $e');
       return false;
     }
   }
@@ -92,14 +92,14 @@ class TokenManager {
     _tokenExpiryTimer?.cancel();
 
     if (_tokenExpiryTime == null) {
-      // print('⚠️ Cannot start token expiry timer - expiry time is null');
+      // print(' Cannot start token expiry timer - expiry time is null');
       return;
     }
 
     final duration = _tokenExpiryTime!.difference(DateTime.now());
 
     if (duration.isNegative) {
-      // print('⚠️ Token already expired');
+      // print(' Token already expired');
       _handleTokenExpiry();
       return;
     }
@@ -108,27 +108,27 @@ class TokenManager {
     final logoutDuration = duration - const Duration(seconds: 30);
 
     if (logoutDuration.isNegative) {
-      // print('⚠️ Token expiring very soon');
+      // print(' Token expiring very soon');
       _handleTokenExpiry();
       return;
     }
 
     _tokenExpiryTimer = Timer(logoutDuration, () {
-      // print('⏰ Token expiry timer triggered');
+      // print(' Token expiry timer triggered');
       _handleTokenExpiry();
     });
 
-    // print('⏰ Token expiry timer set for ${logoutDuration.inMinutes} minutes ${logoutDuration.inSeconds % 60} seconds');
+    // print(' Token expiry timer set for ${logoutDuration.inMinutes} minutes ${logoutDuration.inSeconds % 60} seconds');
   }
 
   void _handleTokenExpiry() {
-    // print('⚠️ Token expired - logging out');
+    // print(' Token expired - logging out');
     logout('Your session has expired. Please login again.');
   }
 
   // Logout and clear all data
   Future<void> logout([String? message]) async {
-    // print('🚪 Logging out... Reason: ${message ?? "Manual logout"}');
+    // print(' Logging out... Reason: ${message ?? "Manual logout"}');
 
     _tokenExpiryTimer?.cancel();
     _isInitialized = false;
@@ -143,7 +143,7 @@ class TokenManager {
     await prefs.remove('role_flag');
     await prefs.remove('first_uid');
 
-    // print('✅ All session data cleared');
+    // print(' All session data cleared');
 
     // Navigate to login screen
     final context = navigatorKey?.currentContext;
@@ -157,12 +157,12 @@ class TokenManager {
             (route) => false,
       );
     } else {
-      // print('⚠️ Cannot navigate to login - context is null or not mounted');
+      // print(' Cannot navigate to login - context is null or not mounted');
     }
   }
 
   void dispose() {
-    // print('🗑️ Disposing TokenManager');
+    // print(' Disposing TokenManager');
     _tokenExpiryTimer?.cancel();
     _isInitialized = false;
   }

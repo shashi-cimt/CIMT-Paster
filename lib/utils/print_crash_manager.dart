@@ -20,7 +20,7 @@ class PrintCrashReportManager {
     try {
       return await _storeCrashReportExternal(error, stackTrace, additionalInfo);
     } catch (e) {
-      // print('❌ Error in external crash storage, using fallback: $e');
+      // print(' Error in external crash storage, using fallback: $e');
       return await _storeCrashReportFallback(error, stackTrace, additionalInfo);
     }
   }
@@ -146,7 +146,7 @@ class PrintCrashReportManager {
         String existingContent = await crashFile.readAsString();
         currentLineCount = existingContent.split('\n').where((line) => line.trim().isNotEmpty).length;
       } catch (e) {
-        print('⚠️ Error reading existing crash file: $e');
+        print(' Error reading existing crash file: $e');
       }
     }
 
@@ -163,8 +163,8 @@ class PrintCrashReportManager {
       flush: true, // Ensure data is written immediately
     );
 
-    // print('🎉 SUCCESS! Print crash report appended to: $filePath');
-    // print('📊 Total crashes in file: ${currentLineCount + 1}');
+    // print(' SUCCESS! Print crash report appended to: $filePath');
+    // print('Total crashes in file: ${currentLineCount + 1}');
     return filePath;
   }
 
@@ -188,9 +188,9 @@ class PrintCrashReportManager {
         flush: true,
       );
 
-      // print('🧹 Trimmed file to last $keepCount entries');
+      // print(' Trimmed file to last $keepCount entries');
     } catch (e) {
-      // print('⚠️ Error trimming old entries: $e');
+      // print(' Error trimming old entries: $e');
     }
   }
 
@@ -250,7 +250,7 @@ class PrintCrashReportManager {
           List<dynamic> decoded = jsonDecode(existingContent);
           existingLogs = decoded.cast<Map<String, dynamic>>();
         } catch (e) {
-          print('⚠️ Error reading existing log file: $e');
+          print(' Error reading existing log file: $e');
           // Continue with empty logs list
         }
       }
@@ -268,11 +268,11 @@ class PrintCrashReportManager {
         encoding: utf8,
       );
 
-      // print('📝 Print log message saved to: $filePath');
+      // print(' Print log message saved to: $filePath');
       return filePath;
 
     } catch (e) {
-      // print('❌ Error storing log message: $e');
+      // print(' Error storing log message: $e');
       // Don't throw here - logging should be non-blocking
       return 'Failed to store log: $e';
     }
@@ -327,7 +327,7 @@ class PrintCrashReportManager {
 
     // Handle other uncaught errors in the root isolate
     PlatformDispatcher.instance.onError = (error, stack) {
-      // print('🚨 Uncaught error: $error');
+      // print(' Uncaught error: $error');
 
       // Store crash report asynchronously
       storeCrashReport(
@@ -399,7 +399,7 @@ class PrintCrashReportManager {
       File? crashFile = await getCrashReportFile();
 
       if (crashFile == null) {
-        // print('📊 No crash report file found');
+        // print(' No crash report file found');
         return [];
       }
 
@@ -413,14 +413,14 @@ class PrintCrashReportManager {
           Map<String, dynamic> crash = jsonDecode(line);
           crashes.add(crash);
         } catch (e) {
-          // print('⚠️ Error parsing line: $e');
+          // print(' Error parsing line: $e');
         }
       }
 
       // print('📊 Found ${crashes.length} total print crash reports');
       return crashes;
     } catch (e) {
-      // print('❌ Error reading crash reports: $e');
+      // print(' Error reading crash reports: $e');
       return [];
     }
   }
@@ -437,10 +437,10 @@ class PrintCrashReportManager {
       String content = await crashFile.readAsString();
       int count = content.split('\n').where((line) => line.trim().isNotEmpty).length;
 
-      // print('📊 Total crash count: $count');
+      // print(' Total crash count: $count');
       return count;
     } catch (e) {
-      // print('❌ Error counting crashes: $e');
+      // print(' Error counting crashes: $e');
       return 0;
     }
   }
@@ -451,7 +451,7 @@ class PrintCrashReportManager {
       File? crashFile = await getCrashReportFile();
 
       if (crashFile == null) {
-        // print('📊 No crash report file found');
+        // print(' No crash report file found');
         return;
       }
 
@@ -459,7 +459,7 @@ class PrintCrashReportManager {
       List<String> lines = content.split('\n').where((line) => line.trim().isNotEmpty).toList();
 
       if (lines.length <= keepCount) {
-        // print('📊 Found ${lines.length} reports, no cleanup needed (keeping $keepCount)');
+        // print(' Found ${lines.length} reports, no cleanup needed (keeping $keepCount)');
         return;
       }
 
@@ -474,9 +474,9 @@ class PrintCrashReportManager {
       );
 
       int deletedCount = lines.length - keepCount;
-      // print('🧹 Cleanup complete: removed $deletedCount old reports, kept $keepCount recent ones');
+      // print(' Cleanup complete: removed $deletedCount old reports, kept $keepCount recent ones');
     } catch (e) {
-      // print('❌ Error cleaning up old reports: $e');
+      // print(' Error cleaning up old reports: $e');
     }
   }
 
@@ -489,25 +489,25 @@ class PrintCrashReportManager {
     buffer.writeln('╚═══════════════════════════════════════════════════════╝');
     buffer.writeln();
 
-    buffer.writeln('📅 Timestamp: ${crashData['timestamp'] ?? 'Unknown'}');
-    buffer.writeln('📍 Storage Location: ${crashData['storageLocation'] ?? 'Unknown'}');
+    buffer.writeln(' Timestamp: ${crashData['timestamp'] ?? 'Unknown'}');
+    buffer.writeln(' Storage Location: ${crashData['storageLocation'] ?? 'Unknown'}');
     buffer.writeln();
 
     buffer.writeln('─────────────────────────────────────────────────────────');
-    buffer.writeln('🔥 ERROR:');
+    buffer.writeln(' ERROR:');
     buffer.writeln('─────────────────────────────────────────────────────────');
     buffer.writeln(crashData['error'] ?? 'No error information');
     buffer.writeln();
 
     buffer.writeln('─────────────────────────────────────────────────────────');
-    buffer.writeln('📚 STACK TRACE:');
+    buffer.writeln(' STACK TRACE:');
     buffer.writeln('─────────────────────────────────────────────────────────');
     buffer.writeln(crashData['stackTrace'] ?? 'No stack trace available');
     buffer.writeln();
 
     if (crashData['deviceInfo'] != null) {
       buffer.writeln('─────────────────────────────────────────────────────────');
-      buffer.writeln('📱 DEVICE INFO:');
+      buffer.writeln(' DEVICE INFO:');
       buffer.writeln('─────────────────────────────────────────────────────────');
       Map<String, dynamic> deviceInfo = crashData['deviceInfo'];
       deviceInfo.forEach((key, value) {
@@ -519,7 +519,7 @@ class PrintCrashReportManager {
     if (crashData['additionalInfo'] != null &&
         (crashData['additionalInfo'] as Map).isNotEmpty) {
       buffer.writeln('─────────────────────────────────────────────────────────');
-      buffer.writeln('ℹ️  ADDITIONAL INFO:');
+      buffer.writeln('ℹ  ADDITIONAL INFO:');
       buffer.writeln('─────────────────────────────────────────────────────────');
       Map<String, dynamic> additionalInfo = crashData['additionalInfo'];
       additionalInfo.forEach((key, value) {
@@ -545,11 +545,11 @@ class PrintCrashReportManager {
       List<Map<String, dynamic>> reports = await getAllCrashReports();
 
       if (reports.isEmpty) {
-        // print('📋 No crash reports found.');
+        // print(' No crash reports found.');
         return;
       }
 
-      // print('\n📊 Found ${reports.length} crash report(s)\n');
+      // print('\n Found ${reports.length} crash report(s)\n');
 
       for (int i = 0; i < reports.length; i++) {
         // print('\n🔹 REPORT ${i + 1}/${reports.length}');
@@ -558,7 +558,7 @@ class PrintCrashReportManager {
       }
 
     } catch (e) {
-      // print('❌ Error printing all crash reports: $e');
+      // print(' Error printing all crash reports: $e');
     }
   }
 
@@ -599,7 +599,7 @@ class PrintCrashReportManager {
             }
           }
         } catch (e) {
-          // print('⚠️ Error processing crash report: $e');
+          // print(' Error processing crash report: $e');
         }
       }
 
@@ -612,7 +612,7 @@ class PrintCrashReportManager {
       };
 
     } catch (e) {
-      // print('❌ Error generating crash summary: $e');
+      // print(' Error generating crash summary: $e');
       return {'error': e.toString()};
     }
   }
@@ -625,22 +625,22 @@ class PrintCrashReportManager {
     // print('║           CRASH REPORT SUMMARY                        ║');
     // print('╚═══════════════════════════════════════════════════════╝\n');
     //
-    // print('📊 Total Crashes: ${summary['totalCrashes']}');
+    // print(' Total Crashes: ${summary['totalCrashes']}');
 
     if (summary['totalCrashes'] == 0) {
-      // print('\n✅ No crashes recorded!\n');
+      // print('\n No crashes recorded!\n');
       return;
     }
 
     if (summary['oldestCrash'] != null) {
-      // print('📅 First Crash: ${summary['oldestCrash']}');
+      // print(' First Crash: ${summary['oldestCrash']}');
     }
     if (summary['newestCrash'] != null) {
-      // print('📅 Latest Crash: ${summary['newestCrash']}');
+      // print(' Latest Crash: ${summary['newestCrash']}');
     }
 
     // print('\n─────────────────────────────────────────────────────────');
-    // print('🔥 Error Types:');
+    // print(' Error Types:');
     // print('─────────────────────────────────────────────────────────');
     Map<String, int> errorTypes = summary['errorTypes'] ?? {};
     errorTypes.forEach((type, count) {
@@ -649,7 +649,7 @@ class PrintCrashReportManager {
     });
 
     // print('\n─────────────────────────────────────────────────────────');
-    // print('📈 Crashes by Day:');
+    // print(' Crashes by Day:');
     // print('─────────────────────────────────────────────────────────');
     Map<String, int> crashesByDay = summary['crashesByDay'] ?? {};
     List<String> sortedDays = crashesByDay.keys.toList()..sort();
@@ -666,7 +666,7 @@ class PrintCrashReportManager {
       List<Map<String, dynamic>> reports = await getAllCrashReports();
 
       if (reports.isEmpty) {
-        // print('📋 No crash reports to export.');
+        // print(' No crash reports to export.');
         return null;
       }
 
@@ -707,18 +707,18 @@ class PrintCrashReportManager {
           content.writeln(formatCrashReport(reports[i]));
           content.writeln('\n');
         } catch (e) {
-          content.writeln('\n⚠️ Error processing report: $e\n');
+          content.writeln('\n Error processing report: $e\n');
         }
       }
 
       // Write to file
       await exportFile.writeAsString(content.toString(), encoding: utf8);
 
-      // print('📤 Crash reports exported to: $filePath');
+      // print(' Crash reports exported to: $filePath');
       return filePath;
 
     } catch (e) {
-      // print('❌ Error exporting crash reports: $e');
+      // print(' Error exporting crash reports: $e');
       return null;
     }
   }
@@ -729,7 +729,7 @@ class PrintCrashReportManager {
       List<Map<String, dynamic>> allCrashes = await getAllCrashReports();
 
       if (allCrashes.isEmpty) {
-        // print('⚠️ No crashes to export');
+        // print(' No crashes to export');
         return null;
       }
 
@@ -771,10 +771,10 @@ class PrintCrashReportManager {
         flush: true,
       );
 
-      // print('📦 Exported ${allCrashes.length} crashes to: $filePath');
+      // print(' Exported ${allCrashes.length} crashes to: $filePath');
       return filePath;
     } catch (e) {
-      // print('❌ Error exporting crashes: $e');
+      // print(' Error exporting crashes: $e');
       return null;
     }
   }
@@ -792,7 +792,7 @@ class PrintCrashReportManager {
       return reports.last;
 
     } catch (e) {
-      // print('❌ Error getting latest crash report: $e');
+      // print(' Error getting latest crash report: $e');
       return null;
     }
   }
@@ -802,7 +802,7 @@ class PrintCrashReportManager {
     Map<String, dynamic>? latestReport = await getLatestCrashReport();
 
     if (latestReport == null) {
-      // print('📋 No crash reports found.');
+      // print(' No crash reports found.');
       return;
     }
 
@@ -837,14 +837,14 @@ class PrintCrashReportManager {
 
       if (crashFile != null && await crashFile.exists()) {
         await crashFile.delete();
-        // print('🧹 All crash reports cleared');
+        // print(' All crash reports cleared');
         return true;
       }
 
-      // print('⚠️ No crash file to clear');
+      // print('⚠ No crash file to clear');
       return false;
     } catch (e) {
-      // print('❌ Error clearing crash reports: $e');
+      // print(' Error clearing crash reports: $e');
       return false;
     }
   }
@@ -866,7 +866,7 @@ class PrintCrashReportManager {
       }
     }).toList();
 
-    // print('📊 Found ${filteredReports.length} reports between $startDate and $endDate');
+    // print(' Found ${filteredReports.length} reports between $startDate and $endDate');
     return filteredReports;
   }
 
@@ -901,11 +901,11 @@ class PrintCrashReportManager {
           Map<String, dynamic> crash = jsonDecode(line);
           yield crash;
         } catch (e) {
-          // print('⚠️ Error parsing line: $e');
+          // print(' Error parsing line: $e');
         }
       }
     } catch (e) {
-      // print('❌ Error streaming crash reports: $e');
+      // print(' Error streaming crash reports: $e');
     }
   }
 
@@ -916,7 +916,7 @@ class PrintCrashReportManager {
         .where((report) => report['errorType']?.toString().contains(errorType) ?? false)
         .toList();
 
-    // print('📊 Found ${filteredReports.length} crashes with error type: $errorType');
+    // print(' Found ${filteredReports.length} crashes with error type: $errorType');
     return filteredReports;
   }
 

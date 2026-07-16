@@ -97,8 +97,8 @@ class ExecutionImageUploadHiveRepository {
     String uniqueKey =
         "${serverPlanId.trim()}_${printNo.trim().toUpperCase()}";
 
-    print("🗑 DELETE KEY => $uniqueKey");
-    print("📦 ALL KEYS => ${_metadataBox!.keys.toList()}");
+    print(" DELETE KEY => $uniqueKey");
+    print(" ALL KEYS => ${_metadataBox!.keys.toList()}");
 
     await _metadataBox!.delete(uniqueKey);
   }

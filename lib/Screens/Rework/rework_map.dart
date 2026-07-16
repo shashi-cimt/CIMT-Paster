@@ -1137,24 +1137,24 @@ class _ReworkMapState extends State<ReworkMap> {
         uploadedPrintIds = completedIds;
       });
 
-      print('📁 Loaded ${uploadedPrintIds.length} completed upload IDs');
+      print(' Loaded ${uploadedPrintIds.length} completed upload IDs');
 
       if (uploadedPrintIds.isNotEmpty) {
         final sampleIds = uploadedPrintIds.take(5).join(', ');
-        print('📁 Sample IDs: $sampleIds${uploadedPrintIds.length > 5 ? '...' : ''}');
+        print(' Sample IDs: $sampleIds${uploadedPrintIds.length > 5 ? '...' : ''}');
       }
 
     } catch (e) {
-      print('❌ Error loading completed uploads: $e');
+      print(' Error loading completed uploads: $e');
       setState(() {
         uploadedPrintIds = [];
       });
     }
   }
 
-  // ✅ FIXED: Complete refresh after upload
+  //  FIXED: Complete refresh after upload
   Future<void> refreshMarkersAfterUpload() async {
-    print('🔄 Refreshing markers after upload...');
+    print(' Refreshing markers after upload...');
 
     // Clear existing markers immediately
     setState(() {
@@ -1164,7 +1164,7 @@ class _ReworkMapState extends State<ReworkMap> {
 
     // Reload uploaded print IDs from SharedPreferences
     await _loadUploadedPrintIds();
-    print('📁 Uploaded print IDs count: ${uploadedPrintIds.length}');
+    print(' Uploaded print IDs count: ${uploadedPrintIds.length}');
 
     // Regenerate markers (this will exclude uploaded ones)
     _generateMarkersFromGroup();
@@ -1172,11 +1172,11 @@ class _ReworkMapState extends State<ReworkMap> {
     // Update map with remaining markers
     if (markers.isNotEmpty) {
       _fitMarkersToMap();
-      print('📍 ${markers.length} markers remaining');
+      print(' ${markers.length} markers remaining');
     } else {
-      print('ℹ️ No markers remaining - all plans uploaded');
+      print('ℹ No markers remaining - all plans uploaded');
       Fluttertoast.showToast(
-        msg: "🎉 All plans have been uploaded!",
+        msg: " All plans have been uploaded!",
         toastLength: Toast.LENGTH_LONG,
         gravity: ToastGravity.CENTER,
         backgroundColor: Colors.green,
@@ -1188,11 +1188,11 @@ class _ReworkMapState extends State<ReworkMap> {
   // ============ MARKER GENERATION ============
 
   void _generateMarkersFromGroup() {
-    print('🔍 Starting marker generation...');
-    print('📁 Uploaded print IDs count: ${uploadedPrintIds.length}');
+    print(' Starting marker generation...');
+    print(' Uploaded print IDs count: ${uploadedPrintIds.length}');
 
     if (currentLocation == null) {
-      print('⚠️ Current location is not available');
+      print('Current location is not available');
       return;
     }
 
@@ -1212,12 +1212,12 @@ class _ReworkMapState extends State<ReworkMap> {
 
       if (shouldHide) {
         hiddenCount++;
-        print('🚫 HIDING marker for printId: ${p.printId} - printNo: ${p.printNo}');
+        print(' HIDING marker for printId: ${p.printId} - printNo: ${p.printNo}');
         continue;
       }
 
       if (!_isValidCoordinate(p.latitude, p.longitude)) {
-        print('⚠️ Invalid coordinates for printId: ${p.printId}');
+        print(' Invalid coordinates for printId: ${p.printId}');
         continue;
       }
 
@@ -1272,14 +1272,14 @@ class _ReworkMapState extends State<ReworkMap> {
       markerDataMap[uniqueId] = markerData;
 
       // Log each visible marker
-      print('✅ VISIBLE marker: printNo=${p.printNo}, printId=${p.printId}');
+      print(' VISIBLE marker: printNo=${p.printNo}, printId=${p.printId}');
     }
 
     if (mounted) {
       setState(() {});
-      print('✅ Generated ${markers.length} visible markers');
-      print('🚫 Hidden ${hiddenCount} markers (already uploaded)');
-      print('📊 Total processed: ${totalProcessed}');
+      print(' Generated ${markers.length} visible markers');
+      print(' Hidden ${hiddenCount} markers (already uploaded)');
+      print(' Total processed: ${totalProcessed}');
     }
   }
 
@@ -1290,7 +1290,7 @@ class _ReworkMapState extends State<ReworkMap> {
         .contains(plan.printId.toString().trim());
 
     if (isUploaded) {
-      print('🔍 Hiding marker: printId=${plan.printId} is in completed list');
+      print(' Hiding marker: printId=${plan.printId} is in completed list');
       return true;
     }
 
@@ -1344,9 +1344,9 @@ class _ReworkMapState extends State<ReworkMap> {
     _showMarkerBottomSheet(markerData);
   }
 
-  // ✅ FIXED: Handle result from display page and refresh
+  //  FIXED: Handle result from display page and refresh
   void _onInfoWindowTap(MarkerData markerData) async {
-    print('📍 Marker tapped: ${markerData.printNo}');
+    print(' Marker tapped: ${markerData.printNo}');
 
     // Navigate and wait for result from display page
     final result = await Navigator.push<bool>(
@@ -1377,11 +1377,11 @@ class _ReworkMapState extends State<ReworkMap> {
 
     // If upload successful, refresh and remove marker
     if (result == true) {
-      print('✅ Upload completed, refreshing markers...');
+      print(' Upload completed, refreshing markers...');
 
       // Show loading indicator
       Fluttertoast.showToast(
-        msg: "🔄 Removing marker...",
+        msg: " Removing marker...",
         toastLength: Toast.LENGTH_SHORT,
         gravity: ToastGravity.CENTER,
         backgroundColor: Colors.blue,
@@ -1393,7 +1393,7 @@ class _ReworkMapState extends State<ReworkMap> {
 
       // Show confirmation that marker was removed
       Fluttertoast.showToast(
-        msg: "✅ Marker removed successfully!",
+        msg: " Marker removed successfully!",
         toastLength: Toast.LENGTH_SHORT,
         gravity: ToastGravity.BOTTOM,
         backgroundColor: Colors.green,

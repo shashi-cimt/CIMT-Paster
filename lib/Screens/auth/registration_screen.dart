@@ -153,7 +153,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
     try {
       Directory? externalDir = await getExternalStorageDirectory();
       if (externalDir == null) {
-        // print('❌ Unable to access external storage');
+        // print(' Unable to access external storage');
         return null;
       }
 
@@ -170,18 +170,18 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
         uid = uid.trim();
 
         if (uid.length == 16 && RegExp(r'^\d{16}$').hasMatch(uid)) {
-          // print('✅ Retrieved $roleName UID: $uid from $folderName');
+          // print(' Retrieved $roleName UID: $uid from $folderName');
           return uid;
         } else {
-          // print('⚠️ Invalid UID format in $folderName');
+          // print(' Invalid UID format in $folderName');
         }
       } else {
-        // print('⚠️ UID file not found in $folderName');
+        // print(' UID file not found in $folderName');
       }
 
       return null;
     } catch (e) {
-      // print('❌ Error getting role-specific UID: $e');
+      // print(' Error getting role-specific UID: $e');
       return null;
     }
   }
@@ -194,7 +194,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
     try {
       Directory? externalDir = await getExternalStorageDirectory();
       if (externalDir == null) {
-        // print('❌ Unable to access external storage directory');
+        // print(' Unable to access external storage directory');
         return null;
       }
 
@@ -218,10 +218,10 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
       // Optionally keep this path in SharedPreferences for later use
       await setProfileImagePath(savedImage.path);
 
-      // print('✅ Saved profile image at: ${savedImage.path}');
+      // print(' Saved profile image at: ${savedImage.path}');
       return savedImage;
     } catch (e) {
-      // print('❌ Failed to save profile image to role folder: $e');
+      // print(' Failed to save profile image to role folder: $e');
       return null;
     }
   }
@@ -670,7 +670,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                                 setState(() {
                                   selectedRole = value!;
                                   selectedRoleId = 6; // Pastor ID is 6 -> CIMTDWP folder
-                                  // print('✅ Selected: $selectedRole (ID: $selectedRoleId) -> CIMTDWP');
+                                  // print('Selected: $selectedRole (ID: $selectedRoleId) -> CIMTDWP');
                                 });
                               },
                               contentPadding: EdgeInsets.zero,
@@ -689,7 +689,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                                 setState(() {
                                   selectedRole = value!;
                                   selectedRoleId = 7; // Supervisor ID is 7 -> CIMTDWPSUP folder
-                                  // print('✅ Selected: $selectedRole (ID: $selectedRoleId) -> CIMTDWPSUP');
+                                  // print(' Selected: $selectedRole (ID: $selectedRoleId) -> CIMTDWPSUP');
                                 });
                               },
                               dense: false,

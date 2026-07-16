@@ -145,7 +145,7 @@ class _MapScreenState extends State<MapScreenpointer> with WidgetsBindingObserve
         }
       }
 
-      print("📊 Summary: ${filteredPointers.length} uncaptured, $capturedCount captured");
+      print(" Summary: ${filteredPointers.length} uncaptured, $capturedCount captured");
 
       if (filteredPointers.isNotEmpty) {
         _showPointersFromData(filteredPointers);

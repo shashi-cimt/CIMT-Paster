@@ -191,7 +191,7 @@ class _SUMapScreenState extends State<SUMapScreen> {
     bool isUploaded = uploadedPrintIds.contains(plan.printId.toString());
 
     if (isUploaded) {
-      print('🚫 Hiding marker for printId: ${plan.printId} - printNo: ${plan.printNo}');
+      print(' Hiding marker for printId: ${plan.printId} - printNo: ${plan.printNo}');
       return true;
     }
 
@@ -215,7 +215,7 @@ class _SUMapScreenState extends State<SUMapScreen> {
 
   // ADD THIS METHOD: Refresh markers after upload
   Future<void> refreshMarkersAfterUpload() async {
-    print('🔄 Refreshing markers after upload...');
+    print(' Refreshing markers after upload...');
 
     markers.clear();
     markerDataMap.clear();
@@ -229,7 +229,7 @@ class _SUMapScreenState extends State<SUMapScreen> {
     if (markers.isNotEmpty) {
       _fitMarkersToMap();
     } else {
-      print('ℹ️ No markers remaining after refresh');
+      print('ℹ No markers remaining after refresh');
     }
   }
 
@@ -317,20 +317,20 @@ class _SUMapScreenState extends State<SUMapScreen> {
   }
 
   // void _loadSavedPlans() async {
-  //   print('🔍 Loading saved plans...');
+  //   print(' Loading saved plans...');
   //   savedPlans = await PostReccaPlanHiveRepository().loadSUPlans();
-  //   print('📁 Loaded ${savedPlans!.length} plans from Hive');
+  //   print(' Loaded ${savedPlans!.length} plans from Hive');
   //
   //   if (savedPlans!.isNotEmpty) {
   //     _generateMarkersFromPlan();
   //   } else {
-  //     print('ℹ️ No saved plans found');
+  //     print('ℹ No saved plans found');
   //   }
   // }
   void _loadSavedPlans() async {
-    print('🔍 Loading saved plans...');
+    print(' Loading saved plans...');
     savedPlans = await PostReccaPlanHiveRepository().loadSUPlans();
-    print('📁 Loaded ${savedPlans!.length} plans from Hive');
+    print(' Loaded ${savedPlans!.length} plans from Hive');
 
     if (savedPlans!.isNotEmpty) {
       _generateMarkersFromPlan();
@@ -339,15 +339,15 @@ class _SUMapScreenState extends State<SUMapScreen> {
         _zoomToNearbyMarkers();
       });
     } else {
-      print('ℹ️ No saved plans found');
+      print('ℹ No saved plans found');
     }
   }
   void _generateMarkersFromPlan() {
-    print('🔍 Starting marker generation...');
-    print('📁 Uploaded print IDs count: ${uploadedPrintIds.length}');
+    print(' Starting marker generation...');
+    print(' Uploaded print IDs count: ${uploadedPrintIds.length}');
 
     if (currentLocation == null) {
-      print('⚠️ Current location is not available');
+      print(' Current location is not available');
       return;
     }
 
@@ -367,7 +367,7 @@ class _SUMapScreenState extends State<SUMapScreen> {
       }
 
       if (!_isValidCoordinate(p.latitude, p.longitude)) {
-        print('⚠️ Invalid coordinates for printId: ${p.printId}');
+        print(' Invalid coordinates for printId: ${p.printId}');
         continue;
       }
 
@@ -442,9 +442,9 @@ class _SUMapScreenState extends State<SUMapScreen> {
 
     if (mounted) {
       setState(() {});
-      print('✅ Generated ${markers.length} visible markers');
-      print('🚫 Hidden ${hiddenCount} markers (already uploaded)');
-      print('📊 Total processed: ${totalProcessed}');
+      print(' Generated ${markers.length} visible markers');
+      print(' Hidden ${hiddenCount} markers (already uploaded)');
+      print(' Total processed: ${totalProcessed}');
     }
   }
 

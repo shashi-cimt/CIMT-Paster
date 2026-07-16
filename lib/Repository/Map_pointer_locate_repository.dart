@@ -17,7 +17,7 @@ class CapturedLocateRepository {
     await _openBox();
 
     if (locateId.isEmpty || planServerId.isEmpty) {
-      print("⚠️ Cannot mark as captured: locateId or planServerId is empty");
+      print(" Cannot mark as captured: locateId or planServerId is empty");
       return;
     }
 
@@ -25,7 +25,7 @@ class CapturedLocateRepository {
 
     // Check if already marked
     if (_box!.containsKey(key)) {
-      print("ℹ️ LocateId $locateId already marked as captured");
+      print(" LocateId $locateId already marked as captured");
       return;
     }
 
@@ -35,7 +35,7 @@ class CapturedLocateRepository {
       capturedAt: DateTime.now(),
     ));
 
-    print("✅ Marked locateId $locateId as captured for plan $planServerId");
+    print(" Marked locateId $locateId as captured for plan $planServerId");
   }
 
   // Check if a locateId has been captured
@@ -78,7 +78,7 @@ class CapturedLocateRepository {
   Future<void> clearAll() async {
     await _openBox();
     await _box!.clear();
-    print("🗑️ Cleared all captured locates");
+    print(" Cleared all captured locates");
   }
 
   // Clear for specific plan (for testing)
@@ -96,6 +96,6 @@ class CapturedLocateRepository {
       await _box!.delete(key);
     }
 
-    print("🗑️ Cleared ${keysToDelete.length} captured locates for plan: $planServerId");
+    print(" Cleared ${keysToDelete.length} captured locates for plan: $planServerId");
   }
 }

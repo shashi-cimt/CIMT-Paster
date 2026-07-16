@@ -123,7 +123,7 @@ class ExecutionHiveRepository {
       bool hasPositiveBalance = balance > 0;
 
       if (!hasPositiveBalance) {
-        // print('🚫 Filtering out plan ${plan.planCode} - balance: $balance');
+        // print(' Filtering out plan ${plan.planCode} - balance: $balance');
       }
 
       return hasPositiveBalance;
@@ -146,9 +146,9 @@ class ExecutionHiveRepository {
         String key = '${plan.planCode}_$i';
         await _box!.put(key, plan);
         savedCount++;
-        // print('💾 Saved plan $i: ${plan.planCode} -> ${plan.villageName} (Balance: ${plan.noOfBalance})');
+        // print(' Saved plan $i: ${plan.planCode} -> ${plan.villageName} (Balance: ${plan.noOfBalance})');
       } catch (e) {
-        print('❌ Failed to save plan $i: $e');
+        print(' Failed to save plan $i: $e');
       }
     }
 

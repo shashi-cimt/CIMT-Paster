@@ -24,7 +24,7 @@ class ErrorReportManager {
     try {
       return await _storeErrorReportExternal(error, level, stackTrace, additionalInfo);
     } catch (e) {
-      print('❌ Error in external error storage, using fallback: $e');
+      print(' Error in external error storage, using fallback: $e');
       return await _storeErrorReportFallback(error, level, stackTrace, additionalInfo);
     }
   }
@@ -112,7 +112,7 @@ class ErrorReportManager {
         String existingContent = await errorFile.readAsString();
         currentLineCount = existingContent.split('\n').where((line) => line.trim().isNotEmpty).length;
       } catch (e) {
-        // print('⚠️ Error reading existing error file: $e');
+        // print(' Error reading existing error file: $e');
       }
     }
 
@@ -129,8 +129,8 @@ class ErrorReportManager {
       flush: true, // Ensure data is written immediately
     );
 
-    // print('🎉 SUCCESS! Error report appended to: $filePath');
-    // print('📊 Total errors in file: ${currentLineCount + 1}');
+    // print(' SUCCESS! Error report appended to: $filePath');
+    // print(' Total errors in file: ${currentLineCount + 1}');
     return filePath;
   }
 
@@ -154,9 +154,9 @@ class ErrorReportManager {
         flush: true,
       );
 
-      // print('🧹 Trimmed file to last $keepCount entries');
+      // print(' Trimmed file to last $keepCount entries');
     } catch (e) {
-      // print('⚠️ Error trimming old entries: $e');
+      // print('⚠ Error trimming old entries: $e');
     }
   }
 
@@ -222,7 +222,7 @@ class ErrorReportManager {
       File? errorFile = await getErrorReportFile();
 
       if (errorFile == null) {
-        // print('📊 No error report file found');
+        // print(' No error report file found');
         return [];
       }
 
@@ -236,14 +236,14 @@ class ErrorReportManager {
           Map<String, dynamic> error = jsonDecode(line);
           errors.add(error);
         } catch (e) {
-          // print('⚠️ Error parsing line: $e');
+          // print(' Error parsing line: $e');
         }
       }
 
-      // print('📊 Found ${errors.length} total error reports');
+      // print(' Found ${errors.length} total error reports');
       return errors;
     } catch (e) {
-      // print('❌ Error reading error reports: $e');
+      // print(' Error reading error reports: $e');
       return [];
     }
   }
@@ -260,10 +260,10 @@ class ErrorReportManager {
       String content = await errorFile.readAsString();
       int count = content.split('\n').where((line) => line.trim().isNotEmpty).length;
 
-      // print('📊 Total error count: $count');
+      // print(' Total error count: $count');
       return count;
     } catch (e) {
-      // print('❌ Error counting errors: $e');
+      // print(' Error counting errors: $e');
       return 0;
     }
   }
@@ -274,7 +274,7 @@ class ErrorReportManager {
       File? errorFile = await getErrorReportFile();
 
       if (errorFile == null) {
-        // print('📊 No error report file found');
+        // print(' No error report file found');
         return;
       }
 
@@ -282,7 +282,7 @@ class ErrorReportManager {
       List<String> lines = content.split('\n').where((line) => line.trim().isNotEmpty).toList();
 
       if (lines.length <= keepCount) {
-        // print('📊 Found ${lines.length} reports, no cleanup needed (keeping $keepCount)');
+        // print(' Found ${lines.length} reports, no cleanup needed (keeping $keepCount)');
         return;
       }
 
@@ -297,9 +297,9 @@ class ErrorReportManager {
       );
 
       int deletedCount = lines.length - keepCount;
-      // print('🧹 Cleanup complete: removed $deletedCount old reports, kept $keepCount recent ones');
+      // print(' Cleanup complete: removed $deletedCount old reports, kept $keepCount recent ones');
     } catch (e) {
-      // print('❌ Error cleaning up old reports: $e');
+      // print(' Error cleaning up old reports: $e');
     }
   }
 
@@ -310,7 +310,7 @@ class ErrorReportManager {
         .where((report) => report['level'] == level.name)
         .toList();
 
-    // print('📊 Found ${filteredReports.length} ${level.name} level reports');
+    // print(' Found ${filteredReports.length} ${level.name} level reports');
     return filteredReports;
   }
 
@@ -332,7 +332,7 @@ class ErrorReportManager {
       stats[level] = (stats[level] ?? 0) + 1;
     }
 
-    // print('📊 Error Statistics: $stats');
+    // print(' Error Statistics: $stats');
     return stats;
   }
 
@@ -342,7 +342,7 @@ class ErrorReportManager {
       List<Map<String, dynamic>> allErrors = await getAllErrorReports();
 
       if (allErrors.isEmpty) {
-        print('⚠️ No errors to export');
+        print(' No errors to export');
         return null;
       }
 
@@ -384,10 +384,10 @@ class ErrorReportManager {
         flush: true,
       );
 
-      // print('📦 Exported ${allErrors.length} errors to: $filePath');
+      // print(' Exported ${allErrors.length} errors to: $filePath');
       return filePath;
     } catch (e) {
-      // print('❌ Error exporting errors: $e');
+      // print(' Error exporting errors: $e');
       return null;
     }
   }
@@ -399,14 +399,14 @@ class ErrorReportManager {
 
       if (errorFile != null && await errorFile.exists()) {
         await errorFile.delete();
-        // print('🧹 All error reports cleared');
+        // print(' All error reports cleared');
         return true;
       }
 
-      // print('⚠️ No error file to clear');
+      // print(' No error file to clear');
       return false;
     } catch (e) {
-      // print('❌ Error clearing error reports: $e');
+      // print(' Error clearing error reports: $e');
       return false;
     }
   }
@@ -428,7 +428,7 @@ class ErrorReportManager {
       }
     }).toList();
 
-    // print('📊 Found ${filteredReports.length} reports between $startDate and $endDate');
+    // print(' Found ${filteredReports.length} reports between $startDate and $endDate');
     return filteredReports;
   }
 
@@ -463,11 +463,11 @@ class ErrorReportManager {
           Map<String, dynamic> error = jsonDecode(line);
           yield error;
         } catch (e) {
-          // print('⚠️ Error parsing line: $e');
+          // print(' Error parsing line: $e');
         }
       }
     } catch (e) {
-      // print('❌ Error streaming error reports: $e');
+      // print(' Error streaming error reports: $e');
     }
   }
 }

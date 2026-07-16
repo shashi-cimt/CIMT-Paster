@@ -138,7 +138,7 @@ class _UploadSeePlanScreenState extends State<UploadSeePlanScreen>
         }
       }
     } catch (e) {
-      print("❌ Error initializing cameras: $e");
+      print(" Error initializing cameras: $e");
     }
   }
 
@@ -166,16 +166,16 @@ class _UploadSeePlanScreenState extends State<UploadSeePlanScreen>
 
     await _cameraController!.initialize();
     _isCameraInitialized = true;
-    print("✅ Camera initialized: ${cameraDescription.name}");
+    print(" Camera initialized: ${cameraDescription.name}");
   }
 
   void _cleanMemory() {
     try {
       imageCache.clear();
       imageCache.clearLiveImages();
-      print("✅ Image cache cleared");
+      print(" Image cache cleared");
     } catch (e) {
-      print("❌ Error clearing image cache: $e");
+      print(" Error clearing image cache: $e");
     }
     _cleanupTempFiles();
   }
@@ -198,7 +198,7 @@ class _UploadSeePlanScreenState extends State<UploadSeePlanScreen>
       }
 
       if (deletedCount > 0) {
-        print("🗑️ Cleaned up $deletedCount temporary image files");
+        print(" Cleaned up $deletedCount temporary image files");
       }
     } catch (e) {
       // Ignore
@@ -332,19 +332,19 @@ class _UploadSeePlanScreenState extends State<UploadSeePlanScreen>
         final total = int.parse(totalMatch.group(1)!);
         final free = int.parse(freeMatch.group(1)!);
         final freePercent = (free / total) * 100;
-        print("📊 Memory: ${freePercent.toStringAsFixed(1)}% free");
+        print(" Memory: ${freePercent.toStringAsFixed(1)}% free");
         return freePercent < 15;
       }
       return false;
     } catch (e) {
-      print("⚠️ Could not check memory: $e");
+      print(" Could not check memory: $e");
       return false;
     }
   }
 
   Future<void> _pickImage(int index) async {
     if (isPickingImage) {
-      print("🔄 Image picking already in progress, skipping");
+      print(" Image picking already in progress, skipping");
       return;
     }
 
@@ -352,7 +352,7 @@ class _UploadSeePlanScreenState extends State<UploadSeePlanScreen>
       final elapsed = DateTime.now().difference(_lastTimeoutTime!);
       if (elapsed.inMinutes < 1) {
         // Fluttertoast.showToast(
-        //   msg: "⚠️ Too many retries. Please wait a moment.",
+        //   msg: " Too many retries. Please wait a moment.",
         //   toastLength: Toast.LENGTH_LONG,
         //   gravity: ToastGravity.CENTER,
         //   backgroundColor: Colors.orange,
@@ -368,11 +368,11 @@ class _UploadSeePlanScreenState extends State<UploadSeePlanScreen>
     }
 
     print("==============================================");
-    print("📸 CAMERA PICKER STARTED - Image ${index + 1}");
+    print(" CAMERA PICKER STARTED - Image ${index + 1}");
     print("==============================================");
-    print("🕐 Timestamp: ${DateTime.now().toIso8601String()}");
-    print("📱 Device Info: ${await _getDeviceInfo()}");
-    print("📍 Image Index: $index");
+    print(" Timestamp: ${DateTime.now().toIso8601String()}");
+    print(" Device Info: ${await _getDeviceInfo()}");
+    print(" Image Index: $index");
     print("==============================================");
 
     try {
@@ -522,11 +522,11 @@ class _UploadSeePlanScreenState extends State<UploadSeePlanScreen>
 
   String _getRequirementText(int index) {
     if (index == 0) {
-      return '📍 Capture within 50m of target location';
+      return ' Capture within 50m of target location';
     } else if (index == 2) {
-      return '📍 Capture within 50m of Image 1 location';
+      return ' Capture within 50m of Image 1 location';
     } else if (index == 6) {
-      return '📍 Capture within 50m of Image 1 location';
+      return ' Capture within 50m of Image 1 location';
     } else {
       return '📸 Capture clear photo of the area';
     }
@@ -570,7 +570,7 @@ class _UploadSeePlanScreenState extends State<UploadSeePlanScreen>
 
     try {
       if (!await imageFile.exists()) {
-        print("║  ❌ ERROR: Source image file does not exist                           ║");
+        print("║   ERROR: Source image file does not exist                           ║");
         print("╚═════════════════════════════════════════════════════════════════════════╝");
         return null;
       }
@@ -629,7 +629,7 @@ class _UploadSeePlanScreenState extends State<UploadSeePlanScreen>
 
       File? out = await _compress(imageFile.path, tempPath, quality);
       if (out == null) {
-        print("║  ❌ Compression failed                                                 ║");
+        print("║   Compression failed                                                 ║");
         print("╚═════════════════════════════════════════════════════════════════════════╝");
         return null;
       }
@@ -648,7 +648,7 @@ class _UploadSeePlanScreenState extends State<UploadSeePlanScreen>
 
       // If below 100 KB, increase quality (less compression)
       if (compressedSizeKB < minTargetKB) {
-        print("║     ⚠️  Below target! Increasing quality...                             ║");
+        print("║       Below target! Increasing quality...                             ║");
         print("║     ↓                                                                   ║");
 
         // Calculate higher quality to increase file size
@@ -671,7 +671,7 @@ class _UploadSeePlanScreenState extends State<UploadSeePlanScreen>
       }
       // If over 200 KB, reduce quality (more compression)
       else if (compressedSizeKB > maxTargetKB) {
-        print("║     ⚠️  Over target! Reducing quality...                                ║");
+        print("║       Over target! Reducing quality...                                ║");
         print("║     ↓                                                                   ║");
 
         final int lowerQuality = (quality * (maxTargetKB / compressedSizeKB)).floor().clamp(15, quality - 5);
@@ -691,7 +691,7 @@ class _UploadSeePlanScreenState extends State<UploadSeePlanScreen>
           print("║     ↓                                                                   ║");
         }
       } else {
-        print("║     ✅ Within target range!                                             ║");
+        print("║      Within target range!                                             ║");
       }
 
       // ========== STEP 5: FINAL SIZE ==========
@@ -701,20 +701,20 @@ class _UploadSeePlanScreenState extends State<UploadSeePlanScreen>
       print("║                                                                         ║");
       print("║  5. FINAL RESULT                                                       ║");
       print("║     ↓                                                                   ║");
-      print("║     📁 Original: ${originalSizeKB.toStringAsFixed(0)} KB                 ║");
-      print("║     📁 Final:    ${finalSizeKB.toStringAsFixed(0)} KB                    ║");
+      print("║      Original: ${originalSizeKB.toStringAsFixed(0)} KB                 ║");
+      print("║      Final:    ${finalSizeKB.toStringAsFixed(0)} KB                    ║");
 
       final savedKB = originalSizeKB - finalSizeKB;
       final savedPercent = originalSizeKB > 0 ? (savedKB / originalSizeKB * 100) : 0;
-      print("║     💾 Saved:    ${savedKB.toStringAsFixed(0)} KB (${savedPercent.toStringAsFixed(0)}%)   ║");
+      print("║      Saved:    ${savedKB.toStringAsFixed(0)} KB (${savedPercent.toStringAsFixed(0)}%)   ║");
 
       final isWithinTarget = finalSizeKB >= minTargetKB && finalSizeKB <= maxTargetKB;
       if (isWithinTarget) {
-        print("║     ✅ Status:   Within target ($minTargetKB-$maxTargetKB KB)           ║");
+        print("║      Status:   Within target ($minTargetKB-$maxTargetKB KB)           ║");
       } else if (finalSizeKB < minTargetKB) {
-        print("║     ⚠️  Status:   Below target (< $minTargetKB KB)                      ║");
+        print("║       Status:   Below target (< $minTargetKB KB)                      ║");
       } else {
-        print("║     ⚠️  Status:   Above target (> $maxTargetKB KB)                      ║");
+        print("║       Status:   Above target (> $maxTargetKB KB)                      ║");
       }
 
       // ========== STEP 6: CLEANUP ==========
@@ -724,14 +724,14 @@ class _UploadSeePlanScreenState extends State<UploadSeePlanScreen>
 
       try {
         await imageFile.delete();
-        print("║     🗑️  Original file deleted                                          ║");
+        print("║       Original file deleted                                          ║");
       } catch (_) {
-        print("║     ⚠️  Could not delete original file                                 ║");
+        print("║       Could not delete original file                                 ║");
       }
 
       // ========== FOOTER ==========
       print("╚═════════════════════════════════════════════════════════════════════════╝");
-      print("📊 Image ${imageIndex + 1}: ${originalSizeKB.toStringAsFixed(0)}KB → ${finalSizeKB.toStringAsFixed(0)}KB (q=$quality)");
+      print(" Image ${imageIndex + 1}: ${originalSizeKB.toStringAsFixed(0)}KB → ${finalSizeKB.toStringAsFixed(0)}KB (q=$quality)");
 
       // ========== SHOW TOAST WITH SIZE ==========
       if (mounted) {
@@ -746,13 +746,13 @@ class _UploadSeePlanScreenState extends State<UploadSeePlanScreen>
         String statusIcon;
         if (finalSizeKB >= minTargetKB && finalSizeKB <= maxTargetKB) {
           toastColor = Colors.green;
-          statusIcon = "✅";
+          statusIcon = "";
         } else if (finalSizeKB < minTargetKB) {
           toastColor = Colors.green;
-          statusIcon = "⚠️";
+          statusIcon = "";
         } else {
           toastColor = Colors.green ;
-          statusIcon = "⚠️";
+          statusIcon = "";
         }
 
         // Fluttertoast.showToast(
@@ -767,7 +767,7 @@ class _UploadSeePlanScreenState extends State<UploadSeePlanScreen>
       return out;
 
     } catch (e, st) {
-      print("║  ❌ ERROR: ${e.toString().substring(0, 70)}...                          ║");
+      print("║   ERROR: ${e.toString().substring(0, 70)}...                          ║");
       print("╚═════════════════════════════════════════════════════════════════════════╝");
 
       await CrashReportManager.storeCrashReport(
@@ -955,7 +955,7 @@ class _UploadSeePlanScreenState extends State<UploadSeePlanScreen>
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  '⚠️ $requirement',
+                  ' $requirement',
                   style: TextStyle(
                     fontSize: 12,
                     fontFamily: "Roboto",
@@ -1026,7 +1026,7 @@ class _UploadSeePlanScreenState extends State<UploadSeePlanScreen>
   }
 
   Future<void> _requestCameraPermissions() async {
-    print("🔐 Checking camera permissions...");
+    print(" Checking camera permissions...");
 
     final permissions = await [
       Permission.camera,
@@ -1034,19 +1034,19 @@ class _UploadSeePlanScreenState extends State<UploadSeePlanScreen>
       Permission.photos,
     ].request();
 
-    print("📊 Permission results:");
+    print(" Permission results:");
     print("   Camera: ${permissions[Permission.camera]}");
     print("   Storage: ${permissions[Permission.storage]}");
     print("   Photos: ${permissions[Permission.photos]}");
 
     if (permissions[Permission.camera] != PermissionStatus.granted) {
-      print("❌ Camera permission NOT granted");
+      print(" Camera permission NOT granted");
       throw PlatformException(
         code: "CAMERA_PERMISSION_DENIED",
         message: S.of(context).cameraPermission,
       );
     }
-    print("✅ All permissions granted");
+    print(" All permissions granted");
   }
 
   void _removeImage(int index) {
@@ -1089,7 +1089,7 @@ class _UploadSeePlanScreenState extends State<UploadSeePlanScreen>
       }
 
       final originalSizeKB = await sourceFile.length() / 1024;
-      print("📊 Image size before storing: ${originalSizeKB.toStringAsFixed(2)} KB");
+      print(" Image size before storing: ${originalSizeKB.toStringAsFixed(2)} KB");
 
       // Generate unique image name
       String imageName = 'Img_${DateTime.now().millisecondsSinceEpoch}.jpg';
@@ -1105,14 +1105,14 @@ class _UploadSeePlanScreenState extends State<UploadSeePlanScreen>
       }
 
       final copiedSizeKB = await copiedFile.length() / 1024;
-      print("📊 Image size after storing: ${copiedSizeKB.toStringAsFixed(2)} KB");
+      print(" Image size after storing: ${copiedSizeKB.toStringAsFixed(2)} KB");
 
       // Delete the source file (temporary compressed file)
       try {
         await sourceFile.delete();
-        print("🗑️ Temporary file deleted: $imagePath");
+        print(" Temporary file deleted: $imagePath");
       } catch (e) {
-        print("⚠️ Could not delete temporary file: $e");
+        print(" Could not delete temporary file: $e");
       }
 
       return imagePathInStorage;
@@ -1820,7 +1820,7 @@ class _UploadSeePlanScreenState extends State<UploadSeePlanScreen>
           );
         }
       } else {
-        print("ℹ️ No locateId to mark as captured (locateId: ${widget.locateId})");
+        print(" No locateId to mark as captured (locateId: ${widget.locateId})");
       }
 
       String uploadDate = DateFormat('yyyy-MM-dd').format(DateTime.now());
@@ -2384,7 +2384,7 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
       return out;
 
     } catch (e, st) {
-      print("❌ Compression error: $e");
+      print(" Compression error: $e");
       return null;
     }
   }
@@ -2411,7 +2411,7 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
 
     try {
       final XFile picture = await _cameraController!.takePicture();
-      print("📸 Picture captured: ${picture.path}");
+      print(" Picture captured: ${picture.path}");
 
       setState(() {
         _isProcessing = true;
@@ -2435,7 +2435,7 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
 
       // Double toast for success (compression toast already shown)
       // Fluttertoast.showToast(
-      //   msg: "✅ Image ${widget.imageIndex + 1} captured",
+      //   msg: " Image ${widget.imageIndex + 1} captured",
       //   toastLength: Toast.LENGTH_SHORT,
       //   gravity: ToastGravity.BOTTOM,
       //   backgroundColor: Colors.green,
@@ -2447,7 +2447,7 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
       }
 
     } catch (e) {
-      print("❌ Capture error: $e");
+      print(" Capture error: $e");
       Fluttertoast.showToast(
         msg: "Failed to capture image: $e",
         toastLength: Toast.LENGTH_LONG,

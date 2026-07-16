@@ -26,7 +26,7 @@ class CrashReportManager {
 
       return filePath;
     } catch (e) {
-      // print('❌ Error in external crash storage, using fallback: $e');
+      // print(' Error in external crash storage, using fallback: $e');
       try {
         filePath = await _storeCrashReportFallback(error, stackTrace, additionalInfo);
         // Still try to send to Firebase even if local storage fails
@@ -52,7 +52,7 @@ class CrashReportManager {
 
       return filePath;
     } catch (e) {
-      // print('❌ Error storing log message: $e');
+      // print(' Error storing log message: $e');
       // Don't throw here - logging should be non-blocking
       return 'Failed to store log: $e';
     }
@@ -126,11 +126,11 @@ class CrashReportManager {
         encoding: utf8,
       );
 
-      // print('📝 Log message saved to: $filePath');
+      // print(' Log message saved to: $filePath');
       return filePath;
 
     } catch (e) {
-      // print('❌ Error storing log message: $e');
+      // print(' Error storing log message: $e');
       // Don't throw here - logging should be non-blocking
       return 'Failed to store log: $e';
     }
@@ -170,7 +170,7 @@ class CrashReportManager {
       // 1. Log the error to Firebase logs
       FirebaseCrashlytics.instance.log("""
 ========================================
-🚨 CRASH REPORT - $timestamp
+ CRASH REPORT - $timestamp
 ========================================
 ERROR: $error
 REASON: ${reason ?? 'No reason provided'}
@@ -207,7 +207,7 @@ ADDITIONAL INFO: ${additionalInfo?.toString() ?? 'None'}
         fatal: false,
       );
 
-      // print('✅ Crash report sent to Firebase Crashlytics');
+      // print(' Crash report sent to Firebase Crashlytics');
     } catch (e) {
       // Silently fail - don't crash the app
       // print("Failed to send crash report to Firebase: $e");
@@ -290,7 +290,7 @@ ADDITIONAL INFO: ${additionalInfo?.toString() ?? 'None'}
       encoding: utf8,
     );
 
-    // print('🎉 SUCCESS! Crash report saved to: $filePath');
+    // print(' SUCCESS! Crash report saved to: $filePath');
     return filePath;
   }
 
@@ -344,7 +344,7 @@ ADDITIONAL INFO: ${additionalInfo?.toString() ?? 'None'}
 
     // Handle other uncaught errors in the root isolate
     PlatformDispatcher.instance.onError = (error, stack) {
-      // print('🚨 Uncaught error: $error');
+      // print(' Uncaught error: $error');
 
       // Store crash report asynchronously
       storeCrashReport(
@@ -419,7 +419,7 @@ ADDITIONAL INFO: ${additionalInfo?.toString() ?? 'None'}
       // print('Error accessing fallback storage: $e');
     }
 
-    // print('📊 Found ${allReports.length} total crash reports');
+    // print(' Found ${allReports.length} total crash reports');
     return allReports;
   }
 
@@ -429,7 +429,7 @@ ADDITIONAL INFO: ${additionalInfo?.toString() ?? 'None'}
       List<File> reports = await getAllCrashReports();
 
       if (reports.length <= keepCount) {
-        // print('📊 Found ${reports.length} reports, no cleanup needed (keeping $keepCount)');
+        // print(' Found ${reports.length} reports, no cleanup needed (keeping $keepCount)');
         return;
       }
 
@@ -443,13 +443,13 @@ ADDITIONAL INFO: ${additionalInfo?.toString() ?? 'None'}
           await reports[i].delete();
           deletedCount++;
         } catch (e) {
-          // print('⚠️ Failed to delete report ${reports[i].path}: $e');
+          // print('⚠ Failed to delete report ${reports[i].path}: $e');
         }
       }
 
-      // print('🧹 Cleanup complete: deleted $deletedCount old reports, kept $keepCount recent ones');
+      // print(' Cleanup complete: deleted $deletedCount old reports, kept $keepCount recent ones');
     } catch (e) {
-      // print('❌ Error cleaning up old reports: $e');
+      // print(' Error cleaning up old reports: $e');
     }
   }
 

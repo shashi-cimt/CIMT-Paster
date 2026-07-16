@@ -296,11 +296,11 @@ class _SUSubMapScreenState extends State<SUSubMapScreen> {
   //   }
   // }
   void _generateMarkersFromGroup() async {
-    print('🔍 Starting marker generation...');
+    print(' Starting marker generation...');
 
     // Load uploaded metadata first
     await _loadUploadedPrintIds();
-    print('📁 Loaded ${uploadedPrintIds.length} uploaded print IDs');
+    print(' Loaded ${uploadedPrintIds.length} uploaded print IDs');
 
     // Clear existing markers before regenerating
     markers.clear();
@@ -318,13 +318,13 @@ class _SUSubMapScreenState extends State<SUSubMapScreen> {
 
       if (shouldHideMarker) {
         hiddenCount++;
-        print('🚫 Hiding marker for printId: ${p.printId} - printNo: ${p.printNo}');
+        print(' Hiding marker for printId: ${p.printId} - printNo: ${p.printNo}');
         continue;
       }
 
       // Validate coordinates before creating marker
       if (!_isValidCoordinate(p.latitude, p.longitude)) {
-        print('⚠️ Invalid coordinates for printId: ${p.printId}');
+        print(' Invalid coordinates for printId: ${p.printId}');
         continue;
       }
 
@@ -369,9 +369,9 @@ class _SUSubMapScreenState extends State<SUSubMapScreen> {
 
     if (mounted) {
       setState(() {});
-      print('✅ Generated ${markers.length} markers');
-      print('🚫 Hidden ${hiddenCount} markers (already uploaded)');
-      print('📊 Total processed: ${totalProcessed}');
+      print(' Generated ${markers.length} markers');
+      print(' Hidden ${hiddenCount} markers (already uploaded)');
+      print(' Total processed: ${totalProcessed}');
     }
   }
 
@@ -449,16 +449,16 @@ class _SUSubMapScreenState extends State<SUSubMapScreen> {
 //         uploadedPrintIds = printIds;
 //       });
 //
-//       print('📁 Successfully loaded ${uploadedPrintIds.length} uploaded print IDs');
+//       print(' Successfully loaded ${uploadedPrintIds.length} uploaded print IDs');
 //
 //       // Debug: Print first few IDs for verification
 //       if (uploadedPrintIds.isNotEmpty) {
 //         final sampleIds = uploadedPrintIds.take(5).join(', ');
-//         print('📋 Sample uploaded IDs: $sampleIds${uploadedPrintIds.length > 5 ? '...' : ''}');
+//         print(' Sample uploaded IDs: $sampleIds${uploadedPrintIds.length > 5 ? '...' : ''}');
 //       }
 //
 //     } catch (e) {
-//       print('❌ Error loading uploaded print IDs: $e');
+//       print(' Error loading uploaded print IDs: $e');
 //       // Set empty list to prevent null errors
 //       setState(() {
 //         uploadedPrintIds = [];
@@ -492,7 +492,7 @@ class _SUSubMapScreenState extends State<SUSubMapScreen> {
   }
 // Method to manually refresh markers after upload
   Future<void> refreshMarkersAfterUpload() async {
-    print('🔄 Refreshing markers after upload...');
+    print(' Refreshing markers after upload...');
 
     // Clear existing markers
     markers.clear();
@@ -508,7 +508,7 @@ class _SUSubMapScreenState extends State<SUSubMapScreen> {
     if (markers.isNotEmpty) {
       _fitMarkersToMap();
     } else {
-      print('ℹ️ No markers remaining after refresh');
+      print('ℹ No markers remaining after refresh');
     }
   }
 

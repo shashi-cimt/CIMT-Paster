@@ -771,7 +771,7 @@ Note: Keep the password secure and do not share publicly.
                       ),
                       SizedBox(height: 8),
                       Text(
-                        '🔓 Normal: Share logs as-is\n🔒 Encrypted: Secure logs with password protection',
+                        ' Normal: Share logs as-is\n Encrypted: Secure logs with password protection',
                         style: TextstyleGlobal.bodyTextStyle.copyWith(
                           fontSize: 11,
                           color: Colors.grey[700],

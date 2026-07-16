@@ -452,7 +452,7 @@ class Auth {
     try {
       // ========== DEBUG: PRINT PAYLOAD ==========
       print("==============================================");
-      print("📤 EXECUTION UPLOAD PAYLOAD");
+      print(" EXECUTION UPLOAD PAYLOAD");
       print("==============================================");
       print("ServerPlanId: ${metadata.ServerPlanId}");
       print("locateId: ${metadata.locateId}");
@@ -465,7 +465,7 @@ class Auth {
       print("NetworkStatus: ${metadata.networkFlagString}");
       print("UploadType: ${metadata.uploadType ?? 'execution'}");
       print("----------------------------------------------");
-      print("📍 GPS Coordinates:");
+      print(" GPS Coordinates:");
       print("  Clean: (${metadata.CleanLatitude}, ${metadata.CleanLongitude})");
       print("  WB: (${metadata.WBLatitude}, ${metadata.WBLongitude})");
       print("  Spray: (${metadata.SprayLatitude}, ${metadata.SprayLongitude})");
@@ -474,7 +474,7 @@ class Auth {
       print("  New6: (${metadata.New6Latitude}, ${metadata.New6Longitude})");
       print("  New7: (${metadata.New7Latitude}, ${metadata.New7Longitude})");
       print("----------------------------------------------");
-      print("📷 Images:");
+      print(" Images:");
       print("  CleanImage: ${metadata.CleanImage?.split('/').last}");
       print("  WBImage: ${metadata.WBImage?.split('/').last}");
       print("  SprayImage: ${metadata.SprayImage?.split('/').last}");
@@ -497,7 +497,7 @@ class Auth {
         if (response.planId == metadata.ServerPlanId &&
             existingPrintNo == metadata.PrintNo &&
             response.isSuccess == true) {
-          print("✅ ALREADY SYNCED: ${metadata.ServerPlanId}_${metadata.PrintNo}");
+          print(" ALREADY SYNCED: ${metadata.ServerPlanId}_${metadata.PrintNo}");
 
           await ExecutionImageUploadHiveRepository().deleteMetadata(
             metadata.ServerPlanId!,
@@ -541,7 +541,7 @@ class Auth {
 
       // ========== DEBUG: PRINT RESPONSE ==========
       print("==============================================");
-      print("📥 EXECUTION UPLOAD RESPONSE");
+      print(" EXECUTION UPLOAD RESPONSE");
       print("Status Code: ${response.statusCode}");
       print("Response: ${response.data}");
       print("==============================================");
@@ -1011,7 +1011,6 @@ class Auth {
       'Near_Longitude': metadata.NearLongitude ?? '0.0',
       'Far_Latitude': metadata.FarLatitude ?? '0.0',
       'Far_Longitude': metadata.FarLongitude ?? '0.0',
-      'New6_Latitude': metadata.New6Latitude ?? '0.0',
       'New6_Latitude': metadata.New6Latitude ?? '0.0',
       'New6_Longitude': metadata.New6Longitude ?? '0.0',
       'New7_Latitude': metadata.New7Latitude ?? '0.0',

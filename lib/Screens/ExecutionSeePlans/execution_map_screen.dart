@@ -653,43 +653,7 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
     }
   }
 
-  // Future<void> _getAddressFromLatLng(double latitude, double longitude, {bool showToast = false}) async {
-  //   try {
-  //     List<Placemark> placemarks = await GeocodingPlatform.instance!.placemarkFromCoordinates(latitude, longitude);
-  //     Placemark place = placemarks[0];
-  //     String address = "${place.name}, ${place.subLocality}, ${place.locality}, ${place.country}";
-  //
-  //     setState(() {
-  //       currentAddress = address;
-  //     });
-  //
-  //     if (showToast) {
-  //       Fluttertoast.showToast(
-  //         msg: "${S.of(context).address}: $address",
-  //         toastLength: Toast.LENGTH_SHORT,
-  //         gravity: ToastGravity.BOTTOM,
-  //         backgroundColor: Colors.black87,
-  //         textColor: Colors.white,
-  //       );
-  //     }
-  //   } catch (e) {
-  //     // print("Error getting address (may be offline): $e");
-  //     String fallbackAddress = "Lat: ${latitude.toStringAsFixed(6)}, Lng: ${longitude.toStringAsFixed(6)}";
-  //     setState(() {
-  //       currentAddress = fallbackAddress;
-  //     });
-  //
-  //     if (showToast) {
-  //       Fluttertoast.showToast(
-  //         msg: S.of(context).addressUnavailable,
-  //         toastLength: Toast.LENGTH_SHORT,
-  //         gravity: ToastGravity.BOTTOM,
-  //         backgroundColor: Colors.orange,
-  //         textColor: Colors.white,
-  //       );
-  //     }
-  //   }
-  // }
+
   Future<void> _getAddressFromLatLng(double latitude, double longitude, {bool showToast = false}) async {
     try {
       List<Placemark> placemarks =
@@ -854,34 +818,6 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
                 ),
               ),
 
-              // Street View
-              // Positioned(
-              //   right: 10,
-              //   bottom: 100,
-              //   child: FloatingActionButton(
-              //     heroTag: "street",
-              //     backgroundColor: Font.primaryColor,
-              //     onPressed: () {
-              //       if (_currentPosition == null) return;
-              //
-              //       Navigator.push(
-              //         context,
-              //         MaterialPageRoute(
-              //           builder: (_) => Execution360ViewScreen(
-              //             latitude: _currentPosition!.latitude,
-              //             longitude: _currentPosition!.longitude,
-              //           ),
-              //         ),
-              //       );
-              //     },
-              //     child: const Icon(
-              //       Icons.travel_explore,
-              //       color: Colors.white,
-              //     ),
-              //   ),
-              // ),
-
-              // NEXT BUTTON
               if (_showNextButton)
                 Positioned(
                   left: 10,

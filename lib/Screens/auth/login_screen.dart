@@ -103,7 +103,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     try {
       Directory? externalDir = await getExternalStorageDirectory();
       if (externalDir == null) {
-        // print('❌ Unable to access external storage');
+        // print(' Unable to access external storage');
         return null;
       }
 
@@ -120,18 +120,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         uid = uid.trim();
 
         if (uid.length == 16 && RegExp(r'^\d{16}$').hasMatch(uid)) {
-          // print('✅ Retrieved $roleName UID: $uid from $folderName');
+          // print(' Retrieved $roleName UID: $uid from $folderName');
           return uid;
         } else {
-          // print('⚠️ Invalid UID format in $folderName');
+          // print(' Invalid UID format in $folderName');
         }
       } else {
-        // print('⚠️ UID file not found in $folderName');
+        // print(' UID file not found in $folderName');
       }
 
       return null;
     } catch (e) {
-      // print('❌ Error getting role-specific UID: $e');
+      // print(' Error getting role-specific UID: $e');
       return null;
     }
   }
@@ -188,7 +188,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
             await TokenManager().initializeTokenMonitoring(token);
 
-            // ✅ Start inactivity timer
+            //  Start inactivity timer
             // TokenManager().startInactivityTimer();
 
             String folderName = (selectedRoleId == 6) ? 'CIMTDWP' : 'CIMTDWPSUP';
@@ -380,7 +380,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                     setState(() {
                                       selectedRole = value!;
                                       selectedRoleId = 6; // Pastor ID is 6 -> CIMTDWP folder
-                                      // print('✅ Selected: $selectedRole (ID: $selectedRoleId) -> CIMTDWP');
+                                      // print(' Selected: $selectedRole (ID: $selectedRoleId) -> CIMTDWP');
                                     });
                                   },
                                   contentPadding: EdgeInsets.zero,
@@ -399,7 +399,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                     setState(() {
                                       selectedRole = value!;
                                       selectedRoleId = 7; // Supervisor ID is 7 -> CIMTDWPSUP folder
-                                      // print('✅ Selected: $selectedRole (ID: $selectedRoleId) -> CIMTDWPSUP');
+                                      // print(' Selected: $selectedRole (ID: $selectedRoleId) -> CIMTDWPSUP');
                                     });
                                   },
                                   dense: false,

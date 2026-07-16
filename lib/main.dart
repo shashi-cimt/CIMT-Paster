@@ -60,7 +60,7 @@ void main() {
           print("   - ${cam.name} (${cam.lensDirection})");
         }
       } else {
-        print("⚠️ No cameras found on device");
+        print(" No cameras found on device");
         cameras = [];
       }
     } catch (e) {
@@ -275,7 +275,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           _SUcheckAndSyncPendingUploads();
         });
       } else {
-        print("📸 Camera is active, skipping connectivity-triggered sync");
+        print(" Camera is active, skipping connectivity-triggered sync");
       }
     }
   }
@@ -283,7 +283,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   void _startPeriodicSync() {
     _syncTimer = Timer.periodic(Duration(minutes: 5), (timer) async {
       if (UploadSeePlanScreen.isCameraActive) {
-        print("📸 Camera is active, skipping periodic sync");
+        print(" Camera is active, skipping periodic sync");
         return;
       }
 

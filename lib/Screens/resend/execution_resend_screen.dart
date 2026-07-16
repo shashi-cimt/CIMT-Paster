@@ -45,78 +45,78 @@ class _ResendScreenState extends ConsumerState<ResendScreen> with SingleTickerPr
 
   @override
   void initState() {
-    print('🔵 [initState] ResendScreen initialized');
+    print(' [initState] ResendScreen initialized');
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _tabController.addListener(() {
-      print('🔄 [TabController Listener] Tab index changed to: ${_tabController.index}');
+      print(' [TabController Listener] Tab index changed to: ${_tabController.index}');
       if (!_tabController.indexIsChanging) {
         loadResponseData();
         _searchController.clear();
-        print('🧹 [TabController Listener] Search cleared and data reloaded');
+        print(' [TabController Listener] Search cleared and data reloaded');
       }
     });
 
     _searchController.addListener(_filterData);
     loadResponseData();
     userDetails();
-    print('✅ [initState] Setup complete');
+    print(' [initState] Setup complete');
   }
 
   void userDetails() async{
-    print('🔵 [userDetails] Fetching user UID...');
+    print(' [userDetails] Fetching user UID...');
     try {
       uidDetails = await getFirstUID();
-      print('✅ [userDetails] UID fetched: $uidDetails');
+      print(' [userDetails] UID fetched: $uidDetails');
     } catch (e) {
-      print('❌ [userDetails] Error fetching UID: $e');
+      print(' [userDetails] Error fetching UID: $e');
     }
   }
 
   // UPDATED: More robust data loading with proper status filtering
   void loadResponseData() async {
-    print('🔵 [loadResponseData] Loading response data... Tab index: ${_tabController.index}');
+    print(' [loadResponseData] Loading response data... Tab index: ${_tabController.index}');
     try {
       List<ApiResponseData> responses;
 
       if (_tabController.index == 0) {
         // Failed tab - get ONLY items where the LATEST response is failed
-        print('📋 [loadResponseData] Loading FAILED responses');
+        print(' [loadResponseData] Loading FAILED responses');
         responses = await _apiResponseRepo.getUniqueFailedResponses();
-        print('📊 [loadResponseData] Failed responses fetched: ${responses.length}');
+        print(' [loadResponseData] Failed responses fetched: ${responses.length}');
         // Double check: filter out any items that have succeeded in their latest attempt
         responses = responses.where((item) => !item.isSuccess).toList();
-        print('📊 [loadResponseData] After success filter: ${responses.length}');
+        print(' [loadResponseData] After success filter: ${responses.length}');
       } else {
         // Success tab - get ONLY items where the LATEST response is successful
-        print('📋 [loadResponseData] Loading SUCCESS responses');
+        print(' [loadResponseData] Loading SUCCESS responses');
         responses = await _apiResponseRepo.loadUniqueResponses();
-        print('📊 [loadResponseData] Success responses fetched: ${responses.length}');
+        print(' [loadResponseData] Success responses fetched: ${responses.length}');
         // Filter to only show successful items
         responses = responses.where((item) => item.isSuccess).toList();
-        print('📊 [loadResponseData] After success filter: ${responses.length}');
+        print(' [loadResponseData] After success filter: ${responses.length}');
       }
 
       setState(() {
         responseData = responses;
         filteredResponseData = responses;
-        print('✅ [loadResponseData] Data loaded successfully. Total: ${responseData.length}');
+        print(' [loadResponseData] Data loaded successfully. Total: ${responseData.length}');
       });
     } catch (e) {
-      print('❌ [loadResponseData] Error loading data: $e');
+      print(' [loadResponseData] Error loading data: $e');
     }
   }
 
   void _filterData() {
-    print('🔵 [_filterData] Filtering data... Search query: "${_searchController.text}"');
+    print(' [_filterData] Filtering data... Search query: "${_searchController.text}"');
     final query = _searchController.text.toLowerCase().trim();
 
     if (query.isEmpty) {
-      print('📋 [_filterData] Query empty, showing all data');
+      print(' [_filterData] Query empty, showing all data');
       setState(() {
         filteredResponseData = responseData;
       });
-      print('✅ [_filterData] Filtered data count: ${filteredResponseData.length}');
+      print(' [_filterData] Filtered data count: ${filteredResponseData.length}');
       return;
     }
 
@@ -137,50 +137,50 @@ class _ResendScreenState extends ConsumerState<ResendScreen> with SingleTickerPr
             status.contains(query);
 
         if (matches) {
-          print('🔍 [_filterData] Match found: ${item.originalData.PrintNo} - $status');
+          print(' [_filterData] Match found: ${item.originalData.PrintNo} - $status');
         }
         return matches;
       }).toList();
-      print('✅ [_filterData] Filtered data count: ${filteredResponseData.length} out of ${responseData.length}');
+      print(' [_filterData] Filtered data count: ${filteredResponseData.length} out of ${responseData.length}');
     });
   }
 
   void _clearSearch() {
-    print('🔵 [_clearSearch] Clearing search');
+    print(' [_clearSearch] Clearing search');
     _searchController.clear();
     setState(() {
       filteredResponseData = responseData;
     });
-    print('✅ [_clearSearch] Search cleared, data restored: ${filteredResponseData.length} items');
+    print(' [_clearSearch] Search cleared, data restored: ${filteredResponseData.length} items');
   }
 
   @override
   void dispose() {
-    print('🔵 [dispose] Cleaning up resources');
+    print(' [dispose] Cleaning up resources');
     _horizontalScrollController.dispose();
     _verticalScrollController.dispose();
     _tabController.dispose();
     _searchController.dispose();
     super.dispose();
-    print('✅ [dispose] Resources disposed');
+    print(' [dispose] Resources disposed');
   }
 
   // UPDATED: Improved resend logic with better status handling
   void _resendItem(String planId) async {
-    print('🔵 [_resendItem] Starting resend for planId: $planId');
+    print(' [_resendItem] Starting resend for planId: $planId');
     setState(() {
       resendingItems.add(planId);
-      print('📋 [_resendItem] Added to resending items. Current set: ${resendingItems.length}');
+      print(' [_resendItem] Added to resending items. Current set: ${resendingItems.length}');
     });
 
     try {
       final responseItem = responseData.firstWhere((item) => item.planId == planId);
-      print('📋 [_resendItem] Found response item: ${responseItem.originalData.PlanCode}');
+      print(' [_resendItem] Found response item: ${responseItem.originalData.PlanCode}');
 
       final apiService = Auth();
-      print('🔄 [_resendItem] Calling API to resend plan metadata...');
+      print(' [_resendItem] Calling API to resend plan metadata...');
 
-      // ✅ Use the new resend method
+      //  Use the new resend method
       Map<String, dynamic> result = await apiService.resendPlanMetadata(responseItem.originalData);
       if (result['success'] == true &&
           result['data'] != null &&
@@ -191,9 +191,9 @@ class _ResendScreenState extends ConsumerState<ResendScreen> with SingleTickerPr
         responseItem.originalData.printId =
             serverData['printId']?.toString();
 
-        print("✅ Updated CAN ID : ${responseItem.originalData.printId}");
+        print(" Updated CAN ID : ${responseItem.originalData.printId}");
       }
-      print('📊 [_resendItem] API Response: success=${result['success']}, message=${result['message']}');
+      print(' [_resendItem] API Response: success=${result['success']}, message=${result['message']}');
 
       bool isSuccess = result['success'] ?? false;
       String remarks = result['message'] ?? (isSuccess
@@ -201,10 +201,10 @@ class _ResendScreenState extends ConsumerState<ResendScreen> with SingleTickerPr
           : S.of(context).resendFailed);
       int statusCode = isSuccess ? 200 : 400;
 
-      print('🔄 [_resendItem] Updating response status in database...');
+      print(' [_resendItem] Updating response status in database...');
       await _apiResponseRepo.updateResponseStatus(planId, isSuccess, remarks, statusCode);
       loadResponseData();
-      print('✅ [_resendItem] Response status updated');
+      print(' [_resendItem] Response status updated');
 
       if (isSuccess) {
         print('🎉 [_resendItem] Resend SUCCESSFUL for planId: $planId');
@@ -214,7 +214,7 @@ class _ResendScreenState extends ConsumerState<ResendScreen> with SingleTickerPr
           duration: Duration(seconds: 3),
         ));
       } else {
-        print('⚠️ [_resendItem] Resend FAILED for planId: $planId - $remarks');
+        print(' [_resendItem] Resend FAILED for planId: $planId - $remarks');
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('${S.of(context).resendFailedPlan} $planId: $remarks'),
           backgroundColor: Colors.red,
@@ -222,7 +222,7 @@ class _ResendScreenState extends ConsumerState<ResendScreen> with SingleTickerPr
         ));
       }
     } catch (e) {
-      print('❌ [_resendItem] Error during resend: $e');
+      print(' [_resendItem] Error during resend: $e');
       String errorMessage = e.toString();
       await _apiResponseRepo.updateResponseStatus(planId, false, errorMessage, 0);
       loadResponseData();
@@ -235,7 +235,7 @@ class _ResendScreenState extends ConsumerState<ResendScreen> with SingleTickerPr
     } finally {
       setState(() {
         resendingItems.remove(planId);
-        print('🧹 [_resendItem] Removed from resending items. Remaining: ${resendingItems.length}');
+        print(' [_resendItem] Removed from resending items. Remaining: ${resendingItems.length}');
       });
     }
   }
@@ -243,7 +243,7 @@ class _ResendScreenState extends ConsumerState<ResendScreen> with SingleTickerPr
 
 
   void _showImagePopup(ApiResponseData responseData) {
-    print('🔵 [_showImagePopup] Showing image popup for plan: ${responseData.originalData.PlanCode}');
+    print(' [_showImagePopup] Showing image popup for plan: ${responseData.originalData.PlanCode}');
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -363,7 +363,7 @@ class _ResendScreenState extends ConsumerState<ResendScreen> with SingleTickerPr
                 SizedBox(height: 16),
                 ElevatedButton(
                   onPressed: () {
-                    print('🔵 [_showImagePopup] Closing image popup');
+                    print(' [_showImagePopup] Closing image popup');
                     Navigator.pop(context);
                   },
                   child: Text(S.of(context).close),
@@ -445,7 +445,7 @@ class _ResendScreenState extends ConsumerState<ResendScreen> with SingleTickerPr
                   SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: () {
-                      print('🔵 [_showRemarksDialog] Navigating to full history');
+                      print(' [_showRemarksDialog] Navigating to full history');
                       _showFullHistory(planId);
                     },
                     style: ElevatedButton.styleFrom(
@@ -463,7 +463,7 @@ class _ResendScreenState extends ConsumerState<ResendScreen> with SingleTickerPr
           actions: [
             TextButton(
               onPressed: () {
-                print('🔵 [_showRemarksDialog] Closing remarks dialog');
+                print(' [_showRemarksDialog] Closing remarks dialog');
                 Navigator.of(context).pop();
               },
               child: Text('Close'),
@@ -697,7 +697,7 @@ class _ResendScreenState extends ConsumerState<ResendScreen> with SingleTickerPr
                     ),
                     SizedBox(height: 8),
                     Text(
-                      '🔓 Normal: Share ZIP as-is\n🔒 Encrypted: Secure with password',
+                      ' Normal: Share ZIP as-is\n Encrypted: Secure with password',
                       style: TextStyle(
                         fontSize: 11,
                         color: Colors.grey[700],
@@ -710,7 +710,7 @@ class _ResendScreenState extends ConsumerState<ResendScreen> with SingleTickerPr
               SizedBox(height: 20),
               InkWell(
                 onTap: () {
-                  print('🔵 [_showShareOptionsDialog] Normal ZIP sharing selected');
+                  print(' [_showShareOptionsDialog] Normal ZIP sharing selected');
                   Navigator.pop(context);
                   _createZipAndShare(responseData, withEncryption: false);
                 },
@@ -741,7 +741,7 @@ class _ResendScreenState extends ConsumerState<ResendScreen> with SingleTickerPr
               SizedBox(height: 12),
               InkWell(
                 onTap: () {
-                  print('🔵 [_showShareOptionsDialog] Encrypted ZIP sharing selected');
+                  print(' [_showShareOptionsDialog] Encrypted ZIP sharing selected');
                   Navigator.pop(context);
                   _createZipAndShare(responseData, withEncryption: true);
                 },
@@ -774,7 +774,7 @@ class _ResendScreenState extends ConsumerState<ResendScreen> with SingleTickerPr
           actions: [
             TextButton(
               onPressed: () {
-                print('🔵 [_showShareOptionsDialog] Closing share options dialog');
+                print(' [_showShareOptionsDialog] Closing share options dialog');
                 Navigator.pop(context);
               },
               child: Text(
@@ -789,11 +789,11 @@ class _ResendScreenState extends ConsumerState<ResendScreen> with SingleTickerPr
   }
 
   Future<void> _createZipAndShare(ApiResponseData responseData, {bool withEncryption = false}) async {
-    print('🔵 [_createZipAndShare] Creating ZIP for plan: ${responseData.originalData.PlanCode}, encryption: $withEncryption');
+    print(' [_createZipAndShare] Creating ZIP for plan: ${responseData.originalData.PlanCode}, encryption: $withEncryption');
 
     setState(() {
       _isCreatingZip = true;
-      print('🔒 [_createZipAndShare] ZIP creation status: true');
+      print(' [_createZipAndShare] ZIP creation status: true');
     });
 
     try {
@@ -823,7 +823,7 @@ class _ResendScreenState extends ConsumerState<ResendScreen> with SingleTickerPr
 
       final archive = Archive();
       final data = responseData.originalData;
-      print('📦 [_createZipAndShare] Archive created, preparing data...');
+      print(' [_createZipAndShare] Archive created, preparing data...');
 
       Map<String, dynamic> planData = {
         'ServerPlanId': data.ServerPlanId?.toString() ?? 'N/A',
@@ -857,7 +857,7 @@ class _ResendScreenState extends ConsumerState<ResendScreen> with SingleTickerPr
 
       String jsonContent = JsonEncoder.withIndent('  ').convert(planData);
       List<int> jsonBytes = utf8.encode(jsonContent);
-      print('📄 [_createZipAndShare] JSON data prepared, size: ${jsonBytes.length} bytes');
+      print(' [_createZipAndShare] JSON data prepared, size: ${jsonBytes.length} bytes');
 
       if (withEncryption) {
         jsonBytes = _encryptFileBytes(jsonBytes);
@@ -866,14 +866,14 @@ class _ResendScreenState extends ConsumerState<ResendScreen> with SingleTickerPr
           jsonBytes.length,
           jsonBytes,
         ));
-        print('🔐 [_createZipAndShare] JSON data encrypted and added to archive');
+        print(' [_createZipAndShare] JSON data encrypted and added to archive');
       } else {
         archive.addFile(ArchiveFile(
           'plan_data.json',
           jsonContent.length,
           jsonContent.codeUnits,
         ));
-        print('📄 [_createZipAndShare] JSON data added to archive');
+        print(' [_createZipAndShare] JSON data added to archive');
       }
 
       List<String?> imagePaths = [
@@ -899,12 +899,12 @@ class _ResendScreenState extends ConsumerState<ResendScreen> with SingleTickerPr
       int imageCount = 0;
       for (int i = 0; i < imagePaths.length; i++) {
         if (imagePaths[i] != null && imagePaths[i]!.isNotEmpty) {
-          print('🖼️ [_createZipAndShare] Processing image ${imageNames[i]}');
+          print(' [_createZipAndShare] Processing image ${imageNames[i]}');
           try {
             final file = File(imagePaths[i]!);
             if (await file.exists()) {
               List<int> bytes = await file.readAsBytes();
-              print('📊 [_createZipAndShare] Image ${imageNames[i]} size: ${bytes.length} bytes');
+              print(' [_createZipAndShare] Image ${imageNames[i]} size: ${bytes.length} bytes');
 
               if (withEncryption) {
                 bytes = _encryptFileBytes(bytes);
@@ -913,21 +913,21 @@ class _ResendScreenState extends ConsumerState<ResendScreen> with SingleTickerPr
                   bytes.length,
                   bytes,
                 ));
-                print('🔐 [_createZipAndShare] Image ${imageNames[i]} encrypted and added');
+                print(' [_createZipAndShare] Image ${imageNames[i]} encrypted and added');
               } else {
                 archive.addFile(ArchiveFile(
                   imageNames[i],
                   bytes.length,
                   bytes,
                 ));
-                print('🖼️ [_createZipAndShare] Image ${imageNames[i]} added');
+                print(' [_createZipAndShare] Image ${imageNames[i]} added');
               }
               imageCount++;
             } else {
-              print('⚠️ [_createZipAndShare] Image ${imageNames[i]} file not found');
+              print(' [_createZipAndShare] Image ${imageNames[i]} file not found');
             }
           } catch (e) {
-            print('❌ [_createZipAndShare] Error adding image ${imageNames[i]}: $e');
+            print(' [_createZipAndShare] Error adding image ${imageNames[i]}: $e');
           }
         }
       }
@@ -949,24 +949,24 @@ Note: Keep the password secure and do not share publicly.
 ''';
         var infoBytes = utf8.encode(encryptionInfo);
         archive.addFile(ArchiveFile('ENCRYPTION_INFO.txt', infoBytes.length, infoBytes));
-        print('📝 [_createZipAndShare] Encryption info file added');
+        print(' [_createZipAndShare] Encryption info file added');
       }
 
-      print('🔄 [_createZipAndShare] Encoding ZIP archive...');
+      print(' [_createZipAndShare] Encoding ZIP archive...');
       var zipData = ZipEncoder().encode(archive);
       if (zipData == null) {
         throw Exception('Failed to create ZIP file');
       }
-      print('✅ [_createZipAndShare] ZIP encoding complete, size: ${zipData.length} bytes');
+      print(' [_createZipAndShare] ZIP encoding complete, size: ${zipData.length} bytes');
 
       final tempDir = await getTemporaryDirectory();
       final zipFileName = 'Plan_${data.ServerPlanId}_${data.VillageCode}_${data.PlanCode}_${data.PrintNo}${withEncryption ? '_encrypted' : ''}.zip';
       final zipFile = File('${tempDir.path}/$zipFileName');
       await zipFile.writeAsBytes(zipData);
-      print('💾 [_createZipAndShare] ZIP file saved: ${zipFile.path}');
+      print(' [_createZipAndShare] ZIP file saved: ${zipFile.path}');
 
       Navigator.pop(context);
-      print('🔄 [_createZipAndShare] Sharing ZIP file...');
+      print(' [_createZipAndShare] Sharing ZIP file...');
 
       await _shareFile(
           zipFile.path,
@@ -975,7 +975,7 @@ Note: Keep the password secure and do not share publicly.
       );
 
     } catch (e) {
-      print('❌ [_createZipAndShare] Error creating ZIP: $e');
+      print(' [_createZipAndShare] Error creating ZIP: $e');
       if (Navigator.canPop(context)) {
         Navigator.pop(context);
       }
@@ -990,29 +990,29 @@ Note: Keep the password secure and do not share publicly.
     } finally {
       setState(() {
         _isCreatingZip = false;
-        print('🔒 [_createZipAndShare] ZIP creation status: false');
+        print(' [_createZipAndShare] ZIP creation status: false');
       });
     }
   }
 
   Future<void> _shareFile(String filePath, String text, bool isEncrypted) async {
-    print('🔵 [_shareFile] Sharing file: $filePath, isEncrypted: $isEncrypted');
+    print(' [_shareFile] Sharing file: $filePath, isEncrypted: $isEncrypted');
     try {
       final file = XFile(filePath);
-      print('📄 [_shareFile] XFile created: ${file.path}');
+      print(' [_shareFile] XFile created: ${file.path}');
 
       final result = await Share.shareXFiles(
         [file],
         text: isEncrypted
-            ? '$text\n\n🔒 Encrypted ZIP - Password required for decryption\nExported on ${DateTime.now().toString()}'
+            ? '$text\n\n Encrypted ZIP - Password required for decryption\nExported on ${DateTime.now().toString()}'
             : '$text\nExported on ${DateTime.now().toString()}',
         subject: isEncrypted ? 'Encrypted Plan Data ZIP' : 'Plan Data ZIP File',
       );
 
-      print('📊 [_shareFile] Share result status: ${result.status}');
+      print(' [_shareFile] Share result status: ${result.status}');
 
       if (result.status == ShareResultStatus.success) {
-        print('✅ [_shareFile] Share successful');
+        print(' [_shareFile] Share successful');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(isEncrypted
@@ -1023,7 +1023,7 @@ Note: Keep the password secure and do not share publicly.
           ),
         );
       } else if (result.status == ShareResultStatus.dismissed) {
-        print('⚠️ [_shareFile] Share dismissed by user');
+        print(' [_shareFile] Share dismissed by user');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Share cancelled'),
@@ -1033,7 +1033,7 @@ Note: Keep the password secure and do not share publicly.
         );
       }
     } catch (e) {
-      print('❌ [_shareFile] Error sharing file: $e');
+      print(' [_shareFile] Error sharing file: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error sharing file: $e'),
@@ -1046,11 +1046,11 @@ Note: Keep the password secure and do not share publicly.
 
   @override
   Widget build(BuildContext context) {
-    print('🔵 [build] Building ResendScreen UI');
+    print(' [build] Building ResendScreen UI');
     final theme = Theme.of(context);
     final isSuccessTab = _tabController.index == 1;
-    print('📊 [build] Current tab: ${_tabController.index == 0 ? "Failed" : "Success"}');
-    print('📊 [build] Data count: ${filteredResponseData.length} filtered out of ${responseData.length} total');
+    print(' [build] Current tab: ${_tabController.index == 0 ? "Failed" : "Success"}');
+    print(' [build] Data count: ${filteredResponseData.length} filtered out of ${responseData.length} total');
 
     return WillPopScope(
       onWillPop: _onWillPop,
@@ -1073,7 +1073,7 @@ Note: Keep the password secure and do not share publicly.
             leading: IconButton(
               icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
               onPressed: () {
-                print('🔵 [AppBar] Back button pressed');
+                print(' [AppBar] Back button pressed');
                 Navigator.push(
                     context,
                     MaterialPageRoute(builder: (context) => LandingScreen(changeLanguage: widget.changeLanguage))
@@ -1084,7 +1084,7 @@ Note: Keep the password secure and do not share publicly.
               IconButton(
                 icon: Icon(Icons.home, color: Colors.white),
                 onPressed: () {
-                  print('🔵 [AppBar] Home button pressed');
+                  print(' [AppBar] Home button pressed');
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (context) => LandingScreen(changeLanguage: widget.changeLanguage)),
@@ -1323,7 +1323,7 @@ Note: Keep the password secure and do not share publicly.
                                       ),
                                       DataCell(
                                         Center(
-                                          child: _tabController.index == 0   // ✅ Only show in Failed tab
+                                          child: _tabController.index == 0   //  Only show in Failed tab
                                               ? Container(
                                             width: 60,
                                             child: GestureDetector(
@@ -1366,7 +1366,7 @@ Note: Keep the password secure and do not share publicly.
                                               ),
                                             ),
                                           )
-                                              : SizedBox.shrink(), // ❌ Hide in Success tab
+                                              : SizedBox.shrink(), //  Hide in Success tab
                                         ),
                                       ),
                                       DataCell(

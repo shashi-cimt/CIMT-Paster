@@ -275,7 +275,7 @@ class _ReworkDisplayPageState extends State<ReworkDisplayPage> {
 
       print('Distance to marker: ${distanceInMeters.toStringAsFixed(2)} meters');
 
-      // ✅ Navigate and wait for result from upload screen
+      //  Navigate and wait for result from upload screen
       final result = await Navigator.push<bool>(
         context,
         MaterialPageRoute(
@@ -301,13 +301,13 @@ class _ReworkDisplayPageState extends State<ReworkDisplayPage> {
         ),
       );
 
-      // ✅ CRITICAL FIX: Return result to map
+      //  CRITICAL FIX: Return result to map
       if (result == true) {
-        print('✅ Upload successful, returning to map with success');
+        print(' Upload successful, returning to map with success');
         // This will pop back to ReworkMap with result true
         Navigator.pop(context, true);
       } else if (result == false) {
-        print('❌ Upload failed');
+        print(' Upload failed');
         Fluttertoast.showToast(
           msg: "Upload failed. Please try again.",
           toastLength: Toast.LENGTH_LONG,

@@ -45,7 +45,7 @@ class PlanCountChangeHiveRepository {
         await _offlineCountBox!.put(groupKey, existingCount);
       }
     } else {
-      print('⚠️ No offline count to decrement for group: $groupKey');
+      print(' No offline count to decrement for group: $groupKey');
     }
   }
 

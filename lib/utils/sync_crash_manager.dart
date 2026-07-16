@@ -188,9 +188,9 @@ class SyncCrashReportManager {
         flush: true,
       );
 
-      // print('🧹 Trimmed file to last $keepCount entries');
+      // print(' Trimmed file to last $keepCount entries');
     } catch (e) {
-      // print('⚠️ Error trimming old entries: $e');
+      // print(' Error trimming old entries: $e');
     }
   }
 
@@ -233,7 +233,7 @@ class SyncCrashReportManager {
 
     // Handle other uncaught errors in the root isolate
     PlatformDispatcher.instance.onError = (error, stack) {
-      // print('🚨 Uncaught error: $error');
+      // print(' Uncaught error: $error');
 
       // Store crash report asynchronously
       storeCrashReport(
@@ -276,7 +276,7 @@ class SyncCrashReportManager {
       List<File> reports = await getAllCrashReports();
 
       if (reports.isEmpty) {
-        // print('📋 No crash reports to export.');
+        // print(' No crash reports to export.');
         return null;
       }
 
@@ -317,7 +317,7 @@ class SyncCrashReportManager {
           content.writeln(await _readFileContent(reports[i]));
           content.writeln('\n');
         } catch (e) {
-          content.writeln('\n⚠️ Error processing report: $e\n');
+          content.writeln('\n Error processing report: $e\n');
         }
       }
 
@@ -328,7 +328,7 @@ class SyncCrashReportManager {
       return filePath;
 
     } catch (e) {
-      // print('❌ Error exporting crash reports: $e');
+      // print(' Error exporting crash reports: $e');
       return null;
     }
   }
@@ -372,7 +372,7 @@ class SyncCrashReportManager {
       // print('Error accessing fallback storage: $e');
     }
 
-    // print('📊 Found ${allReports.length} total sync crash reports');
+    // print(' Found ${allReports.length} total sync crash reports');
     return allReports;
   }
 }
