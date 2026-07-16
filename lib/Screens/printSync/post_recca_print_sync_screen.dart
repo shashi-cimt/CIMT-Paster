@@ -737,7 +737,7 @@ import '../landing/landing_screen.dart';
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                             decoration: BoxDecoration(
-                              color: isLoading ? Colors.grey : Font.accentColor,
+                              color: isLoading ? Colors.grey : Font.primaryColor,
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Row(

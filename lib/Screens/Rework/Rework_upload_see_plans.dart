@@ -1936,6 +1936,7 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../Hive_Database/execution_image_upload_db.dart';
+import '../../Repository/Rework_completed_upload_repository.dart';
 import '../../Repository/execution_balance_count_change_repository.dart';
 import '../../Repository/execution_image_upload_repository.dart';
 import '../../Repository/rework_balance_count_change_repository.dart';
@@ -2638,22 +2639,22 @@ class _ReworkUploadSeePlansState extends State<ReworkUploadSeePlans> with Widget
         String statusIcon;
         if (sizeKB >= minTargetKB && sizeKB <= maxTargetKB) {
           toastColor = Colors.green;
-          statusIcon = "✅";
+          statusIcon = "";
         } else if (sizeKB < minTargetKB) {
           toastColor = Colors.orange;
-          statusIcon = "⚠️";
+          statusIcon = "";
         } else {
           toastColor = Colors.orange;
-          statusIcon = "⚠️";
+          statusIcon = "";
         }
 
-        Fluttertoast.showToast(
-          msg: "$statusIcon Image ${imageIndex + 1}: $sizeDisplay",
-          toastLength: Toast.LENGTH_LONG,
-          gravity: ToastGravity.BOTTOM,
-          backgroundColor: toastColor,
-          textColor: Colors.white,
-        );
+        // Fluttertoast.showToast(
+        //   msg: "$statusIcon Image ${imageIndex + 1}: $sizeDisplay",
+        //   toastLength: Toast.LENGTH_LONG,
+        //   gravity: ToastGravity.BOTTOM,
+        //   backgroundColor: toastColor,
+        //   textColor: Colors.white,
+        // );
       }
 
       return out;
@@ -3496,6 +3497,7 @@ class _ReworkUploadSeePlansState extends State<ReworkUploadSeePlans> with Widget
     );
   }
 
+
   void _submitDetails() async {
     setState(() {
       isRefreshing = true;
@@ -3523,8 +3525,8 @@ class _ReworkUploadSeePlansState extends State<ReworkUploadSeePlans> with Widget
     if (uploadedCount != 7) {
       ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text(S.of(context).imageVal),
-              backgroundColor: Colors.red
+            content: Text(S.of(context).imageVal),
+            backgroundColor: Colors.red,
           )
       );
       setState(() {
@@ -3608,7 +3610,7 @@ class _ReworkUploadSeePlansState extends State<ReworkUploadSeePlans> with Widget
       bool isNetworkAvailable = await hasRealInternet();
       String currentDate = DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now());
 
-      // Store images (NO re-compression - already compressed)
+      // Store images
       for (var i = 0; i < images.length; i++) {
         if (images[i].imagePath != null) {
           final storedPath = await _storeImageInInternalDocuments(images[i].imagePath!);
@@ -3654,7 +3656,15 @@ class _ReworkUploadSeePlansState extends State<ReworkUploadSeePlans> with Widget
         networkFlagString: isNetworkAvailable ? "online" : "offline",
       );
 
+      // Save to Hive
       await ExecutionImageUploadHiveRepository().saveMetadata(metadata);
+
+      // ✅ CRITICAL FIX: Mark as completed in SharedPreferences
+      final completedRepo = ReworkCompletedUploadRepository();
+      await completedRepo.markAsCompleted(widget.printId.toString());
+      print('✅ MARKED AS COMPLETED: ${widget.printId}');
+
+      // Increment offline count for balance tracking
       await ReworkBalanceCountChangeRepository().incrementOfflineCount(
         widget.planCode.toString(),
         widget.VillageCode.toString(),
@@ -3684,8 +3694,8 @@ class _ReworkUploadSeePlansState extends State<ReworkUploadSeePlans> with Widget
 
       ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text(S.of(context).submitPlan),
-              backgroundColor: Colors.green
+            content: Text(S.of(context).submitPlan),
+            backgroundColor: Colors.green,
           )
       );
 
@@ -3693,12 +3703,9 @@ class _ReworkUploadSeePlansState extends State<ReworkUploadSeePlans> with Widget
         isRefreshing = false;
       });
 
-      Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-              builder: (context) => ReworkScreen(changeLanguage: widget.changeLanguage)
-          )
-      );
+      // ✅ CRITICAL FIX: Return true to indicate success
+      // This will pop back to ReworkDisplayPage with result
+      Navigator.pop(context, true);
 
     } catch (e) {
       await CrashReportManager.storeCrashReport(
@@ -3708,13 +3715,16 @@ class _ReworkUploadSeePlansState extends State<ReworkUploadSeePlans> with Widget
 
       ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text(S.of(context).errorOccurredSubmitting),
-              backgroundColor: Colors.red
+            content: Text(S.of(context).errorOccurredSubmitting),
+            backgroundColor: Colors.red,
           )
       );
       setState(() {
         isRefreshing = false;
       });
+
+      // Return false to indicate failure
+      Navigator.pop(context, false);
     }
   }
 }
@@ -3915,7 +3925,7 @@ class _ReworkCameraScreenState extends State<ReworkCameraScreen> with WidgetsBin
             _locationError = 'You are ${distance.toStringAsFixed(0)}m away. Must be within 50m.';
           });
           Fluttertoast.showToast(
-            msg: "⚠️ ${_locationError}",
+            msg: " ${_locationError}",
             toastLength: Toast.LENGTH_LONG,
             gravity: ToastGravity.CENTER,
             backgroundColor: Colors.orange,
@@ -4060,13 +4070,13 @@ class _ReworkCameraScreenState extends State<ReworkCameraScreen> with WidgetsBin
         statusIcon = "⚠️";
       }
 
-      Fluttertoast.showToast(
-        msg: "$statusIcon Image ${widget.imageIndex + 1}: $sizeDisplay",
-        toastLength: Toast.LENGTH_LONG,
-        gravity: ToastGravity.BOTTOM,
-        backgroundColor: toastColor,
-        textColor: Colors.white,
-      );
+      // Fluttertoast.showToast(
+      //   msg: "$statusIcon Image ${widget.imageIndex + 1}: $sizeDisplay",
+      //   toastLength: Toast.LENGTH_LONG,
+      //   gravity: ToastGravity.BOTTOM,
+      //   backgroundColor: toastColor,
+      //   textColor: Colors.white,
+      // );
 
       return out;
 
@@ -4120,13 +4130,13 @@ class _ReworkCameraScreenState extends State<ReworkCameraScreen> with WidgetsBin
         _currentPosition!.longitude,
       );
 
-      Fluttertoast.showToast(
-        msg: "✅ Image ${widget.imageIndex + 1} captured",
-        toastLength: Toast.LENGTH_SHORT,
-        gravity: ToastGravity.BOTTOM,
-        backgroundColor: Colors.green,
-        textColor: Colors.white,
-      );
+      // Fluttertoast.showToast(
+      //   msg: "✅ Image ${widget.imageIndex + 1} captured",
+      //   toastLength: Toast.LENGTH_SHORT,
+      //   gravity: ToastGravity.BOTTOM,
+      //   backgroundColor: Colors.green,
+      //   textColor: Colors.white,
+      // );
 
       if (mounted) {
         Navigator.pop(context);
@@ -4134,13 +4144,13 @@ class _ReworkCameraScreenState extends State<ReworkCameraScreen> with WidgetsBin
 
     } catch (e) {
       print("❌ Capture error: $e");
-      Fluttertoast.showToast(
-        msg: "Failed to capture image: $e",
-        toastLength: Toast.LENGTH_LONG,
-        gravity: ToastGravity.CENTER,
-        backgroundColor: Colors.red,
-        textColor: Colors.white,
-      );
+      // Fluttertoast.showToast(
+      //   msg: "Failed to capture image: $e",
+      //   toastLength: Toast.LENGTH_LONG,
+      //   gravity: ToastGravity.CENTER,
+      //   backgroundColor: Colors.red,
+      //   textColor: Colors.white,
+      // );
 
       setState(() {
         _isCapturing = false;

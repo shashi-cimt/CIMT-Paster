@@ -151,16 +151,17 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
     _circles.clear();
 
     final marker = Marker(
-      markerId: MarkerId('current_location'),
-      position: LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+      markerId: const MarkerId('current_location'),
+      position: LatLng(
+        _currentPosition!.latitude,
+        _currentPosition!.longitude,
+      ),
+      icon: BitmapDescriptor.defaultMarkerWithHue(
+        BitmapDescriptor.hueGreen,
+      ),
       infoWindow: InfoWindow(
         title: S.of(context).currentLocation,
         snippet: S.of(context).tapAddress,
-      ),
-      onTap: () => _getAddressFromLatLng(
-          _currentPosition!.latitude,
-          _currentPosition!.longitude,
-          showToast: true
       ),
     );
 
@@ -830,139 +831,86 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
                     _currentPosition?.latitude ?? 0.0,
                     _currentPosition?.longitude ?? 0.0,
                   ),
-                  zoom: 18.0,
+                  zoom: 18,
                 ),
                 markers: _markers,
                 circles: _circles,
               ),
 
+              // GPS Button
               Positioned(
                 top: 16,
                 right: 10,
-                child: Column(
-                  children: [
-                    FloatingActionButton(
-                      heroTag: "location",
-                      onPressed: _onCurrentLocationPressed,
-                       child:  Icon(
-                        _isUserSelectedLocation ? Icons.location_searching : Icons.my_location,
-                        color: Colors.white,
-                      ),
-                      backgroundColor: _isUserSelectedLocation
-                          ? Colors.orange.withOpacity(0.8)
-                          : Font.primaryColor.withOpacity(0.9),
-                    ),
-                    if (_isUserSelectedLocation)
-                      Container(
-                        margin: EdgeInsets.only(top: 8),
-                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.orange,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          'Reset GPS',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                  ],
+                child: FloatingActionButton(
+                  heroTag: "location",
+                  onPressed: _onCurrentLocationPressed,
+                  backgroundColor: Font.primaryColor,
+                  child: Icon(
+                    _isUserSelectedLocation
+                        ? Icons.location_searching
+                        : Icons.my_location,
+                    color: Colors.white,
+                  ),
                 ),
               ),
+
+              // Street View
+              // Positioned(
+              //   right: 10,
+              //   bottom: 100,
+              //   child: FloatingActionButton(
+              //     heroTag: "street",
+              //     backgroundColor: Font.primaryColor,
+              //     onPressed: () {
+              //       if (_currentPosition == null) return;
+              //
+              //       Navigator.push(
+              //         context,
+              //         MaterialPageRoute(
+              //           builder: (_) => Execution360ViewScreen(
+              //             latitude: _currentPosition!.latitude,
+              //             longitude: _currentPosition!.longitude,
+              //           ),
+              //         ),
+              //       );
+              //     },
+              //     child: const Icon(
+              //       Icons.travel_explore,
+              //       color: Colors.white,
+              //     ),
+              //   ),
+              // ),
+
+              // NEXT BUTTON
+              if (_showNextButton)
+                Positioned(
+                  left: 10,
+                  bottom: 20,
+                  child: SizedBox(
+                    width: 100,
+                    height: 50,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Font.primaryColor,
+                      ),
+                      onPressed: () {
+                        _proceedToNextScreen();
+                      },
+                      child: const Text(
+                        "Next",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
             ],
           )
               : Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(Font.primaryColor),
-                ),
-                SizedBox(height: 16),
-                Text(
-                  'Getting your location...',
-                  style: TextStyle(fontSize: 16),
-                ),
-                if (_isGettingAccurateLocation)
-                  Padding(
-                    padding: EdgeInsets.only(top: 8),
-                    child: Text(
-                      '${S.of(context).accuracy}: ${_currentAccuracy.toStringAsFixed(1)}m',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  ),
-              ],
-            ),
+            child: CircularProgressIndicator(),
           ),
-          bottomSheet: _showNextButton
-              ? InkWell(
-            onTap: () {
-              if (_currentPosition != null) {
-                if (_currentAccuracy > 100) {
-                  showDialog(
-                    context: context,
-                    builder: (BuildContext context) {
-                      return AlertDialog(
-                        title: Text(S.of(context).lowAccuracy),
-                        content: Text(
-                            '${S.of(context).locationAccuracy} (${_currentAccuracy.toStringAsFixed(1)}m). ${S.of(context).continueAnyway}'
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () {
-                              Navigator.of(context).pop();
-                              _getCurrentLocationWithHighAccuracy();
-                            },
-                            child: Text(S.of(context).improve),
-                          ),
-                          TextButton(
-                            onPressed: () {
-                              Navigator.of(context).pop();
-                              _proceedToNextScreen();
-                            },
-                            child: Text(S.of(context).continueBtn),
-                          ),
-                        ],
-                      );
-                    },
-                  );
-                } else {
-                  _proceedToNextScreen();
-                }
-              } else {
-                Fluttertoast.showToast(
-                  msg: S.of(context).pleaseDetection,
-                  backgroundColor: Colors.orange,
-                  textColor: Colors.white,
-                );
-              }
-            },
-            child: Container(
-              width: double.infinity,
-              height: 50,
-              decoration: BoxDecoration(
-                color: Font.primaryColor,
-              ),
-              child: Center(
-                child: Text(
-                  S.of(context).next,
-                  style: TextStyle(
-                      fontSize: 20,
-                      fontFamily: "Roboto",
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white
-                  ),
-                ),
-              ),
-            ),
-          )
-              : SizedBox.shrink(),
         ),
       ),
     );

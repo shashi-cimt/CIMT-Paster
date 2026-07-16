@@ -49,6 +49,7 @@ class _ExecutionDisplayPageState extends State<ExecutionDisplayPage> {
   Position? currentPosition;
   bool isLoadingLocation = false;
   bool isLoadingWebView = true;
+  Position? _currentPosition;
 
   @override
   void initState() {
@@ -408,25 +409,20 @@ class _ExecutionDisplayPageState extends State<ExecutionDisplayPage> {
             leading: IconButton(
               icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
               onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => SeePlanScreen(
-                      changeLanguage: widget.changeLanguage,
-                    ),
-                  ),
-                );
+                Navigator.pop(context);
               },
             ),
             actions: [
               IconButton(
                 icon: const Icon(Icons.home, color: Colors.white),
                 onPressed: () {
+                  if (_currentPosition == null) return;
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => LandingScreen(
-                        changeLanguage: widget.changeLanguage,
+                      builder: (_) => Execution360ViewScreen(
+                        latitude: _currentPosition!.latitude,
+                        longitude: _currentPosition!.longitude,
                       ),
                     ),
                   );

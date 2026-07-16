@@ -5,7 +5,7 @@ class APIURLs{
    /// Uat portal
    // static const baseURL = "http://103.224.6.71:5006/";
 
-  static const URL = "https://hulreplica.cimtapps.com/";
+  static const URL = "https://cimtone.cimtapps.com/";
 
 //  static const seePlanURL = "api/Execution/plans/pending-plan";
   static const seePlanURL = "api/Pointer/Pending-Plan";

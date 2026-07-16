@@ -255,9 +255,6 @@ class _ReworkDisplayPageState extends State<ReworkDisplayPage> {
     }
 
     try {
-      // double markerLat = double.parse(widget.markerLatitude!);
-      // double markerLng = double.parse(widget.markerLongitude!);
-
       double? markerLat = double.tryParse(widget.markerLatitude ?? '');
       double? markerLng = double.tryParse(widget.markerLongitude ?? '');
 
@@ -269,7 +266,6 @@ class _ReworkDisplayPageState extends State<ReworkDisplayPage> {
         return;
       }
 
-      // Calculate distance in meters
       double distanceInMeters = Geolocator.distanceBetween(
         currentPosition!.latitude,
         currentPosition!.longitude,
@@ -279,17 +275,8 @@ class _ReworkDisplayPageState extends State<ReworkDisplayPage> {
 
       print('Distance to marker: ${distanceInMeters.toStringAsFixed(2)} meters');
 
-      // Check if distance is greater than 50 meters
-      // if (distanceInMeters > 50) {
-      //   _showErrorDialog(
-      //     title: S.of(context).distanceError,
-      //     message: "${S.of(context).youhave} ${distanceInMeters.toStringAsFixed(2)} ${S.of(context).metersAwayMarkerLocationContinue}",
-      //   );
-      //   return;
-      // }
-     //        / Continue button
-     // If within 50 meters, proceed to next screen
-      Navigator.push(
+      // ✅ Navigate and wait for result from upload screen
+      final result = await Navigator.push<bool>(
         context,
         MaterialPageRoute(
           builder: (context) => ReworkUploadSeePlans(
@@ -303,27 +290,39 @@ class _ReworkDisplayPageState extends State<ReworkDisplayPage> {
             villageCode: widget.villageCode ?? '',
             planCode: widget.planCode ?? '',
             tensil: widget.tensil ?? '',
-
-            // ✅ ADD THESE (MISSING BEFORE)
             ServerID: widget.serverId ?? '',
             VillageCode: widget.villageCode ?? '',
             Address: widget.address ?? '',
             artworkId: widget.artworkId ?? '',
-
-            // ✅ CONVERT STRING → DOUBLE
             latitude: double.tryParse(widget.markerLatitude ?? ''),
             longitude: double.tryParse(widget.markerLongitude ?? ''),
-
             changeLanguage: widget.changeLanguage,
           ),
         ),
       );
 
+      // ✅ CRITICAL FIX: Return result to map
+      if (result == true) {
+        print('✅ Upload successful, returning to map with success');
+        // This will pop back to ReworkMap with result true
+        Navigator.pop(context, true);
+      } else if (result == false) {
+        print('❌ Upload failed');
+        Fluttertoast.showToast(
+          msg: "Upload failed. Please try again.",
+          toastLength: Toast.LENGTH_LONG,
+          gravity: ToastGravity.CENTER,
+          backgroundColor: Colors.red,
+          textColor: Colors.white,
+        );
+        // Stay on this page, don't return to map
+      }
+
     } catch (e) {
-      print('Error validating distance: $e');
+      print('Error: $e');
       _showErrorDialog(
-          title: S.of(context).validationError,
-          message: S.of(context).unableValidateLocation
+        title: S.of(context).validationError,
+        message: S.of(context).unableValidateLocation,
       );
     }
   }

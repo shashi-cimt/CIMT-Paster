@@ -64,7 +64,7 @@ void main() {
         cameras = [];
       }
     } catch (e) {
-      print("❌ Error initializing cameras: $e");
+      print(" Error initializing cameras: $e");
       cameras = [];
     }
 

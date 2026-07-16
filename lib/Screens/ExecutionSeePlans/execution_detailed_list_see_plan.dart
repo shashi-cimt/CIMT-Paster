@@ -188,56 +188,114 @@ import 'execution_sub_map_screen.dart';
                           ),
                           clipBehavior: Clip.antiAliasWithSaveLayer,
                           child: InkWell(
-                            // onTap: (){
+                            // // onTap: (){
+                            // //   Navigator.push(
+                            // //     context,
+                            // //     MaterialPageRoute(builder: (context) => MapScreen(
+                            // //       planCode: item.planCode.toString(),
+                            // //       VillageCode: item.villageCode.toString(),
+                            // //       ServerID: item.planServerId.toString(),
+                            // //       changeLanguage: widget.changeLanguage,
+                            // //       height:item.height, width: item.width,
+                            // //       villageName: widget.villageName,
+                            // //       brand: item.artworkName,
+                            // //       tensil: widget.cdBlockName,
+                            // //       artworkId: item.artworkId,
+                            // //     ),
+                            // //     ),
+                            // //   );
+                            // // },
+                            // onTap: () {
+                            //   final pointers = widget.locations
+                            //       ?.map(
+                            //         (e) => MapPointerData(
+                            //       planServerId: item.planServerId.toString(),
+                            //       locateId: e.locateId ?? "",
+                            //       latitude: double.tryParse(e.latitude ?? "0") ?? 0.0,
+                            //       longitude: double.tryParse(e.longitude ?? "0") ?? 0.0,
+                            //       artworkName: item.artworkName,
+                            //     ),
+                            //   )
+                            //       .toList();
+                            //
                             //   Navigator.push(
                             //     context,
-                            //     MaterialPageRoute(builder: (context) => MapScreen(
-                            //       planCode: item.planCode.toString(),
-                            //       VillageCode: item.villageCode.toString(),
-                            //       ServerID: item.planServerId.toString(),
-                            //       changeLanguage: widget.changeLanguage,
-                            //       height:item.height, width: item.width,
-                            //       villageName: widget.villageName,
-                            //       brand: item.artworkName,
-                            //       tensil: widget.cdBlockName,
-                            //       artworkId: item.artworkId,
-                            //     ),
+                            //     MaterialPageRoute(
+                            //       builder: (context) => MapScreenpointer(
+                            //         planCode: item.planCode.toString(),
+                            //         VillageCode: item.villageCode.toString(),
+                            //         ServerID: item.planServerId.toString(),
+                            //         changeLanguage: widget.changeLanguage,
+                            //         height: item.height,
+                            //         width: item.width,
+                            //         villageName: widget.villageName,
+                            //         brand: item.artworkName,
+                            //         tensil: widget.cdBlockName,
+                            //         artworkId: item.artworkId,
+                            //
+                            //         // Pass pointers
+                            //         pointers: pointers,
+                            //       ),
                             //     ),
                             //   );
                             // },
                             onTap: () {
                               final pointers = widget.locations
-                                  ?.map(
+                                  ?.where((e) =>
+                              (e.locateId?.trim().isNotEmpty ?? false) &&
+                                  (e.latitude?.trim().isNotEmpty ?? false) &&
+                                  (e.longitude?.trim().isNotEmpty ?? false))
+                                  .map(
                                     (e) => MapPointerData(
                                   planServerId: item.planServerId.toString(),
-                                  locateId: e.locateId ?? "",
-                                  latitude: double.tryParse(e.latitude ?? "0") ?? 0.0,
-                                  longitude: double.tryParse(e.longitude ?? "0") ?? 0.0,
+                                  locateId: e.locateId!,
+                                  latitude: double.tryParse(e.latitude!) ?? 0.0,
+                                  longitude: double.tryParse(e.longitude!) ?? 0.0,
                                   artworkName: item.artworkName,
                                 ),
                               )
                                   .toList();
 
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => MapScreenpointer(
-                                    planCode: item.planCode.toString(),
-                                    VillageCode: item.villageCode.toString(),
-                                    ServerID: item.planServerId.toString(),
-                                    changeLanguage: widget.changeLanguage,
-                                    height: item.height,
-                                    width: item.width,
-                                    villageName: widget.villageName,
-                                    brand: item.artworkName,
-                                    tensil: widget.cdBlockName,
-                                    artworkId: item.artworkId,
-
-                                    // Pass pointers
-                                    pointers: pointers,
+                              if (pointers == null || pointers.isEmpty) {
+                                // No pointer available -> Open normal map
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => MapScreen(
+                                      planCode: item.planCode.toString(),
+                                      VillageCode: item.villageCode.toString(),
+                                      ServerID: item.planServerId.toString(),
+                                      changeLanguage: widget.changeLanguage,
+                                      height: item.height,
+                                      width: item.width,
+                                      villageName: widget.villageName,
+                                      brand: item.artworkName,
+                                      tensil: widget.cdBlockName,
+                                      artworkId: item.artworkId,
+                                    ),
                                   ),
-                                ),
-                              );
+                                );
+                              } else {
+                                // Pointer available -> Open pointer map
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => MapScreenpointer(
+                                      planCode: item.planCode.toString(),
+                                      VillageCode: item.villageCode.toString(),
+                                      ServerID: item.planServerId.toString(),
+                                      changeLanguage: widget.changeLanguage,
+                                      height: item.height,
+                                      width: item.width,
+                                      villageName: widget.villageName,
+                                      brand: item.artworkName,
+                                      tensil: widget.cdBlockName,
+                                      artworkId: item.artworkId,
+                                      pointers: pointers,
+                                    ),
+                                  ),
+                                );
+                              }
                             },
                             child: Stack(
                               children: [

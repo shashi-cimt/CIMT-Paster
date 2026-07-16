@@ -809,7 +809,7 @@ class _SUSeePlanScreenState extends ConsumerState<SUSeePlanScreen> {
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                           decoration: BoxDecoration(
-                            color: isRefreshing ? Colors.grey : Font.accentColor,
+                            color: isRefreshing ? Colors.grey : Font.primaryColor,
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Row(
