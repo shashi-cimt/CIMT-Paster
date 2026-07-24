@@ -818,6 +818,37 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
                 ),
               ),
 
+<<<<<<< HEAD
+=======
+              // Street View
+              // Positioned(
+              //   right: 10,
+              //   bottom: 100,
+              //   child: FloatingActionButton(
+              //     heroTag: "street",
+              //     backgroundColor: Font.primaryColor,
+              //     onPressed: () {
+              //       if (_currentPosition == null) return;
+              //
+              //       Navigator.push(
+              //         context,
+              //         MaterialPageRoute(
+              //           builder: (_) => Execution360ViewScreen(
+              //             latitude: _currentPosition!.latitude,
+              //             longitude: _currentPosition!.longitude,
+              //           ),
+              //         ),
+              //       );
+              //     },
+              //     child: const Icon(
+              //       Icons.travel_explore,
+              //       color: Colors.white,
+              //     ),
+              //   ),
+              // ),
+
+              // NEXT BUTTON
+>>>>>>> b79a309 (fixes the issues resend and gps location fetch problem)
               if (_showNextButton)
                 Positioned(
                   left: 10,

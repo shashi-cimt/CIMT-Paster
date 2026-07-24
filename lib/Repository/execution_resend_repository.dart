@@ -131,26 +131,26 @@ class ApiResponseRepository {
       final key = "${response.planId}_$printNo";
 
       if (!latest.containsKey(key)) {
-
         latest[key] = response;
-
       } else {
-
         final old = latest[key]!;
 
-        // Success always wins
-        if (!old.isSuccess && response.isSuccess) {
-
+        // Always keep the latest response
+        if (response.responseTime.isAfter(old.responseTime)) {
           latest[key] = response;
-
-        } else if (old.isSuccess == response.isSuccess &&
-            response.responseTime.isAfter(old.responseTime)) {
-
-          latest[key] = response;
-
         }
       }
     }
+
+    print("========== UNIQUE RESPONSES ==========");
+
+    for (final r in latest.values) {
+      final printNo = (r.originalData as ImageUploaddata).PrintNo;
+      print(
+          "Plan=${r.planId} Print=$printNo Success=${r.isSuccess} Time=${r.responseTime}");
+    }
+
+    print("======================================");
 
     return latest.values.toList()
       ..sort((a, b) => b.responseTime.compareTo(a.responseTime));
@@ -165,12 +165,29 @@ class ApiResponseRepository {
   }
 
   // Get latest response for a specific plan
-  Future<ApiResponseData?> getLatestResponseForPlan(String planId) async {
+  Future<ApiResponseData?> getLatestResponseForPrint(
+      String planId,
+      String printNo,
+      ) async {
     await _openBox();
-    final responses = await getResponsesForPlan(planId);
-    return responses.isNotEmpty ? responses.first : null;
-  }
 
+    final list = _responseBox!.values.where((e) {
+      if (e.planId != planId) return false;
+
+      if (e.originalData is ImageUploaddata) {
+        return ((e.originalData as ImageUploaddata).PrintNo?.trim() ?? "") ==
+            printNo.trim();
+      }
+
+      return false;
+    }).toList();
+
+    if (list.isEmpty) return null;
+
+    list.sort((a, b) => b.responseTime.compareTo(a.responseTime));
+
+    return list.first;
+  }
   // Remove specific response by unique key
   Future<void> removeResponse(String uniqueKey) async {
     await _openBox();
@@ -257,10 +274,10 @@ class ApiResponseRepository {
   }
 
   // Update response status (for resend functionality)
-  Future<void> updateResponseStatus(String planId, bool isSuccess, String message, int statusCode) async {
+  Future<void> updateResponseStatus(String planId, String printNo, bool isSuccess, String message, int statusCode) async {
     await _openBox();
     // Find the latest response for this planId and update it
-    final latestResponse = await getLatestResponseForPlan(planId);
+    final latestResponse = await getLatestResponseForPrint(planId, printNo);
     if (latestResponse != null) {
       // Create a new response record instead of updating the old one
       // This maintains the history of all attempts
@@ -277,9 +294,9 @@ class ApiResponseRepository {
   }
 
   // Update retry count
-  Future<void> updateRetryCount(String planId) async {
+  Future<void> updateRetryCount(String planId, String printNo,) async {
     await _openBox();
-    final latestResponse = await getLatestResponseForPlan(planId);
+    final latestResponse = await getLatestResponseForPrint(planId,printNo);
     if (latestResponse != null) {
       // This is already handled in updateResponseStatus method above
       // No additional action needed here

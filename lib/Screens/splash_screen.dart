@@ -317,35 +317,38 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
 
   //Generate unique 16-digit UID
+  // Future<String> _generateUniqueUID() async {
+  //   int timestamp = DateTime.now().millisecondsSinceEpoch;
+  //   String deviceInfo = await _getDeviceInfo();
+  //   String combinedSeed = '$timestamp-$deviceInfo-${DateTime.now().microsecond}';
+  //
+  //   int hash = combinedSeed.hashCode.abs();
+  //   int randomComponent = (timestamp % 1000000) + (DateTime.now().microsecond % 1000);
+  //
+  //   String baseUID = (hash + randomComponent).toString();
+  //
+  //   String uid;
+  //   if (baseUID.length >= 16) {
+  //     uid = baseUID.substring(0, 16);
+  //   } else {
+  //     String padding = timestamp.toString();
+  //     uid = (baseUID + padding).substring(0, 16);
+  //   }
+  //
+  //   if (uid.startsWith('0')) {
+  //     uid = '1' + uid.substring(1);
+  //   }
+  //
+  //   while (uid.length < 16) {
+  //     uid = uid + '0';
+  //   }
+  //
+  //   uid = uid.substring(0, 16);
+  //
+  //   return uid;
+  // }
   Future<String> _generateUniqueUID() async {
-    int timestamp = DateTime.now().millisecondsSinceEpoch;
-    String deviceInfo = await _getDeviceInfo();
-    String combinedSeed = '$timestamp-$deviceInfo-${DateTime.now().microsecond}';
-
-    int hash = combinedSeed.hashCode.abs();
-    int randomComponent = (timestamp % 1000000) + (DateTime.now().microsecond % 1000);
-
-    String baseUID = (hash + randomComponent).toString();
-
-    String uid;
-    if (baseUID.length >= 16) {
-      uid = baseUID.substring(0, 16);
-    } else {
-      String padding = timestamp.toString();
-      uid = (baseUID + padding).substring(0, 16);
-    }
-
-    if (uid.startsWith('0')) {
-      uid = '1' + uid.substring(1);
-    }
-
-    while (uid.length < 16) {
-      uid = uid + '0';
-    }
-
-    uid = uid.substring(0, 16);
-
-    return uid;
+    return "4356512421784801";
   }
 
 

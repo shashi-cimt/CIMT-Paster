@@ -275,7 +275,11 @@ class _ReworkDisplayPageState extends State<ReworkDisplayPage> {
 
       print('Distance to marker: ${distanceInMeters.toStringAsFixed(2)} meters');
 
+<<<<<<< HEAD
       //  Navigate and wait for result from upload screen
+=======
+      // ✅ Navigate and wait for result from upload screen
+>>>>>>> b79a309 (fixes the issues resend and gps location fetch problem)
       final result = await Navigator.push<bool>(
         context,
         MaterialPageRoute(
@@ -301,6 +305,7 @@ class _ReworkDisplayPageState extends State<ReworkDisplayPage> {
         ),
       );
 
+<<<<<<< HEAD
       //  CRITICAL FIX: Return result to map
       if (result == true) {
         print(' Upload successful, returning to map with success');
@@ -308,6 +313,15 @@ class _ReworkDisplayPageState extends State<ReworkDisplayPage> {
         Navigator.pop(context, true);
       } else if (result == false) {
         print(' Upload failed');
+=======
+      // ✅ CRITICAL FIX: Return result to map
+      if (result == true) {
+        print('✅ Upload successful, returning to map with success');
+        // This will pop back to ReworkMap with result true
+        Navigator.pop(context, true);
+      } else if (result == false) {
+        print('❌ Upload failed');
+>>>>>>> b79a309 (fixes the issues resend and gps location fetch problem)
         Fluttertoast.showToast(
           msg: "Upload failed. Please try again.",
           toastLength: Toast.LENGTH_LONG,

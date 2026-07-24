@@ -5,8 +5,11 @@ class APIURLs{
    /// Uat portal
    // static const baseURL = "http://103.224.6.71:5006/";
 
+<<<<<<< HEAD
 
   /// See Plan Portal
+=======
+>>>>>>> b79a309 (fixes the issues resend and gps location fetch problem)
   static const URL = "https://cimtone.cimtapps.com/";
 
 //  static const seePlanURL = "api/Execution/plans/pending-plan";

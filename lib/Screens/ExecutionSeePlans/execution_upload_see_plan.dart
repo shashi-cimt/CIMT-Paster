@@ -92,6 +92,9 @@ class _UploadSeePlanScreenState extends State<UploadSeePlanScreen>
   List<CameraDescription>? _cameras;
   bool _isCameraInitialized = false;
   bool _isCapturing = false;
+  StreamSubscription<Position>? _locationSubscription;
+  Position? _latestPosition;
+  bool _isLocationReady = false;
 
   int? _currentImageIndex;
   int _timeoutRetryCount = 0;
@@ -107,11 +110,17 @@ class _UploadSeePlanScreenState extends State<UploadSeePlanScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
 
+    CrashReportManager.storeCrashReport(
+      error: "UploadSeePlanScreen initState",
+      stackTrace: "Time: ${DateTime.now()}",
+    );
+
     // Initialize cameras
     _initCameras();
+    _startBackgroundLocationTracking();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkAndRestoreState();
+      //_checkAndRestoreState();
     });
   }
 
@@ -122,10 +131,52 @@ class _UploadSeePlanScreenState extends State<UploadSeePlanScreen>
     _focusNode2.dispose();
     printNoController1.dispose();
     printNoController2.dispose();
-    _clearSavedState();
     isCameraOpen = false;
+    // Stop GPS stream
+    _locationSubscription?.cancel();
     _cameraController?.dispose();
     super.dispose();
+  }
+
+
+  Future<void> _startBackgroundLocationTracking() async {
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) return;
+
+      LocationPermission permission =
+      await Geolocator.checkPermission();
+
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return;
+      }
+
+      const settings = LocationSettings(
+        accuracy: LocationAccuracy.best,
+        distanceFilter: 2,
+      );
+
+      _locationSubscription =
+          Geolocator.getPositionStream(
+            locationSettings: settings,
+          ).listen((Position position) {
+
+            _latestPosition = position;
+            _isLocationReady = true;
+
+            print(
+                "GPS Updated : ${position.latitude}, ${position.longitude}");
+
+          });
+
+    } catch (e) {
+      print("Location Stream Error : $e");
+    }
   }
 
   Future<void> _initCameras() async {
@@ -169,6 +220,7 @@ class _UploadSeePlanScreenState extends State<UploadSeePlanScreen>
     print(" Camera initialized: ${cameraDescription.name}");
   }
 
+<<<<<<< HEAD
   void _cleanMemory() {
     try {
       imageCache.clear();
@@ -204,6 +256,8 @@ class _UploadSeePlanScreenState extends State<UploadSeePlanScreen>
       // Ignore
     }
   }
+=======
+>>>>>>> b79a309 (fixes the issues resend and gps location fetch problem)
 
   void _removeFocus() {
     _focusNode1.unfocus();
@@ -218,44 +272,45 @@ class _UploadSeePlanScreenState extends State<UploadSeePlanScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
 
+    CrashReportManager.storeCrashReport(
+      error: "Lifecycle: $state",
+      stackTrace: "Time: ${DateTime.now()}",
+    );
+
     switch (state) {
       case AppLifecycleState.paused:
+        print("App moved to background");
         if (isPickingImage) {
           _saveCurrentState();
         }
-        _cleanupTempFiles();
         break;
 
       case AppLifecycleState.resumed:
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
             FocusScope.of(context).unfocus();
-            _checkAndRestoreState();
+            print("App resumed");
+            // _checkAndRestoreState();
           }
         });
         break;
 
       case AppLifecycleState.detached:
         isCameraOpen = false;
-        _clearSavedState();
+        print("App detached");
         _cameraController?.dispose();
         break;
 
       case AppLifecycleState.inactive:
+        print("App inactive");
       case AppLifecycleState.hidden:
+        print("App hidden");
         break;
+
     }
   }
 
-  Future<void> _checkAndRestoreState() async {
-    final prefs = await SharedPreferences.getInstance();
-    final wasPicking = prefs.getBool('is_picking_image') ?? false;
 
-    if (wasPicking) {
-      await _restoreStateIfNeeded();
-      await prefs.setBool('is_picking_image', false);
-    }
-  }
 
   Future<void> _saveCurrentState() async {
     final prefs = await SharedPreferences.getInstance();
@@ -273,39 +328,7 @@ class _UploadSeePlanScreenState extends State<UploadSeePlanScreen>
     }
   }
 
-  Future<void> _clearSavedState() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('is_picking_image');
-    await prefs.remove('current_image_index');
-    await prefs.remove('current_image_path');
-    await prefs.remove('current_image_lat');
-    await prefs.remove('current_image_long');
-  }
 
-  Future<void> _restoreStateIfNeeded() async {
-    final prefs = await SharedPreferences.getInstance();
-
-    final savedIndex = prefs.getInt('current_image_index');
-    final savedImagePath = prefs.getString('current_image_path');
-
-    if (savedIndex != null && savedImagePath != null) {
-      if (await File(savedImagePath).exists()) {
-        setState(() {
-          images[savedIndex].imagePath = savedImagePath;
-          images[savedIndex].lat = prefs.getDouble('current_image_lat') ?? 0.0;
-          images[savedIndex].long = prefs.getDouble('current_image_long') ?? 0.0;
-        });
-
-        Fluttertoast.showToast(
-          msg: "Restored interrupted image capture",
-          toastLength: Toast.LENGTH_SHORT,
-          gravity: ToastGravity.BOTTOM,
-          backgroundColor: Colors.blue,
-          textColor: Colors.white,
-        );
-      }
-    }
-  }
 
   double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
     return Geolocator.distanceBetween(lat1, lon1, lat2, lon2);
@@ -351,6 +374,7 @@ class _UploadSeePlanScreenState extends State<UploadSeePlanScreen>
     if (_timeoutRetryCount >= 3 && _lastTimeoutTime != null) {
       final elapsed = DateTime.now().difference(_lastTimeoutTime!);
       if (elapsed.inMinutes < 1) {
+<<<<<<< HEAD
         // Fluttertoast.showToast(
         //   msg: " Too many retries. Please wait a moment.",
         //   toastLength: Toast.LENGTH_LONG,
@@ -358,6 +382,15 @@ class _UploadSeePlanScreenState extends State<UploadSeePlanScreen>
         //   backgroundColor: Colors.orange,
         //   textColor: Colors.white,
         // );
+=======
+        Fluttertoast.showToast(
+          msg: " Too many retries. Please wait a moment.",
+          toastLength: Toast.LENGTH_LONG,
+          gravity: ToastGravity.CENTER,
+          backgroundColor: Colors.orange,
+          textColor: Colors.white,
+        );
+>>>>>>> b79a309 (fixes the issues resend and gps location fetch problem)
         setState(() {
           isPickingImage = false;
           _isPickerActiveList[index] = false;
@@ -387,6 +420,7 @@ class _UploadSeePlanScreenState extends State<UploadSeePlanScreen>
       // Check memory
       if (await _isDeviceLowOnMemory()) {
         print(" Device is low on memory");
+<<<<<<< HEAD
         // Fluttertoast.showToast(
         //   msg: " Low memory detected. Please close other apps.",
         //   toastLength: Toast.LENGTH_SHORT,
@@ -394,6 +428,15 @@ class _UploadSeePlanScreenState extends State<UploadSeePlanScreen>
         //   backgroundColor: Colors.orange,
         //   textColor: Colors.white,
         // );
+=======
+        Fluttertoast.showToast(
+          msg: " Low memory detected. Please close other apps.",
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.BOTTOM,
+          backgroundColor: Colors.orange,
+          textColor: Colors.white,
+        );
+>>>>>>> b79a309 (fixes the issues resend and gps location fetch problem)
       }
 
       // Request permissions
@@ -449,6 +492,7 @@ class _UploadSeePlanScreenState extends State<UploadSeePlanScreen>
           builder: (context) => CameraScreen(
             imageIndex: index,
             imageLabel: 'Image ${index + 1}',
+            latestPosition: _latestPosition,
             targetLatitude: index == 0 ? widget.latitude : null,
             targetLongitude: index == 0 ? widget.longitude : null,
             referenceLatitude: (index == 2 || index == 6) && images[0].imagePath != null
@@ -475,7 +519,11 @@ class _UploadSeePlanScreenState extends State<UploadSeePlanScreen>
       }
 
       isCameraOpen = false;
+<<<<<<< HEAD
       await _clearSavedState();
+=======
+      //await _clearSavedState();
+>>>>>>> b79a309 (fixes the issues resend and gps location fetch problem)
       print(" Saved state cleared successfully");
 
       setState(() {
@@ -489,7 +537,7 @@ class _UploadSeePlanScreenState extends State<UploadSeePlanScreen>
       print("   StackTrace: $stackTrace");
 
       isCameraOpen = false;
-      await _clearSavedState();
+      //await _clearSavedState();
 
       await CrashReportManager.storeCrashReport(
         error: "Image picker error: $e",
@@ -528,7 +576,7 @@ class _UploadSeePlanScreenState extends State<UploadSeePlanScreen>
     } else if (index == 6) {
       return ' Capture within 50m of Image 1 location';
     } else {
-      return '📸 Capture clear photo of the area';
+      return ' Capture clear photo of the area';
     }
   }
 
@@ -570,15 +618,18 @@ class _UploadSeePlanScreenState extends State<UploadSeePlanScreen>
 
     try {
       if (!await imageFile.exists()) {
+<<<<<<< HEAD
         print("║   ERROR: Source image file does not exist                           ║");
         print("╚═════════════════════════════════════════════════════════════════════════╝");
+=======
+        print("   ERROR: Source image file does not exist ");
+>>>>>>> b79a309 (fixes the issues resend and gps location fetch problem)
         return null;
       }
 
       // ========== STEP 1: USER TAKES PHOTO ==========
-      print("║                                                                         ║");
-      print("║  1. USER TAKES PHOTO                                                    ║");
-      print("║     ↓                                                                   ║");
+
+      print("  1. USER TAKES PHOTO ");
 
       final originalSizeBytes = await imageFile.length();
       final originalSizeKB = originalSizeBytes / 1024;
@@ -913,6 +964,7 @@ class _UploadSeePlanScreenState extends State<UploadSeePlanScreen>
       String requirement,
       {bool showRefreshOption = false}
       ) async {
+<<<<<<< HEAD
     // Fluttertoast.showToast(
     // //  msg: "You are ${distance.toStringAsFixed(0)}m away. Please move closer (within 50m).",
     //   msg: "You are ${distance.toStringAsFixed(0)}m away. Please move closer (within 50m).",
@@ -921,6 +973,16 @@ class _UploadSeePlanScreenState extends State<UploadSeePlanScreen>
     //   backgroundColor: Colors.orange,
     //   textColor: Colors.white,
     // );
+=======
+    Fluttertoast.showToast(
+      //  msg: "You are ${distance.toStringAsFixed(0)}m away. Please move closer (within 50m).",
+      msg: "You are ${distance.toStringAsFixed(0)}m away. Please move closer (within 50m).",
+      toastLength: Toast.LENGTH_LONG,
+      gravity: ToastGravity.CENTER,
+      backgroundColor: Colors.orange,
+      textColor: Colors.white,
+    );
+>>>>>>> b79a309 (fixes the issues resend and gps location fetch problem)
 
     bool? shouldRefresh = await showDialog<bool>(
       context: context,
@@ -929,7 +991,11 @@ class _UploadSeePlanScreenState extends State<UploadSeePlanScreen>
         return AlertDialog(
           title: Row(
             children: [
+<<<<<<< HEAD
              // Icon(Icons.location_off, color: Colors.orange),
+=======
+              // Icon(Icons.location_off, color: Colors.orange),
+>>>>>>> b79a309 (fixes the issues resend and gps location fetch problem)
               SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -1662,17 +1728,38 @@ class _UploadSeePlanScreenState extends State<UploadSeePlanScreen>
     }
 
     Position? submitPosition;
+
     try {
-      submitPosition = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.best,
-        timeLimit: Duration(seconds: 10),
-      );
+      if (_latestPosition != null) {
+        submitPosition = _latestPosition!;
+      } else {
+        submitPosition = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high,
+        );
+      }
     } catch (e) {
       setState(() {
         isRefreshing = false;
       });
+
       Fluttertoast.showToast(
         msg: S.of(context).unableCurrentLocationSubmission,
+        toastLength: Toast.LENGTH_LONG,
+        gravity: ToastGravity.CENTER,
+        backgroundColor: Colors.red,
+        textColor: Colors.white,
+      );
+      return;
+    }
+
+// Safety check
+    if (submitPosition == null) {
+      setState(() {
+        isRefreshing = false;
+      });
+
+      Fluttertoast.showToast(
+        msg: "Unable to fetch current location.",
         toastLength: Toast.LENGTH_LONG,
         gravity: ToastGravity.CENTER,
         backgroundColor: Colors.red,
@@ -1826,7 +1913,7 @@ class _UploadSeePlanScreenState extends State<UploadSeePlanScreen>
       String uploadDate = DateFormat('yyyy-MM-dd').format(DateTime.now());
       await UploadCountRepository().incrementUploadCount(uploadDate);
 
-      await _clearSavedState();
+      // await _clearSavedState();
 
       setState(() {
         for (var i = 0; i < images.length; i++) {
@@ -2010,14 +2097,16 @@ const Color primaryLightColor = Color(0xFF64B5F6);
 const Color accentColor = Color(0xFF03DAC6);
 const Color neutralDarkColor = Color(0xFF212121);
 
+
 // ============================================================
-// CAMERA SCREEN
+// CAMERA SCREEN WITH LIVE LOCATION OVERLAY
 // ============================================================
 class CameraScreen extends StatefulWidget {
   final Function(String, double, double) onImageCaptured;
   final int imageIndex;
   final double? targetLatitude;
   final double? targetLongitude;
+  final Position? latestPosition;
   final double? referenceLatitude;
   final double? referenceLongitude;
   final String imageLabel;
@@ -2030,6 +2119,7 @@ class CameraScreen extends StatefulWidget {
     required this.imageIndex,
     this.targetLatitude,
     this.targetLongitude,
+    required this.latestPosition,
     this.referenceLatitude,
     this.referenceLongitude,
     required this.imageLabel,
@@ -2042,24 +2132,40 @@ class CameraScreen extends StatefulWidget {
 }
 
 class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver {
+  // ========== CAMERA VARIABLES ==========
   CameraController? _cameraController;
   bool _isCameraInitialized = false;
   bool _isCapturing = false;
   bool _isProcessing = false;
-  Position? _currentPosition;
-  bool _isLocationValid = false;
-  String _locationError = '';
 
   // Camera toggle
-  int _cameraIndex = 0; // 0 = back, 1 = front
+  int _cameraIndex = 0;
   List<CameraDescription> _availableCameras = [];
+
+  // ========== LOCATION VARIABLES ==========
+  Position? _livePosition;
+  bool _isLocationValid = false;
+  String _locationError = '';
+  String _locationStatus = ' Getting GPS...';
+  bool _isLocationStreamActive = false;
+  StreamSubscription<Position>? _positionStream;
+
+  // ========== DISTANCE TRACKING ==========
+  double _distanceToTarget = 0.0;
+  double _distanceToReference = 0.0;
+  bool _showDistanceWarning = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _initializeCameras();
-    _getCurrentLocation();
+
+    _livePosition = widget.latestPosition;
+
+    if (_livePosition != null) {
+      _validateLocation(_livePosition!);
+    }
   }
 
   @override
@@ -2075,9 +2181,11 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
       _cameraController?.pausePreview();
     } else if (state == AppLifecycleState.resumed) {
       _cameraController?.resumePreview();
+      _startLocationUpdates();
     }
   }
 
+  // ========== CAMERA METHODS ==========
   Future<void> _initializeCameras() async {
     try {
       if (cameras == null || cameras!.isEmpty) {
@@ -2100,7 +2208,7 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     } catch (e) {
       print(" Camera initialization error: $e");
       Fluttertoast.showToast(
-        msg: "Failed to initialize camera: $e",
+        msg: "Failed to initialize camera",
         toastLength: Toast.LENGTH_LONG,
         gravity: ToastGravity.CENTER,
         backgroundColor: Colors.red,
@@ -2119,7 +2227,6 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
         index = 0;
       }
 
-      // Dispose old controller if exists
       if (_cameraController != null) {
         await _cameraController!.dispose();
       }
@@ -2147,7 +2254,7 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
         _isCameraInitialized = false;
       });
       Fluttertoast.showToast(
-        msg: "Failed to switch camera: $e",
+        msg: "Failed to switch camera",
         toastLength: Toast.LENGTH_LONG,
         gravity: ToastGravity.CENTER,
         backgroundColor: Colors.red,
@@ -2158,6 +2265,7 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
 
   Future<void> _toggleCamera() async {
     if (_availableCameras.length < 2) {
+<<<<<<< HEAD
       // Fluttertoast.showToast(
       //   msg: "Only one camera available",
       //   toastLength: Toast.LENGTH_SHORT,
@@ -2165,6 +2273,8 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
       //   backgroundColor: Colors.orange,
       //   textColor: Colors.white,
       // );
+=======
+>>>>>>> b79a309 (fixes the issues resend and gps location fetch problem)
       return;
     }
 
@@ -2172,30 +2282,39 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
       _isCameraInitialized = false;
     });
 
-    // Switch to next camera
     _cameraIndex = (_cameraIndex + 1) % _availableCameras.length;
-
     await _initializeCamera(_cameraIndex);
   }
 
+  // ========== LOCATION METHODS ==========
   Future<void> _getCurrentLocation() async {
     try {
       setState(() {
         _isLocationValid = false;
         _locationError = '';
+        _locationStatus = 'Getting GPS...';
       });
 
-      final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-        timeLimit: Duration(seconds: 10),
-      );
+      Position position;
+
+      // Use latest position from parent if available
+      if (widget.latestPosition != null) {
+        position = widget.latestPosition!;
+      } else {
+        // Fallback to fresh GPS
+        position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.best,
+        );
+      }
 
       setState(() {
-        _currentPosition = position;
+        _livePosition = position;
+        _isLocationStreamActive = true;
         _isLocationValid = true;
-        _locationError = '';
+        _locationStatus = 'Location OK';
       });
 
+<<<<<<< HEAD
       if (widget.targetLatitude != null && widget.targetLongitude != null) {
         double distance = _calculateDistance(
           position.latitude,
@@ -2241,14 +2360,19 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
           // );
         }
       }
+=======
+      _validateLocation(position);
+>>>>>>> b79a309 (fixes the issues resend and gps location fetch problem)
 
     } catch (e) {
       setState(() {
         _isLocationValid = false;
         _locationError = 'Unable to get location. Please enable GPS.';
+        _locationStatus = 'GPS Unavailable';
       });
+
       Fluttertoast.showToast(
-        msg: "⚠️ Please enable GPS",
+        msg: "Please enable GPS and try again",
         toastLength: Toast.LENGTH_LONG,
         gravity: ToastGravity.CENTER,
         backgroundColor: Colors.red,
@@ -2257,20 +2381,146 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     }
   }
 
+  void _startLocationUpdates() {
+    try {
+      // Cancel existing stream if any
+      _positionStream?.cancel();
+
+      _positionStream = Geolocator.getPositionStream(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.bestForNavigation,
+          distanceFilter: 1, // Update every 1 meter
+          timeLimit: Duration(seconds: 1),
+        ),
+      ).listen(
+            (position) {
+          if (mounted) {
+            setState(() {
+              _livePosition = position;
+              _isLocationStreamActive = true;
+              _locationStatus = ' Live Tracking';
+            });
+
+            _validateLocation(position);
+            _showLiveLocationToast(position);
+          }
+        },
+        onError: (error) {
+          if (mounted) {
+            setState(() {
+              _locationStatus = ' GPS Error';
+              _isLocationStreamActive = false;
+            });
+          }
+          print(' Location stream error: $error');
+        },
+      );
+    } catch (e) {
+      print(' Failed to start location stream: $e');
+      setState(() {
+        _locationStatus = ' GPS Unavailable';
+        _isLocationStreamActive = false;
+      });
+    }
+  }
+
+  void _validateLocation(Position position) {
+    bool isValid = true;
+    String errorMsg = '';
+    double distance = 0.0;
+
+    // Check target location (for Image 1)
+    if (widget.targetLatitude != null && widget.targetLongitude != null) {
+      distance = _calculateDistance(
+        position.latitude,
+        position.longitude,
+        widget.targetLatitude!,
+        widget.targetLongitude!,
+      );
+
+      _distanceToTarget = distance;
+
+      if (distance > 50) {
+        isValid = false;
+        errorMsg = ' ${distance.toStringAsFixed(0)}m from target (must be within 50m)';
+        _showDistanceWarning = true;
+      } else {
+        _showDistanceWarning = false;
+      }
+    }
+
+    // Check reference location (for Image 3 & 7)
+    if (widget.referenceLatitude != null && widget.referenceLongitude != null) {
+      double refDistance = _calculateDistance(
+        position.latitude,
+        position.longitude,
+        widget.referenceLatitude!,
+        widget.referenceLongitude!,
+      );
+
+      _distanceToReference = refDistance;
+
+      if (refDistance > 50) {
+        isValid = false;
+        errorMsg = ' ${refDistance.toStringAsFixed(0)}m from reference image (must be within 50m)';
+        _showDistanceWarning = true;
+      }
+    }
+
+    setState(() {
+      _isLocationValid = isValid;
+      if (!isValid) {
+        _locationError = errorMsg;
+        _locationStatus = ' $errorMsg';
+      } else {
+        _locationError = '';
+        _locationStatus = ' Location OK';
+        _showDistanceWarning = false;
+      }
+    });
+  }
+
   double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
     return Geolocator.distanceBetween(lat1, lon1, lat2, lon2);
   }
 
-  /// ============================================================
-  /// COMPRESS IMAGE ON CAPTURE (Camera Screen)
-  /// ============================================================
-  /// Uses the SAME logic as the main screen.
-  /// Min height = 1024, auto width, target size under 200 KB.
-  /// ============================================================
-  /// COMPRESS IMAGE ON CAPTURE (Camera Screen)
-  /// ============================================================
-  /// Uses the SAME logic as the main screen.
-  /// Min height = 1024, auto width, target 100-200 KB.
+  // ========== LIVE LOCATION TOAST ==========
+  void _showLiveLocationToast(Position position) {
+    // Only show toast occasionally to avoid spam
+    // Using a timer to throttle toast messages
+    if (!mounted) return;
+
+    String speedText = (position.speed * 3.6).toStringAsFixed(1);
+    String accuracyText = position.accuracy.toStringAsFixed(1);
+    String latText = position.latitude.toStringAsFixed(6);
+    String longText = position.longitude.toStringAsFixed(6);
+
+    String distanceText = widget.targetLatitude != null && widget.targetLongitude != null
+        ? _distanceToTarget.toStringAsFixed(0)
+        : 'N/A';
+
+    // Only show toast every 5 seconds to avoid spam
+    _lastToastTime ??= DateTime.now().subtract(Duration(seconds: 5));
+    if (DateTime.now().difference(_lastToastTime!).inSeconds >= 3) {
+      _lastToastTime = DateTime.now();
+
+      Fluttertoast.showToast(
+        msg: " $latText, $longText\n"
+            " Speed: $speedText km/h | Accuracy: ±${accuracyText}m\n"
+            " Distance to target: ${distanceText}m",
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.TOP,
+        backgroundColor: Colors.black.withOpacity(0.85),
+        textColor: Colors.white,
+        fontSize: 12.0,
+        timeInSecForIosWeb: 2,
+      );
+    }
+  }
+
+  DateTime? _lastToastTime;
+
+  // ========== COMPRESSION METHOD ==========
   Future<File?> _compressImageOnCapture(File imageFile) async {
     const int minTargetKB = 100;
     const int maxTargetKB = 200;
@@ -2296,7 +2546,6 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
       final dir = await getTemporaryDirectory();
       final ts = DateTime.now().millisecondsSinceEpoch;
 
-      // HIGHER quality values to avoid over-compression
       final int quality = originalSizeKB <= 300
           ? 95
           : originalSizeKB <= 600
@@ -2316,7 +2565,6 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
 
       double sizeKB = await out.length() / 1024;
 
-      // If below 100 KB, increase quality
       if (sizeKB < minTargetKB) {
         final int higherQuality = (quality * (minTargetKB / sizeKB)).ceil().clamp(quality + 5, 98);
         final File? retry = await _compress(
@@ -2329,9 +2577,7 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
           out = retry;
           sizeKB = await out.length() / 1024;
         }
-      }
-      // If over 200 KB, reduce quality
-      else if (sizeKB > maxTargetKB) {
+      } else if (sizeKB > maxTargetKB) {
         final int lowerQuality = (quality * (maxTargetKB / sizeKB)).floor().clamp(15, quality - 5);
         final File? retry = await _compress(
           imageFile.path,
@@ -2345,11 +2591,11 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
         }
       }
 
-      // Cleanup original
       try { await imageFile.delete(); } catch (_) {}
 
       print("📸 Image ${widget.imageIndex + 1}: ${originalSizeKB.toStringAsFixed(0)}KB → ${sizeKB.toStringAsFixed(0)}KB");
 
+<<<<<<< HEAD
       // ========== SHOW TOAST WITH SIZE ==========
       String sizeDisplay;
       if (sizeKB >= 1024) {
@@ -2381,6 +2627,8 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
       //   textColor: Colors.white,
       // );
 
+=======
+>>>>>>> b79a309 (fixes the issues resend and gps location fetch problem)
       return out;
 
     } catch (e, st) {
@@ -2389,11 +2637,13 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     }
   }
 
+  // ========== CAPTURE METHOD ==========
   Future<void> _captureImage() async {
     if (_isCapturing || _isProcessing || !_isCameraInitialized || _cameraController == null) {
       return;
     }
 
+<<<<<<< HEAD
     if (!_isLocationValid) {
       // Fluttertoast.showToast(
       //   msg: "",
@@ -2402,8 +2652,18 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
       //   backgroundColor: Colors.orange,
       //   textColor: Colors.white,
       // );
+=======
+    _livePosition = widget.latestPosition;
+
+    if (_livePosition == null) {
+      Fluttertoast.showToast(
+        msg: "Waiting for GPS...",
+      );
+>>>>>>> b79a309 (fixes the issues resend and gps location fetch problem)
       return;
     }
+
+    _validateLocation(_livePosition!);
 
     setState(() {
       _isCapturing = true;
@@ -2420,19 +2680,16 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
       final File imageFile = File(picture.path);
       File? compressedFile = await _compressImageOnCapture(imageFile);
 
-      String finalImagePath;
-      if (compressedFile != null) {
-        finalImagePath = compressedFile.path;
-      } else {
-        finalImagePath = picture.path;
-      }
+      String finalImagePath = compressedFile != null ? compressedFile.path : picture.path;
 
+      // Use live position for geotagging
       widget.onImageCaptured(
         finalImagePath,
-        _currentPosition!.latitude,
-        _currentPosition!.longitude,
+        _livePosition!.latitude,
+        _livePosition!.longitude,
       );
 
+<<<<<<< HEAD
       // Double toast for success (compression toast already shown)
       // Fluttertoast.showToast(
       //   msg: " Image ${widget.imageIndex + 1} captured",
@@ -2441,6 +2698,16 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
       //   backgroundColor: Colors.green,
       //   textColor: Colors.white,
       // );
+=======
+      // Show success toast
+      Fluttertoast.showToast(
+        msg: " Image ${widget.imageIndex + 1} captured successfully!",
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        backgroundColor: Colors.green,
+        textColor: Colors.white,
+      );
+>>>>>>> b79a309 (fixes the issues resend and gps location fetch problem)
 
       if (mounted) {
         Navigator.pop(context);
@@ -2449,8 +2716,8 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     } catch (e) {
       print(" Capture error: $e");
       Fluttertoast.showToast(
-        msg: "Failed to capture image: $e",
-        toastLength: Toast.LENGTH_LONG,
+        msg: "Failed to capture image. Please try again.",
+        toastLength: Toast.LENGTH_SHORT,
         gravity: ToastGravity.CENTER,
         backgroundColor: Colors.red,
         textColor: Colors.white,
@@ -2463,6 +2730,58 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     }
   }
 
+
+  Widget _buildLocationOverlay() {
+    return Positioned(
+      bottom: 150,
+      left: 16,
+      right: 16,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.8),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: _livePosition == null
+            ? const Center(
+          child: Text(
+            "Fetching Location...",
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontFamily: "Roboto",
+            ),
+          ),
+        )
+            : Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              "Latitude : ${_livePosition!.latitude.toStringAsFixed(6)}",
+              style: const TextStyle(
+                color: Colors.black,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                fontFamily: "Roboto",
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              "Longitude : ${_livePosition!.longitude.toStringAsFixed(6)}",
+              style: const TextStyle(
+                color: Colors.black,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                fontFamily: "Roboto",
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ========== BUILD METHOD ==========
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -2470,7 +2789,7 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
       body: SafeArea(
         child: Stack(
           children: [
-            // Camera Preview
+            // ========== CAMERA PREVIEW ==========
             if (_isCameraInitialized && _cameraController != null)
               Positioned.fill(
                 child: CameraPreview(_cameraController!),
@@ -2482,7 +2801,9 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
                 ),
               ),
 
-            // Capture Button
+            // ========== LOCATION OVERLAY ==========
+            _buildLocationOverlay(),
+            // ========== CAPTURE BUTTON ==========
             Positioned(
               bottom: 50,
               left: 0,
@@ -2495,13 +2816,19 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
                     height: 80,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: Colors.white,
+                      color: _isLocationValid ? Colors.white : Colors.grey[600],
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.3),
-                          blurRadius: 10,
+                          color: Colors.black.withOpacity(0.4),
+                          blurRadius: 15,
                           offset: Offset(0, 4),
                         ),
+                        if (_isLocationValid)
+                          BoxShadow(
+                            color: Colors.green.withOpacity(0.3),
+                            blurRadius: 20,
+                            offset: Offset(0, 0),
+                          ),
                       ],
                     ),
                     child: Center(
@@ -2510,9 +2837,9 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
                         height: 68,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: Colors.white,
+                          color: _isLocationValid ? Colors.white : Colors.grey[500],
                           border: Border.all(
-                            color: Colors.grey[400]!,
+                            color: _isLocationValid ? Colors.grey[400]! : Colors.grey[600]!,
                             width: 2,
                           ),
                         ),
@@ -2523,7 +2850,9 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
                             height: 30,
                             child: CircularProgressIndicator(
                               strokeWidth: 3,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                _isLocationValid ? Colors.blue : Colors.grey,
+                              ),
                             ),
                           ),
                         )
@@ -2535,12 +2864,13 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
               ),
             ),
 
-            // Cancel Button (Left)
+            // ========== CANCEL BUTTON ==========
             Positioned(
               bottom: 50,
               left: 30,
               child: GestureDetector(
                 onTap: () {
+                  _positionStream?.cancel();
                   _cameraController?.dispose();
                   Navigator.pop(context);
                 },
@@ -2549,8 +2879,12 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
                   decoration: BoxDecoration(
                     color: Colors.black.withOpacity(0.6),
                     shape: BoxShape.circle,
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.2),
+                      width: 1,
+                    ),
                   ),
-                  child: Icon(
+                  child: const Icon(
                     Icons.close,
                     color: Colors.white,
                     size: 28,
@@ -2559,7 +2893,7 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
               ),
             ),
 
-            // Flip Camera Button (Right)
+            // ========== FLIP CAMERA BUTTON ==========
             Positioned(
               bottom: 50,
               right: 30,
@@ -2571,11 +2905,11 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
                     color: Colors.black.withOpacity(0.6),
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: Colors.white.withOpacity(0.3),
+                      color: Colors.white.withOpacity(0.2),
                       width: 1,
                     ),
                   ),
-                  child: Icon(
+                  child: const Icon(
                     Icons.flip_camera_ios,
                     color: Colors.white,
                     size: 28,

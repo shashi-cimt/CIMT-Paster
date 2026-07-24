@@ -167,6 +167,10 @@ class _ResendScreenState extends ConsumerState<ResendScreen> with SingleTickerPr
 
   // UPDATED: Improved resend logic with better status handling
   void _resendItem(String planId) async {
+<<<<<<< HEAD
+=======
+    final responseItem = responseData.firstWhere((item) => item.planId == planId);
+>>>>>>> b79a309 (fixes the issues resend and gps location fetch problem)
     print(' [_resendItem] Starting resend for planId: $planId');
     setState(() {
       resendingItems.add(planId);
@@ -174,7 +178,11 @@ class _ResendScreenState extends ConsumerState<ResendScreen> with SingleTickerPr
     });
 
     try {
+<<<<<<< HEAD
       final responseItem = responseData.firstWhere((item) => item.planId == planId);
+=======
+
+>>>>>>> b79a309 (fixes the issues resend and gps location fetch problem)
       print(' [_resendItem] Found response item: ${responseItem.originalData.PlanCode}');
 
       final apiService = Auth();
@@ -196,13 +204,34 @@ class _ResendScreenState extends ConsumerState<ResendScreen> with SingleTickerPr
       print(' [_resendItem] API Response: success=${result['success']}, message=${result['message']}');
 
       bool isSuccess = result['success'] ?? false;
-      String remarks = result['message'] ?? (isSuccess
-          ? S.of(context).successfullyResentData
-          : S.of(context).resendFailed);
-      int statusCode = isSuccess ? 200 : 400;
 
+<<<<<<< HEAD
       print(' [_resendItem] Updating response status in database...');
       await _apiResponseRepo.updateResponseStatus(planId, isSuccess, remarks, statusCode);
+=======
+      String remarks = result['message'] ?? "";
+
+      if (isSuccess) {
+        // Move this print to Success tab
+        await _apiResponseRepo.updateResponseStatus(
+          planId,
+          responseItem.originalData.PrintNo ?? "",
+          true,
+          remarks,
+          200,
+        );
+      } else {
+        // Keep in Failed tab
+        await _apiResponseRepo.updateResponseStatus(
+          planId,
+          responseItem.originalData.PrintNo ?? "",
+          false,
+          remarks,
+          400,
+        );
+      }
+
+>>>>>>> b79a309 (fixes the issues resend and gps location fetch problem)
       loadResponseData();
       print(' [_resendItem] Response status updated');
 
@@ -224,7 +253,13 @@ class _ResendScreenState extends ConsumerState<ResendScreen> with SingleTickerPr
     } catch (e) {
       print(' [_resendItem] Error during resend: $e');
       String errorMessage = e.toString();
-      await _apiResponseRepo.updateResponseStatus(planId, false, errorMessage, 0);
+      await _apiResponseRepo.updateResponseStatus(
+        planId,
+        responseItem.originalData.PrintNo ?? "",
+        false,
+        errorMessage,
+        0,
+      );
       loadResponseData();
 
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(

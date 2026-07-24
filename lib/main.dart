@@ -515,7 +515,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
   Future<void> _SUcheckAndSyncPendingUploads() async {
     if (UploadSeePlanScreen.isCameraActive) {
-      print("📸 Camera is active, skipping SU background sync");
+      print(" Camera is active, skipping SU background sync");
       return;
     }
 
@@ -552,7 +552,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (UploadSeePlanScreen.isCameraActive) {
-      print("📸 Camera is active, skipping lifecycle sync");
+      print(" Camera is active, skipping lifecycle sync");
       return;
     }
 
