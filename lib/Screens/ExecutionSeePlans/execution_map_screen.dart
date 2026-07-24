@@ -818,8 +818,7 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
                 ),
               ),
 
-<<<<<<< HEAD
-=======
+
               // Street View
               // Positioned(
               //   right: 10,
@@ -848,7 +847,6 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
               // ),
 
               // NEXT BUTTON
->>>>>>> b79a309 (fixes the issues resend and gps location fetch problem)
               if (_showNextButton)
                 Positioned(
                   left: 10,

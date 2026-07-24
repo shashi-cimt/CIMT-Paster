@@ -1137,7 +1137,6 @@ class _ReworkMapState extends State<ReworkMap> {
         uploadedPrintIds = completedIds;
       });
 
-<<<<<<< HEAD
       print(' Loaded ${uploadedPrintIds.length} completed upload IDs');
 
       if (uploadedPrintIds.isNotEmpty) {
@@ -1147,32 +1146,15 @@ class _ReworkMapState extends State<ReworkMap> {
 
     } catch (e) {
       print(' Error loading completed uploads: $e');
-=======
-      print('📁 Loaded ${uploadedPrintIds.length} completed upload IDs');
-
-      if (uploadedPrintIds.isNotEmpty) {
-        final sampleIds = uploadedPrintIds.take(5).join(', ');
-        print('📁 Sample IDs: $sampleIds${uploadedPrintIds.length > 5 ? '...' : ''}');
-      }
-
-    } catch (e) {
-      print('❌ Error loading completed uploads: $e');
->>>>>>> b79a309 (fixes the issues resend and gps location fetch problem)
       setState(() {
         uploadedPrintIds = [];
       });
     }
   }
 
-<<<<<<< HEAD
   //  FIXED: Complete refresh after upload
   Future<void> refreshMarkersAfterUpload() async {
     print(' Refreshing markers after upload...');
-=======
-  // ✅ FIXED: Complete refresh after upload
-  Future<void> refreshMarkersAfterUpload() async {
-    print('🔄 Refreshing markers after upload...');
->>>>>>> b79a309 (fixes the issues resend and gps location fetch problem)
 
     // Clear existing markers immediately
     setState(() {
@@ -1182,11 +1164,7 @@ class _ReworkMapState extends State<ReworkMap> {
 
     // Reload uploaded print IDs from SharedPreferences
     await _loadUploadedPrintIds();
-<<<<<<< HEAD
     print(' Uploaded print IDs count: ${uploadedPrintIds.length}');
-=======
-    print('📁 Uploaded print IDs count: ${uploadedPrintIds.length}');
->>>>>>> b79a309 (fixes the issues resend and gps location fetch problem)
 
     // Regenerate markers (this will exclude uploaded ones)
     _generateMarkersFromGroup();
@@ -1194,19 +1172,11 @@ class _ReworkMapState extends State<ReworkMap> {
     // Update map with remaining markers
     if (markers.isNotEmpty) {
       _fitMarkersToMap();
-<<<<<<< HEAD
       print(' ${markers.length} markers remaining');
     } else {
       print('ℹ No markers remaining - all plans uploaded');
       Fluttertoast.showToast(
         msg: " All plans have been uploaded!",
-=======
-      print('📍 ${markers.length} markers remaining');
-    } else {
-      print('ℹ️ No markers remaining - all plans uploaded');
-      Fluttertoast.showToast(
-        msg: "🎉 All plans have been uploaded!",
->>>>>>> b79a309 (fixes the issues resend and gps location fetch problem)
         toastLength: Toast.LENGTH_LONG,
         gravity: ToastGravity.CENTER,
         backgroundColor: Colors.green,
@@ -1218,19 +1188,11 @@ class _ReworkMapState extends State<ReworkMap> {
   // ============ MARKER GENERATION ============
 
   void _generateMarkersFromGroup() {
-<<<<<<< HEAD
     print(' Starting marker generation...');
     print(' Uploaded print IDs count: ${uploadedPrintIds.length}');
 
     if (currentLocation == null) {
       print('Current location is not available');
-=======
-    print('🔍 Starting marker generation...');
-    print('📁 Uploaded print IDs count: ${uploadedPrintIds.length}');
-
-    if (currentLocation == null) {
-      print('⚠️ Current location is not available');
->>>>>>> b79a309 (fixes the issues resend and gps location fetch problem)
       return;
     }
 
@@ -1250,16 +1212,12 @@ class _ReworkMapState extends State<ReworkMap> {
 
       if (shouldHide) {
         hiddenCount++;
-<<<<<<< HEAD
         print(' HIDING marker for printId: ${p.printId} - printNo: ${p.printNo}');
-=======
-        print('🚫 HIDING marker for printId: ${p.printId} - printNo: ${p.printNo}');
->>>>>>> b79a309 (fixes the issues resend and gps location fetch problem)
         continue;
       }
 
       if (!_isValidCoordinate(p.latitude, p.longitude)) {
-        print('⚠️ Invalid coordinates for printId: ${p.printId}');
+        print(' Invalid coordinates for printId: ${p.printId}');
         continue;
       }
 
@@ -1314,24 +1272,14 @@ class _ReworkMapState extends State<ReworkMap> {
       markerDataMap[uniqueId] = markerData;
 
       // Log each visible marker
-<<<<<<< HEAD
       print(' VISIBLE marker: printNo=${p.printNo}, printId=${p.printId}');
-=======
-      print('✅ VISIBLE marker: printNo=${p.printNo}, printId=${p.printId}');
->>>>>>> b79a309 (fixes the issues resend and gps location fetch problem)
     }
 
     if (mounted) {
       setState(() {});
-<<<<<<< HEAD
       print(' Generated ${markers.length} visible markers');
       print(' Hidden ${hiddenCount} markers (already uploaded)');
       print(' Total processed: ${totalProcessed}');
-=======
-      print('✅ Generated ${markers.length} visible markers');
-      print('🚫 Hidden ${hiddenCount} markers (already uploaded)');
-      print('📊 Total processed: ${totalProcessed}');
->>>>>>> b79a309 (fixes the issues resend and gps location fetch problem)
     }
   }
 
@@ -1342,11 +1290,7 @@ class _ReworkMapState extends State<ReworkMap> {
         .contains(plan.printId.toString().trim());
 
     if (isUploaded) {
-<<<<<<< HEAD
       print(' Hiding marker: printId=${plan.printId} is in completed list');
-=======
-      print('🔍 Hiding marker: printId=${plan.printId} is in completed list');
->>>>>>> b79a309 (fixes the issues resend and gps location fetch problem)
       return true;
     }
 
@@ -1400,15 +1344,9 @@ class _ReworkMapState extends State<ReworkMap> {
     _showMarkerBottomSheet(markerData);
   }
 
-<<<<<<< HEAD
   //  FIXED: Handle result from display page and refresh
   void _onInfoWindowTap(MarkerData markerData) async {
     print(' Marker tapped: ${markerData.printNo}');
-=======
-  // ✅ FIXED: Handle result from display page and refresh
-  void _onInfoWindowTap(MarkerData markerData) async {
-    print('📍 Marker tapped: ${markerData.printNo}');
->>>>>>> b79a309 (fixes the issues resend and gps location fetch problem)
 
     // Navigate and wait for result from display page
     final result = await Navigator.push<bool>(
@@ -1439,19 +1377,11 @@ class _ReworkMapState extends State<ReworkMap> {
 
     // If upload successful, refresh and remove marker
     if (result == true) {
-<<<<<<< HEAD
       print(' Upload completed, refreshing markers...');
 
       // Show loading indicator
       Fluttertoast.showToast(
         msg: " Removing marker...",
-=======
-      print('✅ Upload completed, refreshing markers...');
-
-      // Show loading indicator
-      Fluttertoast.showToast(
-        msg: "🔄 Removing marker...",
->>>>>>> b79a309 (fixes the issues resend and gps location fetch problem)
         toastLength: Toast.LENGTH_SHORT,
         gravity: ToastGravity.CENTER,
         backgroundColor: Colors.blue,
@@ -1463,11 +1393,7 @@ class _ReworkMapState extends State<ReworkMap> {
 
       // Show confirmation that marker was removed
       Fluttertoast.showToast(
-<<<<<<< HEAD
         msg: " Marker removed successfully!",
-=======
-        msg: "✅ Marker removed successfully!",
->>>>>>> b79a309 (fixes the issues resend and gps location fetch problem)
         toastLength: Toast.LENGTH_SHORT,
         gravity: ToastGravity.BOTTOM,
         backgroundColor: Colors.green,
