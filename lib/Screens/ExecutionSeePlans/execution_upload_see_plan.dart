@@ -92,6 +92,9 @@ class _UploadSeePlanScreenState extends State<UploadSeePlanScreen>
   List<CameraDescription>? _cameras;
   bool _isCameraInitialized = false;
   bool _isCapturing = false;
+  StreamSubscription<Position>? _locationSubscription;
+  Position? _latestPosition;
+  bool _isLocationReady = false;
 
   int? _currentImageIndex;
   int _timeoutRetryCount = 0;
@@ -114,6 +117,7 @@ class _UploadSeePlanScreenState extends State<UploadSeePlanScreen>
 
     // Initialize cameras
     _initCameras();
+    _startBackgroundLocationTracking();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       //_checkAndRestoreState();
@@ -128,8 +132,51 @@ class _UploadSeePlanScreenState extends State<UploadSeePlanScreen>
     printNoController1.dispose();
     printNoController2.dispose();
     isCameraOpen = false;
+    // Stop GPS stream
+    _locationSubscription?.cancel();
     _cameraController?.dispose();
     super.dispose();
+  }
+
+
+  Future<void> _startBackgroundLocationTracking() async {
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) return;
+
+      LocationPermission permission =
+      await Geolocator.checkPermission();
+
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return;
+      }
+
+      const settings = LocationSettings(
+        accuracy: LocationAccuracy.best,
+        distanceFilter: 2,
+      );
+
+      _locationSubscription =
+          Geolocator.getPositionStream(
+            locationSettings: settings,
+          ).listen((Position position) {
+
+            _latestPosition = position;
+            _isLocationReady = true;
+
+            print(
+                "GPS Updated : ${position.latitude}, ${position.longitude}");
+
+          });
+
+    } catch (e) {
+      print("Location Stream Error : $e");
+    }
   }
 
   Future<void> _initCameras() async {
@@ -174,10 +221,47 @@ class _UploadSeePlanScreenState extends State<UploadSeePlanScreen>
   }
 
 
+  void _cleanMemory() {
+    try {
+      imageCache.clear();
+      imageCache.clearLiveImages();
+      print(" Image cache cleared");
+    } catch (e) {
+      print(" Error clearing image cache: $e");
+    }
+    _cleanupTempFiles();
+  }
+
+  Future<void> _cleanupTempFiles() async {
+    try {
+      final tempDir = await getTemporaryDirectory();
+      final files = tempDir.listSync();
+      int deletedCount = 0;
+
+      for (var file in files) {
+        if (file is File && (file.path.contains('.jpg') || file.path.contains('.png'))) {
+          try {
+            await file.delete();
+            deletedCount++;
+          } catch (e) {
+            // Ignore
+          }
+        }
+      }
+
+      if (deletedCount > 0) {
+        print(" Cleaned up $deletedCount temporary image files");
+      }
+    } catch (e) {
+      // Ignore
+    }
+  }
+
+
   void _removeFocus() {
-    _focusNode1.unfocus();
-    _focusNode2.unfocus();
-    FocusScope.of(context).unfocus();
+  _focusNode1.unfocus();
+  _focusNode2.unfocus();
+  FocusScope.of(context).unfocus();
   }
 
   @override
@@ -185,329 +269,299 @@ class _UploadSeePlanScreenState extends State<UploadSeePlanScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    super.didChangeAppLifecycleState(state);
+  super.didChangeAppLifecycleState(state);
 
-    CrashReportManager.storeCrashReport(
-      error: "Lifecycle: $state",
-      stackTrace: "Time: ${DateTime.now()}",
-    );
+  CrashReportManager.storeCrashReport(
+  error: "Lifecycle: $state",
+  stackTrace: "Time: ${DateTime.now()}",
+  );
 
-    switch (state) {
-      case AppLifecycleState.paused:
-        print("App moved to background");
-        if (isPickingImage) {
-          _saveCurrentState();
-        }
-        break;
+  switch (state) {
+  case AppLifecycleState.paused:
+  print("App moved to background");
+  if (isPickingImage) {
+  _saveCurrentState();
+  }
+  break;
 
-      case AppLifecycleState.resumed:
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            FocusScope.of(context).unfocus();
-            print("App resumed");
-            // _checkAndRestoreState();
-          }
-        });
-        break;
+  case AppLifecycleState.resumed:
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+  if (mounted) {
+  FocusScope.of(context).unfocus();
+  print("App resumed");
+  // _checkAndRestoreState();
+  }
+  });
+  break;
 
-      case AppLifecycleState.detached:
-        isCameraOpen = false;
-        print("App detached");
-        _cameraController?.dispose();
-        break;
+  case AppLifecycleState.detached:
+  isCameraOpen = false;
+  print("App detached");
+  _cameraController?.dispose();
+  break;
 
-      case AppLifecycleState.inactive:
-        print("App inactive");
-      case AppLifecycleState.hidden:
-        print("App hidden");
-        break;
+  case AppLifecycleState.inactive:
+  print("App inactive");
+  case AppLifecycleState.hidden:
+  print("App hidden");
+  break;
 
-    }
+  }
   }
 
-  // Future<void> _checkAndRestoreState() async {
-  //   final prefs = await SharedPreferences.getInstance();
-  //   final wasPicking = prefs.getBool('is_picking_image') ?? false;
-  //
-  //   if (wasPicking) {
-  //     await _restoreStateIfNeeded();
-  //     await prefs.setBool('is_picking_image', false);
-  //   }
-  // }
+
 
   Future<void> _saveCurrentState() async {
-    final prefs = await SharedPreferences.getInstance();
+  final prefs = await SharedPreferences.getInstance();
 
-    if (_currentImageIndex != null && isPickingImage) {
-      await prefs.setBool('is_picking_image', true);
-      await prefs.setInt('current_image_index', _currentImageIndex!);
+  if (_currentImageIndex != null && isPickingImage) {
+  await prefs.setBool('is_picking_image', true);
+  await prefs.setInt('current_image_index', _currentImageIndex!);
 
-      final currentImage = images[_currentImageIndex!];
-      if (currentImage.imagePath != null) {
-        await prefs.setString('current_image_path', currentImage.imagePath!);
-        await prefs.setDouble('current_image_lat', currentImage.lat);
-        await prefs.setDouble('current_image_long', currentImage.long);
-      }
-    }
+  final currentImage = images[_currentImageIndex!];
+  if (currentImage.imagePath != null) {
+  await prefs.setString('current_image_path', currentImage.imagePath!);
+  await prefs.setDouble('current_image_lat', currentImage.lat);
+  await prefs.setDouble('current_image_long', currentImage.long);
+  }
+  }
   }
 
-  // Future<void> _clearSavedState() async {
-  //   final prefs = await SharedPreferences.getInstance();
-  //   await prefs.remove('is_picking_image');
-  //   await prefs.remove('current_image_index');
-  //   await prefs.remove('current_image_path');
-  //   await prefs.remove('current_image_lat');
-  //   await prefs.remove('current_image_long');
-  // }
 
-  // Future<void> _restoreStateIfNeeded() async {
-  //   final prefs = await SharedPreferences.getInstance();
-  //
-  //   final savedIndex = prefs.getInt('current_image_index');
-  //   final savedImagePath = prefs.getString('current_image_path');
-  //
-  //   if (savedIndex != null && savedImagePath != null) {
-  //     if (await File(savedImagePath).exists()) {
-  //       setState(() {
-  //         images[savedIndex].imagePath = savedImagePath;
-  //         images[savedIndex].lat = prefs.getDouble('current_image_lat') ?? 0.0;
-  //         images[savedIndex].long = prefs.getDouble('current_image_long') ?? 0.0;
-  //       });
-  //
-  //       Fluttertoast.showToast(
-  //         msg: "Restored interrupted image capture",
-  //         toastLength: Toast.LENGTH_SHORT,
-  //         gravity: ToastGravity.BOTTOM,
-  //         backgroundColor: Colors.blue,
-  //         textColor: Colors.white,
-  //       );
-  //     }
-  //   }
-  // }
 
   double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
-    return Geolocator.distanceBetween(lat1, lon1, lat2, lon2);
+  return Geolocator.distanceBetween(lat1, lon1, lat2, lon2);
   }
 
   Future<String> _getDeviceInfo() async {
-    try {
-      final deviceInfo = await DeviceInfoPlugin().androidInfo;
-      return "Android ${deviceInfo.version.release} (SDK ${deviceInfo.version.sdkInt}) - ${deviceInfo.model}";
-    } catch (e) {
-      return "Unknown Device";
-    }
+  try {
+  final deviceInfo = await DeviceInfoPlugin().androidInfo;
+  return "Android ${deviceInfo.version.release} (SDK ${deviceInfo.version.sdkInt}) - ${deviceInfo.model}";
+  } catch (e) {
+  return "Unknown Device";
+  }
   }
 
   Future<bool> _isDeviceLowOnMemory() async {
-    try {
-      final info = await Process.run('dumpsys', ['meminfo']);
-      final output = info.stdout.toString();
+  try {
+  final info = await Process.run('dumpsys', ['meminfo']);
+  final output = info.stdout.toString();
 
-      final totalMatch = RegExp(r'Total RAM:\s+(\d+)').firstMatch(output);
-      final freeMatch = RegExp(r'Free RAM:\s+(\d+)').firstMatch(output);
+  final totalMatch = RegExp(r'Total RAM:\s+(\d+)').firstMatch(output);
+  final freeMatch = RegExp(r'Free RAM:\s+(\d+)').firstMatch(output);
 
-      if (totalMatch != null && freeMatch != null) {
-        final total = int.parse(totalMatch.group(1)!);
-        final free = int.parse(freeMatch.group(1)!);
-        final freePercent = (free / total) * 100;
-        print(" Memory: ${freePercent.toStringAsFixed(1)}% free");
-        return freePercent < 15;
-      }
-      return false;
-    } catch (e) {
-      print(" Could not check memory: $e");
-      return false;
-    }
+  if (totalMatch != null && freeMatch != null) {
+  final total = int.parse(totalMatch.group(1)!);
+  final free = int.parse(freeMatch.group(1)!);
+  final freePercent = (free / total) * 100;
+  print(" Memory: ${freePercent.toStringAsFixed(1)}% free");
+  return freePercent < 15;
+  }
+  return false;
+  } catch (e) {
+  print(" Could not check memory: $e");
+  return false;
+  }
   }
 
   Future<void> _pickImage(int index) async {
-    if (isPickingImage) {
-      print(" Image picking already in progress, skipping");
-      return;
-    }
+  if (isPickingImage) {
+  print(" Image picking already in progress, skipping");
+  return;
+  }
 
-    if (_timeoutRetryCount >= 3 && _lastTimeoutTime != null) {
-      final elapsed = DateTime.now().difference(_lastTimeoutTime!);
-      if (elapsed.inMinutes < 1) {
-        Fluttertoast.showToast(
-          msg: " Too many retries. Please wait a moment.",
-          toastLength: Toast.LENGTH_LONG,
-          gravity: ToastGravity.CENTER,
-          backgroundColor: Colors.orange,
-          textColor: Colors.white,
-        );
-        setState(() {
-          isPickingImage = false;
-          _isPickerActiveList[index] = false;
-        });
-        return;
-      }
-      _timeoutRetryCount = 0;
-    }
+  if (_timeoutRetryCount >= 3 && _lastTimeoutTime != null) {
+  final elapsed = DateTime.now().difference(_lastTimeoutTime!);
+  if (elapsed.inMinutes < 1) {
 
-    print("==============================================");
-    print(" CAMERA PICKER STARTED - Image ${index + 1}");
-    print("==============================================");
-    print(" Timestamp: ${DateTime.now().toIso8601String()}");
-    print(" Device Info: ${await _getDeviceInfo()}");
-    print(" Image Index: $index");
-    print("==============================================");
+  Fluttertoast.showToast(
+  msg: " Too many retries. Please wait a moment.",
+  toastLength: Toast.LENGTH_LONG,
+  gravity: ToastGravity.CENTER,
+  backgroundColor: Colors.orange,
+  textColor: Colors.white,
+  );
 
-    try {
-      isCameraOpen = true;
+  setState(() {
+  isPickingImage = false;
+  _isPickerActiveList[index] = false;
+  });
+  return;
+  }
+  _timeoutRetryCount = 0;
+  }
 
-      setState(() {
-        isPickingImage = true;
-        _isPickerActiveList[index] = true;
-        _currentImageIndex = index;
-      });
+  print("==============================================");
+  print(" CAMERA PICKER STARTED - Image ${index + 1}");
+  print("==============================================");
+  print(" Timestamp: ${DateTime.now().toIso8601String()}");
+  print(" Device Info: ${await _getDeviceInfo()}");
+  print(" Image Index: $index");
+  print("==============================================");
 
-      // Check memory
-      if (await _isDeviceLowOnMemory()) {
-        print(" Device is low on memory");
-        Fluttertoast.showToast(
-          msg: " Low memory detected. Please close other apps.",
-          toastLength: Toast.LENGTH_SHORT,
-          gravity: ToastGravity.BOTTOM,
-          backgroundColor: Colors.orange,
-          textColor: Colors.white,
-        );
-      }
+  try {
+  isCameraOpen = true;
 
-      // Request permissions
-      try {
-        print(" Requesting camera permissions...");
-        await _requestCameraPermissions();
-        print(" Camera permissions granted");
-      } catch (e) {
-        print(" Camera permission error: $e");
-        isCameraOpen = false;
-        setState(() {
-          isPickingImage = false;
-          _isPickerActiveList[index] = false;
-        });
+  setState(() {
+  isPickingImage = true;
+  _isPickerActiveList[index] = true;
+  _currentImageIndex = index;
+  });
 
-        await _showErrorDialogWithRetry(
-          context,
-          'Camera Permission Required',
-          'Camera permission is needed to capture images. Please enable it in settings.',
-          index,
-        );
-        return;
-      }
+  // Check memory
+  if (await _isDeviceLowOnMemory()) {
+  print(" Device is low on memory");
 
-      // Initialize camera
-      try {
-        await _initializeCameraController();
-        print(" Camera controller initialized");
-      } catch (e) {
-        print(" Camera initialization error: $e");
-        isCameraOpen = false;
-        setState(() {
-          isPickingImage = false;
-          _isPickerActiveList[index] = false;
-        });
 
-        await _showErrorDialogWithRetry(
-          context,
-          'Camera Error',
-          'Failed to initialize camera. Please try again.',
-          index,
-        );
-        return;
-      }
+  Fluttertoast.showToast(
+  msg: " Low memory detected. Please close other apps.",
+  toastLength: Toast.LENGTH_SHORT,
+  gravity: ToastGravity.BOTTOM,
+  backgroundColor: Colors.orange,
+  textColor: Colors.white,
+  );
 
-      print(" Saving current state before opening camera...");
-      await _saveCurrentState();
+  }
 
-      // ========== OPEN CAMERA SCREEN ==========
-      final result = await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => CameraScreen(
-            imageIndex: index,
-            imageLabel: 'Image ${index + 1}',
-            targetLatitude: index == 0 ? widget.latitude : null,
-            targetLongitude: index == 0 ? widget.longitude : null,
-            referenceLatitude: (index == 2 || index == 6) && images[0].imagePath != null
-                ? images[0].lat
-                : null,
-            referenceLongitude: (index == 2 || index == 6) && images[0].imagePath != null
-                ? images[0].long
-                : null,
-            requirementText: _getRequirementText(index),
-            onImageCaptured: (path, lat, long) {
-              setState(() {
-                images[index].imagePath = path;
-                images[index].lat = lat;
-                images[index].long = long;
-              });
-            },
-          ),
-        ),
-      );
+  // Request permissions
+  try {
+  print(" Requesting camera permissions...");
+  await _requestCameraPermissions();
+  print(" Camera permissions granted");
+  } catch (e) {
+  print(" Camera permission error: $e");
+  isCameraOpen = false;
+  setState(() {
+  isPickingImage = false;
+  _isPickerActiveList[index] = false;
+  });
 
-      // If user cancelled or returned
-      if (result == null) {
-        print(" User cancelled camera");
-      }
+  await _showErrorDialogWithRetry(
+  context,
+  'Camera Permission Required',
+  'Camera permission is needed to capture images. Please enable it in settings.',
+  index,
+  );
+  return;
+  }
 
-      isCameraOpen = false;
-      //await _clearSavedState();
-      print(" Saved state cleared successfully");
+  // Initialize camera
+  try {
+  await _initializeCameraController();
+  print(" Camera controller initialized");
+  } catch (e) {
+  print(" Camera initialization error: $e");
+  isCameraOpen = false;
+  setState(() {
+  isPickingImage = false;
+  _isPickerActiveList[index] = false;
+  });
 
-      setState(() {
-        isPickingImage = false;
-        _isPickerActiveList[index] = false;
-      });
+  await _showErrorDialogWithRetry(
+  context,
+  'Camera Error',
+  'Failed to initialize camera. Please try again.',
+  index,
+  );
+  return;
+  }
 
-    } catch (e, stackTrace) {
-      print(" ERROR in _pickImage:");
-      print("   Error: $e");
-      print("   StackTrace: $stackTrace");
+  print(" Saving current state before opening camera...");
+  await _saveCurrentState();
 
-      isCameraOpen = false;
-      //await _clearSavedState();
+  // ========== OPEN CAMERA SCREEN ==========
+  final result = await Navigator.push(
+  context,
+  MaterialPageRoute(
+  builder: (context) => CameraScreen(
+  imageIndex: index,
+  imageLabel: 'Image ${index + 1}',
+  latestPosition: _latestPosition,
+  targetLatitude: index == 0 ? widget.latitude : null,
+  targetLongitude: index == 0 ? widget.longitude : null,
+  referenceLatitude: (index == 2 || index == 6) && images[0].imagePath != null
+  ? images[0].lat
+      : null,
+  referenceLongitude: (index == 2 || index == 6) && images[0].imagePath != null
+  ? images[0].long
+      : null,
+  requirementText: _getRequirementText(index),
+  onImageCaptured: (path, lat, long) {
+  setState(() {
+  images[index].imagePath = path;
+  images[index].lat = lat;
+  images[index].long = long;
+  });
+  },
+  ),
+  ),
+  );
 
-      await CrashReportManager.storeCrashReport(
-        error: "Image picker error: $e",
-        stackTrace: stackTrace.toString(),
-      );
+  // If user cancelled or returned
+  if (result == null) {
+  print(" User cancelled camera");
+  }
 
-      if (mounted) {
-        await _showErrorDialogWithRetry(
-          context,
-          'Camera Error',
-          'An error occurred. Please try again.',
-          index,
-        );
-      }
-    } finally {
-      print(" Cleaning up camera picker state for index $index");
-      isCameraOpen = false;
-      if (mounted) {
-        setState(() {
-          isPickingImage = false;
-          _isPickerActiveList[index] = false;
-        });
-        FocusScope.of(context).unfocus();
-      }
-      print("==============================================");
-      print(" CAMERA PICKER COMPLETED - Image ${index + 1}");
-      print("==============================================");
-    }
+  isCameraOpen = false;
+
+  //await _clearSavedState();
+
+  //await _clearSavedState();
+
+  print(" Saved state cleared successfully");
+
+  setState(() {
+  isPickingImage = false;
+  _isPickerActiveList[index] = false;
+  });
+
+  } catch (e, stackTrace) {
+  print(" ERROR in _pickImage:");
+  print("   Error: $e");
+  print("   StackTrace: $stackTrace");
+
+  isCameraOpen = false;
+  //await _clearSavedState();
+
+  await CrashReportManager.storeCrashReport(
+  error: "Image picker error: $e",
+  stackTrace: stackTrace.toString(),
+  );
+
+  if (mounted) {
+  await _showErrorDialogWithRetry(
+  context,
+  'Camera Error',
+  'An error occurred. Please try again.',
+  index,
+  );
+  }
+  } finally {
+  print(" Cleaning up camera picker state for index $index");
+  isCameraOpen = false;
+  if (mounted) {
+  setState(() {
+  isPickingImage = false;
+  _isPickerActiveList[index] = false;
+  });
+  FocusScope.of(context).unfocus();
+  }
+  print("==============================================");
+  print(" CAMERA PICKER COMPLETED - Image ${index + 1}");
+  print("==============================================");
+  }
   }
 
   String _getRequirementText(int index) {
-    if (index == 0) {
-      return ' Capture within 50m of target location';
-    } else if (index == 2) {
-      return ' Capture within 50m of Image 1 location';
-    } else if (index == 6) {
-      return ' Capture within 50m of Image 1 location';
-    } else {
-      return '📸 Capture clear photo of the area';
-    }
+  if (index == 0) {
+  return ' Capture within 50m of target location';
+  } else if (index == 2) {
+  return ' Capture within 50m of Image 1 location';
+  } else if (index == 6) {
+  return ' Capture within 50m of Image 1 location';
+  } else {
+  return ' Capture clear photo of the area';
+  }
   }
 
   /// ============================================================
@@ -522,516 +576,524 @@ class _UploadSeePlanScreenState extends State<UploadSeePlanScreen>
   /// Compresses a captured image to achieve 100-200 KB target.
   /// Min height is fixed at 1024, auto width.
   Future<File?> _compressImageOnCapture(File imageFile, int imageIndex) async {
-    const int minTargetKB = 100;
-    const int maxTargetKB = 200;
-    const int minHeight = 1024; // Fixed min height, auto width
+  const int minTargetKB = 100;
+  const int maxTargetKB = 200;
+  const int minHeight = 1024; // Fixed min height, auto width
 
-    // ========== PRINT HEADER ==========
-    print("╔═════════════════════════════════════════════════════════════════════════╗");
-    print("║                    IMAGE PROCESSING FLOW                               ║");
-    print("╠═════════════════════════════════════════════════════════════════════════╣");
-    print("║  Image ${imageIndex + 1} of 7                                          ║");
-    print("╠═════════════════════════════════════════════════════════════════════════╣");
+  // ========== PRINT HEADER ==========
+  print("╔═════════════════════════════════════════════════════════════════════════╗");
+  print("║                    IMAGE PROCESSING FLOW                               ║");
+  print("╠═════════════════════════════════════════════════════════════════════════╣");
+  print("║  Image ${imageIndex + 1} of 7                                          ║");
+  print("╠═════════════════════════════════════════════════════════════════════════╣");
 
-    Future<File?> _compress(String srcPath, String dstPath, int quality) async {
-      final result = await FlutterImageCompress.compressAndGetFile(
-        srcPath,
-        dstPath,
-        quality: quality,
-        minHeight: minHeight,
-        format: CompressFormat.jpeg,
-      );
-      if (result == null) return null;
-      final f = File(result.path);
-      return await f.exists() ? f : null;
-    }
+  Future<File?> _compress(String srcPath, String dstPath, int quality) async {
+  final result = await FlutterImageCompress.compressAndGetFile(
+  srcPath,
+  dstPath,
+  quality: quality,
+  minHeight: minHeight,
+  format: CompressFormat.jpeg,
+  );
+  if (result == null) return null;
+  final f = File(result.path);
+  return await f.exists() ? f : null;
+  }
 
-    try {
-      if (!await imageFile.exists()) {
-        print("   ERROR: Source image file does not exist ");
-        return null;
-      }
+  try {
+  if (!await imageFile.exists()) {
 
-      // ========== STEP 1: USER TAKES PHOTO ==========
+  print("║   ERROR: Source image file does not exist                           ║");
+  print("╚═════════════════════════════════════════════════════════════════════════╝");
 
-      print("  1. USER TAKES PHOTO ");
+  print("   ERROR: Source image file does not exist ");
+  return null;
+  }
 
-      final originalSizeBytes = await imageFile.length();
-      final originalSizeKB = originalSizeBytes / 1024;
-      final originalSizeMB = originalSizeKB / 1024;
+  // ========== STEP 1: USER TAKES PHOTO ==========
 
-      String sizeStr;
-      if (originalSizeMB >= 1) {
-        sizeStr = "${originalSizeMB.toStringAsFixed(2)} MB";
-      } else {
-        sizeStr = "${originalSizeKB.toStringAsFixed(0)} KB";
-      }
+  print("  1. USER TAKES PHOTO ");
 
-      print("║     Camera saves: ${imageFile.path.split('/').last} ($sizeStr)          ║");
-      print("║                                                                         ║");
+  final originalSizeBytes = await imageFile.length();
+  final originalSizeKB = originalSizeBytes / 1024;
+  final originalSizeMB = originalSizeKB / 1024;
 
-      // ========== STEP 2: DETERMINE QUALITY BASED ON SIZE (HIGHER VALUES) ==========
-      print("║  2. ANALYZING IMAGE SIZE                                               ║");
-      print("║     ↓                                                                   ║");
+  String sizeStr;
+  if (originalSizeMB >= 1) {
+  sizeStr = "${originalSizeMB.toStringAsFixed(2)} MB";
+  } else {
+  sizeStr = "${originalSizeKB.toStringAsFixed(0)} KB";
+  }
 
-      // HIGHER quality values to avoid over-compression
-      final int quality = originalSizeKB <= 300
-          ? 95  // Very small images - keep high quality
-          : originalSizeKB <= 600
-          ? 90
-          : originalSizeKB <= 1000
-          ? 85
-          : originalSizeKB <= 2000
-          ? 75
-          : originalSizeKB <= 3000
-          ? 65
-          : originalSizeKB <= 5000
-          ? 55
-          : 45;
+  print("║     Camera saves: ${imageFile.path.split('/').last} ($sizeStr)          ║");
+  print("║                                                                         ║");
 
-      print("║     Original Size: ${originalSizeKB.toStringAsFixed(0)} KB              ║");
-      print("║     Min Height: $minHeight px (width auto-calculated)                   ║");
-      print("║     Target: ${minTargetKB}-${maxTargetKB} KB                            ║");
-      print("║     Selected Quality: $quality%                                         ║");
-      print("║                                                                         ║");
+  // ========== STEP 2: DETERMINE QUALITY BASED ON SIZE (HIGHER VALUES) ==========
+  print("║  2. ANALYZING IMAGE SIZE                                               ║");
+  print("║     ↓                                                                   ║");
 
-      // ========== STEP 3: COMPRESSING IMAGE ==========
-      print("║  3. COMPRESSING IMAGE                                                  ║");
-      print("║     ↓                                                                   ║");
+  // HIGHER quality values to avoid over-compression
+  final int quality = originalSizeKB <= 300
+  ? 95  // Very small images - keep high quality
+      : originalSizeKB <= 600
+  ? 90
+      : originalSizeKB <= 1000
+  ? 85
+      : originalSizeKB <= 2000
+  ? 75
+      : originalSizeKB <= 3000
+  ? 65
+      : originalSizeKB <= 5000
+  ? 55
+      : 45;
 
-      final dir = await getTemporaryDirectory();
-      final ts = DateTime.now().millisecondsSinceEpoch;
-      final String tempPath = "${dir.path}/IMG_$ts.jpg";
+  print("║     Original Size: ${originalSizeKB.toStringAsFixed(0)} KB              ║");
+  print("║     Min Height: $minHeight px (width auto-calculated)                   ║");
+  print("║     Target: ${minTargetKB}-${maxTargetKB} KB                            ║");
+  print("║     Selected Quality: $quality%                                         ║");
+  print("║                                                                         ║");
 
-      File? out = await _compress(imageFile.path, tempPath, quality);
-      if (out == null) {
-        print("║   Compression failed                                                 ║");
-        print("╚═════════════════════════════════════════════════════════════════════════╝");
-        return null;
-      }
+  // ========== STEP 3: COMPRESSING IMAGE ==========
+  print("║  3. COMPRESSING IMAGE                                                  ║");
+  print("║     ↓                                                                   ║");
 
-      final compressedSizeBytes = await out.length();
-      final compressedSizeKB = compressedSizeBytes / 1024;
+  final dir = await getTemporaryDirectory();
+  final ts = DateTime.now().millisecondsSinceEpoch;
+  final String tempPath = "${dir.path}/IMG_$ts.jpg";
 
-      print("║     Compressed to: ${compressedSizeKB.toStringAsFixed(0)} KB (q=$quality%) ║");
-      print("║                                                                         ║");
+  File? out = await _compress(imageFile.path, tempPath, quality);
+  if (out == null) {
+  print("║   Compression failed                                                 ║");
+  print("╚═════════════════════════════════════════════════════════════════════════╝");
+  return null;
+  }
 
-      // ========== STEP 4: CHECK SIZE - ADJUST IF BELOW 100KB ==========
-      print("║  4. CHECKING SIZE TARGET                                               ║");
-      print("║     ↓                                                                   ║");
-      print("║     Target Range: $minTargetKB-$maxTargetKB KB                          ║");
-      print("║     Current Size: ${compressedSizeKB.toStringAsFixed(0)} KB              ║");
+  final compressedSizeBytes = await out.length();
+  final compressedSizeKB = compressedSizeBytes / 1024;
 
-      // If below 100 KB, increase quality (less compression)
-      if (compressedSizeKB < minTargetKB) {
-        print("║       Below target! Increasing quality...                             ║");
-        print("║     ↓                                                                   ║");
+  print("║     Compressed to: ${compressedSizeKB.toStringAsFixed(0)} KB (q=$quality%) ║");
+  print("║                                                                         ║");
 
-        // Calculate higher quality to increase file size
-        final int higherQuality = (quality * (minTargetKB / compressedSizeKB)).ceil().clamp(quality + 5, 98);
-        final File? retry = await _compress(
-          imageFile.path,
-          "${dir.path}/IMG_${ts}_h.jpg",
-          higherQuality,
-        );
+  // ========== STEP 4: CHECK SIZE - ADJUST IF BELOW 100KB ==========
+  print("║  4. CHECKING SIZE TARGET                                               ║");
+  print("║     ↓                                                                   ║");
+  print("║     Target Range: $minTargetKB-$maxTargetKB KB                          ║");
+  print("║     Current Size: ${compressedSizeKB.toStringAsFixed(0)} KB              ║");
 
-        if (retry != null) {
-          try { await out!.delete(); } catch (_) {}
-          out = retry;
-          final improvedSizeBytes = await out.length();
-          final improvedSizeKB = improvedSizeBytes / 1024;
-          print("║     Higher Quality: $higherQuality%                                   ║");
-          print("║     New Size: ${improvedSizeKB.toStringAsFixed(0)} KB                ║");
-          print("║     ↓                                                                   ║");
-        }
-      }
-      // If over 200 KB, reduce quality (more compression)
-      else if (compressedSizeKB > maxTargetKB) {
-        print("║       Over target! Reducing quality...                                ║");
-        print("║     ↓                                                                   ║");
+  // If below 100 KB, increase quality (less compression)
+  if (compressedSizeKB < minTargetKB) {
+  print("║       Below target! Increasing quality...                             ║");
+  print("║     ↓                                                                   ║");
 
-        final int lowerQuality = (quality * (maxTargetKB / compressedSizeKB)).floor().clamp(15, quality - 5);
-        final File? retry = await _compress(
-          imageFile.path,
-          "${dir.path}/IMG_${ts}_l.jpg",
-          lowerQuality,
-        );
+  // Calculate higher quality to increase file size
+  final int higherQuality = (quality * (minTargetKB / compressedSizeKB)).ceil().clamp(quality + 5, 98);
+  final File? retry = await _compress(
+  imageFile.path,
+  "${dir.path}/IMG_${ts}_h.jpg",
+  higherQuality,
+  );
 
-        if (retry != null) {
-          try { await out!.delete(); } catch (_) {}
-          out = retry;
-          final reducedSizeBytes = await out.length();
-          final reducedSizeKB = reducedSizeBytes / 1024;
-          print("║     Lower Quality: $lowerQuality%                                     ║");
-          print("║     New Size: ${reducedSizeKB.toStringAsFixed(0)} KB                ║");
-          print("║     ↓                                                                   ║");
-        }
-      } else {
-        print("║      Within target range!                                             ║");
-      }
+  if (retry != null) {
+  try { await out!.delete(); } catch (_) {}
+  out = retry;
+  final improvedSizeBytes = await out.length();
+  final improvedSizeKB = improvedSizeBytes / 1024;
+  print("║     Higher Quality: $higherQuality%                                   ║");
+  print("║     New Size: ${improvedSizeKB.toStringAsFixed(0)} KB                ║");
+  print("║     ↓                                                                   ║");
+  }
+  }
+  // If over 200 KB, reduce quality (more compression)
+  else if (compressedSizeKB > maxTargetKB) {
+  print("║       Over target! Reducing quality...                                ║");
+  print("║     ↓                                                                   ║");
 
-      // ========== STEP 5: FINAL SIZE ==========
-      final finalSizeBytes = await out.length();
-      final finalSizeKB = finalSizeBytes / 1024;
+  final int lowerQuality = (quality * (maxTargetKB / compressedSizeKB)).floor().clamp(15, quality - 5);
+  final File? retry = await _compress(
+  imageFile.path,
+  "${dir.path}/IMG_${ts}_l.jpg",
+  lowerQuality,
+  );
 
-      print("║                                                                         ║");
-      print("║  5. FINAL RESULT                                                       ║");
-      print("║     ↓                                                                   ║");
-      print("║      Original: ${originalSizeKB.toStringAsFixed(0)} KB                 ║");
-      print("║      Final:    ${finalSizeKB.toStringAsFixed(0)} KB                    ║");
+  if (retry != null) {
+  try { await out!.delete(); } catch (_) {}
+  out = retry;
+  final reducedSizeBytes = await out.length();
+  final reducedSizeKB = reducedSizeBytes / 1024;
+  print("║     Lower Quality: $lowerQuality%                                     ║");
+  print("║     New Size: ${reducedSizeKB.toStringAsFixed(0)} KB                ║");
+  print("║     ↓                                                                   ║");
+  }
+  } else {
+  print("║      Within target range!                                             ║");
+  }
 
-      final savedKB = originalSizeKB - finalSizeKB;
-      final savedPercent = originalSizeKB > 0 ? (savedKB / originalSizeKB * 100) : 0;
-      print("║      Saved:    ${savedKB.toStringAsFixed(0)} KB (${savedPercent.toStringAsFixed(0)}%)   ║");
+  // ========== STEP 5: FINAL SIZE ==========
+  final finalSizeBytes = await out.length();
+  final finalSizeKB = finalSizeBytes / 1024;
 
-      final isWithinTarget = finalSizeKB >= minTargetKB && finalSizeKB <= maxTargetKB;
-      if (isWithinTarget) {
-        print("║      Status:   Within target ($minTargetKB-$maxTargetKB KB)           ║");
-      } else if (finalSizeKB < minTargetKB) {
-        print("║       Status:   Below target (< $minTargetKB KB)                      ║");
-      } else {
-        print("║       Status:   Above target (> $maxTargetKB KB)                      ║");
-      }
+  print("║                                                                         ║");
+  print("║  5. FINAL RESULT                                                       ║");
+  print("║     ↓                                                                   ║");
+  print("║      Original: ${originalSizeKB.toStringAsFixed(0)} KB                 ║");
+  print("║      Final:    ${finalSizeKB.toStringAsFixed(0)} KB                    ║");
 
-      // ========== STEP 6: CLEANUP ==========
-      print("║                                                                         ║");
-      print("║  6. CLEANUP                                                           ║");
-      print("║     ↓                                                                   ║");
+  final savedKB = originalSizeKB - finalSizeKB;
+  final savedPercent = originalSizeKB > 0 ? (savedKB / originalSizeKB * 100) : 0;
+  print("║      Saved:    ${savedKB.toStringAsFixed(0)} KB (${savedPercent.toStringAsFixed(0)}%)   ║");
 
-      try {
-        await imageFile.delete();
-        print("║       Original file deleted                                          ║");
-      } catch (_) {
-        print("║       Could not delete original file                                 ║");
-      }
+  final isWithinTarget = finalSizeKB >= minTargetKB && finalSizeKB <= maxTargetKB;
+  if (isWithinTarget) {
+  print("║      Status:   Within target ($minTargetKB-$maxTargetKB KB)           ║");
+  } else if (finalSizeKB < minTargetKB) {
+  print("║       Status:   Below target (< $minTargetKB KB)                      ║");
+  } else {
+  print("║       Status:   Above target (> $maxTargetKB KB)                      ║");
+  }
 
-      // ========== FOOTER ==========
-      print("╚═════════════════════════════════════════════════════════════════════════╝");
-      print(" Image ${imageIndex + 1}: ${originalSizeKB.toStringAsFixed(0)}KB → ${finalSizeKB.toStringAsFixed(0)}KB (q=$quality)");
+  // ========== STEP 6: CLEANUP ==========
+  print("║                                                                         ║");
+  print("║  6. CLEANUP                                                           ║");
+  print("║     ↓                                                                   ║");
 
-      // ========== SHOW TOAST WITH SIZE ==========
-      if (mounted) {
-        String sizeDisplay;
-        if (finalSizeKB >= 1024) {
-          sizeDisplay = "${(finalSizeKB / 1024).toStringAsFixed(1)} MB";
-        } else {
-          sizeDisplay = "${finalSizeKB.toStringAsFixed(0)} KB";
-        }
+  try {
+  await imageFile.delete();
+  print("║       Original file deleted                                          ║");
+  } catch (_) {
+  print("║       Could not delete original file                                 ║");
+  }
 
-        Color toastColor;
-        String statusIcon;
-        if (finalSizeKB >= minTargetKB && finalSizeKB <= maxTargetKB) {
-          toastColor = Colors.green;
-          statusIcon = "";
-        } else if (finalSizeKB < minTargetKB) {
-          toastColor = Colors.green;
-          statusIcon = "";
-        } else {
-          toastColor = Colors.green ;
-          statusIcon = "";
-        }
+  // ========== FOOTER ==========
+  print("╚═════════════════════════════════════════════════════════════════════════╝");
+  print(" Image ${imageIndex + 1}: ${originalSizeKB.toStringAsFixed(0)}KB → ${finalSizeKB.toStringAsFixed(0)}KB (q=$quality)");
 
-        // Fluttertoast.showToast(
-        //   msg: "$statusIcon Image ${imageIndex + 1}: $sizeDisplay (Target: $minTargetKB-$maxTargetKB KB)",
-        //   toastLength: Toast.LENGTH_LONG,
-        //   gravity: ToastGravity.BOTTOM,
-        //   backgroundColor: toastColor,
-        //   textColor: Colors.white,
-        // );
-      }
+  // ========== SHOW TOAST WITH SIZE ==========
+  if (mounted) {
+  String sizeDisplay;
+  if (finalSizeKB >= 1024) {
+  sizeDisplay = "${(finalSizeKB / 1024).toStringAsFixed(1)} MB";
+  } else {
+  sizeDisplay = "${finalSizeKB.toStringAsFixed(0)} KB";
+  }
 
-      return out;
+  Color toastColor;
+  String statusIcon;
+  if (finalSizeKB >= minTargetKB && finalSizeKB <= maxTargetKB) {
+  toastColor = Colors.green;
+  statusIcon = "";
+  } else if (finalSizeKB < minTargetKB) {
+  toastColor = Colors.green;
+  statusIcon = "";
+  } else {
+  toastColor = Colors.green ;
+  statusIcon = "";
+  }
 
-    } catch (e, st) {
-      print("║   ERROR: ${e.toString().substring(0, 70)}...                          ║");
-      print("╚═════════════════════════════════════════════════════════════════════════╝");
+  // Fluttertoast.showToast(
+  //   msg: "$statusIcon Image ${imageIndex + 1}: $sizeDisplay (Target: $minTargetKB-$maxTargetKB KB)",
+  //   toastLength: Toast.LENGTH_LONG,
+  //   gravity: ToastGravity.BOTTOM,
+  //   backgroundColor: toastColor,
+  //   textColor: Colors.white,
+  // );
+  }
 
-      await CrashReportManager.storeCrashReport(
-        error: "Compression error: $e",
-        stackTrace: st.toString(),
-      );
-      return null;
-    }
+  return out;
+
+  } catch (e, st) {
+  print("║   ERROR: ${e.toString().substring(0, 70)}...                          ║");
+  print("╚═════════════════════════════════════════════════════════════════════════╝");
+
+  await CrashReportManager.storeCrashReport(
+  error: "Compression error: $e",
+  stackTrace: st.toString(),
+  );
+  return null;
+  }
   }
 
   Future<void> _showErrorDialogWithRetry(
-      BuildContext context,
-      String title,
-      String message,
-      int imageIndex, {
-        bool isCritical = false,
-      }) async {
-    if (!mounted) return;
+  BuildContext context,
+  String title,
+  String message,
+  int imageIndex, {
+  bool isCritical = false,
+  }) async {
+  if (!mounted) return;
 
-    bool? shouldRetry = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Row(
-            children: [
-              // Icon(
-              //   isCritical ? Icons.error : Icons.warning_amber_rounded,
-              //   color: isCritical ? Colors.red : Colors.orange,
-              // ),
-              SizedBox(width: 8),
-              // Expanded(
-              //   child: Text(
-              //     title,
-              //     style: TextStyle(
-              //       fontSize: 16,
-              //       fontFamily: "Roboto",
-              //       color: isCritical ? Colors.red : Colors.orange,
-              //     ),
-              //   ),
-              // ),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                message,
-                style: TextStyle(fontSize: 14, fontFamily: "Roboto"),
-              ),
-              if (!isCritical) ...[
-                SizedBox(height: 16),
-                Container(
-                  padding: EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.info_outline, size: 16, color: Colors.blue),
-                      SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'You can retry capturing the image or go back.',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontFamily: "Roboto",
-                            color: Colors.blue[900],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ],
-          ),
-          actions: [
-            if (isCritical) ...[
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).pop(false);
-                },
-                child: Text('Go Back', style: TextStyle(fontFamily: "Roboto")),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Font.primaryColor,
-                  foregroundColor: Colors.white,
-                ),
-              ),
-            ] else ...[
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop(false);
-                },
-                child: Text(
-                  'Go Back',
-                  style: TextStyle(fontFamily: "Roboto", color: Colors.grey),
-                ),
-              ),
-              ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.of(context).pop(true);
-                },
-                icon: Icon(Icons.refresh, size: 18),
-                label: Text(
-                  'Retry',
-                  style: TextStyle(fontFamily: "Roboto"),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Font.primaryColor,
-                  foregroundColor: Colors.white,
-                ),
-              ),
-            ],
-          ],
-        );
-      },
-    );
+  bool? shouldRetry = await showDialog<bool>(
+  context: context,
+  barrierDismissible: false,
+  builder: (BuildContext context) {
+  return AlertDialog(
+  title: Row(
+  children: [
+  // Icon(
+  //   isCritical ? Icons.error : Icons.warning_amber_rounded,
+  //   color: isCritical ? Colors.red : Colors.orange,
+  // ),
+  SizedBox(width: 8),
+  // Expanded(
+  //   child: Text(
+  //     title,
+  //     style: TextStyle(
+  //       fontSize: 16,
+  //       fontFamily: "Roboto",
+  //       color: isCritical ? Colors.red : Colors.orange,
+  //     ),
+  //   ),
+  // ),
+  ],
+  ),
+  content: Column(
+  mainAxisSize: MainAxisSize.min,
+  crossAxisAlignment: CrossAxisAlignment.start,
+  children: [
+  Text(
+  message,
+  style: TextStyle(fontSize: 14, fontFamily: "Roboto"),
+  ),
+  if (!isCritical) ...[
+  SizedBox(height: 16),
+  Container(
+  padding: EdgeInsets.all(12),
+  decoration: BoxDecoration(
+  color: Colors.blue.withOpacity(0.1),
+  borderRadius: BorderRadius.circular(8),
+  ),
+  child: Row(
+  children: [
+  Icon(Icons.info_outline, size: 16, color: Colors.blue),
+  SizedBox(width: 8),
+  Expanded(
+  child: Text(
+  'You can retry capturing the image or go back.',
+  style: TextStyle(
+  fontSize: 12,
+  fontFamily: "Roboto",
+  color: Colors.blue[900],
+  ),
+  ),
+  ),
+  ],
+  ),
+  ),
+  ],
+  ],
+  ),
+  actions: [
+  if (isCritical) ...[
+  ElevatedButton(
+  onPressed: () {
+  Navigator.of(context).pop(false);
+  },
+  child: Text('Go Back', style: TextStyle(fontFamily: "Roboto")),
+  style: ElevatedButton.styleFrom(
+  backgroundColor: Font.primaryColor,
+  foregroundColor: Colors.white,
+  ),
+  ),
+  ] else ...[
+  TextButton(
+  onPressed: () {
+  Navigator.of(context).pop(false);
+  },
+  child: Text(
+  'Go Back',
+  style: TextStyle(fontFamily: "Roboto", color: Colors.grey),
+  ),
+  ),
+  ElevatedButton.icon(
+  onPressed: () {
+  Navigator.of(context).pop(true);
+  },
+  icon: Icon(Icons.refresh, size: 18),
+  label: Text(
+  'Retry',
+  style: TextStyle(fontFamily: "Roboto"),
+  ),
+  style: ElevatedButton.styleFrom(
+  backgroundColor: Font.primaryColor,
+  foregroundColor: Colors.white,
+  ),
+  ),
+  ],
+  ],
+  );
+  },
+  );
 
-    if (isCritical || shouldRetry == false) {
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => SeePlanScreen(changeLanguage: widget.changeLanguage),
-          ),
-        );
-      }
-    } else if (shouldRetry == true) {
-      await Future.delayed(Duration(milliseconds: 300));
-      if (mounted) {
-        _pickImage(imageIndex);
-      }
-    }
+  if (isCritical || shouldRetry == false) {
+  if (mounted) {
+  Navigator.pushReplacement(
+  context,
+  MaterialPageRoute(
+  builder: (context) => SeePlanScreen(changeLanguage: widget.changeLanguage),
+  ),
+  );
+  }
+  } else if (shouldRetry == true) {
+  await Future.delayed(Duration(milliseconds: 300));
+  if (mounted) {
+  _pickImage(imageIndex);
+  }
+  }
   }
 
   Future<void> _showDistanceDialog(
-      BuildContext context,
-      double distance,
-      String imageLabel,
-      String requirement,
-      {bool showRefreshOption = false}
-      ) async {
-    Fluttertoast.showToast(
-      //  msg: "You are ${distance.toStringAsFixed(0)}m away. Please move closer (within 50m).",
-      msg: "You are ${distance.toStringAsFixed(0)}m away. Please move closer (within 50m).",
-      toastLength: Toast.LENGTH_LONG,
-      gravity: ToastGravity.CENTER,
-      backgroundColor: Colors.orange,
-      textColor: Colors.white,
-    );
+  BuildContext context,
+  double distance,
+  String imageLabel,
+  String requirement,
+  {bool showRefreshOption = false}
+  ) async {
 
-    bool? shouldRefresh = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Row(
-            children: [
-              // Icon(Icons.location_off, color: Colors.orange),
-              SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Too Far from $imageLabel Location',
-                  style: TextStyle(fontSize: 16, fontFamily: "Roboto"),
-                ),
-              ),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'You are ${distance.toStringAsFixed(0)} meters away.',
-                style: TextStyle(fontSize: 14, fontFamily: "Roboto"),
-              ),
-              SizedBox(height: 12),
-              Container(
-                padding: EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  ' $requirement',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontFamily: "Roboto",
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            if (showRefreshOption) ...[
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: Text(
-                  'Stay Here',
-                  style: TextStyle(fontFamily: "Roboto", color: Colors.grey),
-                ),
-              ),
-              ElevatedButton.icon(
-                onPressed: () => Navigator.of(context).pop(true),
-                icon: Icon(Icons.refresh, size: 18),
-                label: Text(
-                  'Refresh Location',
-                  style: TextStyle(fontFamily: "Roboto"),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Font.primaryColor,
-                  foregroundColor: Colors.white,
-                ),
-              ),
-            ] else ...[
-              ElevatedButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: Text(
-                  'Understood',
-                  style: TextStyle(fontFamily: "Roboto"),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Font.primaryColor,
-                  foregroundColor: Colors.white,
-                ),
-              ),
-            ],
-          ],
-        );
-      },
-    );
+  Fluttertoast.showToast(
+  //  msg: "You are ${distance.toStringAsFixed(0)}m away. Please move closer (within 50m).",
+  msg: "You are ${distance.toStringAsFixed(0)}m away. Please move closer (within 50m).",
+  toastLength: Toast.LENGTH_LONG,
+  gravity: ToastGravity.CENTER,
+  backgroundColor: Colors.orange,
+  textColor: Colors.white,
+  );
 
-    if (showRefreshOption && shouldRefresh == true && mounted) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => MapScreen(
-            planCode: widget.planCode,
-            VillageCode: widget.VillageCode,
-            ServerID: widget.ServerID,
-            changeLanguage: widget.changeLanguage,
-            height: widget.height,
-            width: widget.width,
-            villageName: widget.villageName,
-            brand: widget.brand,
-            tensil: widget.tensil,
-            artworkId: widget.artworkId,
-          ),
-        ),
-      );
-    }
+
+  bool? shouldRefresh = await showDialog<bool>(
+  context: context,
+  barrierDismissible: false,
+  builder: (BuildContext context) {
+  return AlertDialog(
+  title: Row(
+  children: [
+
+  // Icon(Icons.location_off, color: Colors.orange),
+
+  SizedBox(width: 8),
+  Expanded(
+  child: Text(
+  'Too Far from $imageLabel Location',
+  style: TextStyle(fontSize: 16, fontFamily: "Roboto"),
+  ),
+  ),
+  ],
+  ),
+  content: Column(
+  mainAxisSize: MainAxisSize.min,
+  crossAxisAlignment: CrossAxisAlignment.start,
+  children: [
+  Text(
+  'You are ${distance.toStringAsFixed(0)} meters away.',
+  style: TextStyle(fontSize: 14, fontFamily: "Roboto"),
+  ),
+  SizedBox(height: 12),
+  Container(
+  padding: EdgeInsets.all(12),
+  decoration: BoxDecoration(
+  color: Colors.orange.withOpacity(0.1),
+  borderRadius: BorderRadius.circular(8),
+  ),
+  child: Text(
+  ' $requirement',
+  style: TextStyle(
+  fontSize: 12,
+  fontFamily: "Roboto",
+  fontWeight: FontWeight.w500,
+  ),
+  ),
+  ),
+  ],
+  ),
+  actions: [
+  if (showRefreshOption) ...[
+  TextButton(
+  onPressed: () => Navigator.of(context).pop(false),
+  child: Text(
+  'Stay Here',
+  style: TextStyle(fontFamily: "Roboto", color: Colors.grey),
+  ),
+  ),
+  ElevatedButton.icon(
+  onPressed: () => Navigator.of(context).pop(true),
+  icon: Icon(Icons.refresh, size: 18),
+  label: Text(
+  'Refresh Location',
+  style: TextStyle(fontFamily: "Roboto"),
+  ),
+  style: ElevatedButton.styleFrom(
+  backgroundColor: Font.primaryColor,
+  foregroundColor: Colors.white,
+  ),
+  ),
+  ] else ...[
+  ElevatedButton(
+  onPressed: () => Navigator.of(context).pop(false),
+  child: Text(
+  'Understood',
+  style: TextStyle(fontFamily: "Roboto"),
+  ),
+  style: ElevatedButton.styleFrom(
+  backgroundColor: Font.primaryColor,
+  foregroundColor: Colors.white,
+  ),
+  ),
+  ],
+  ],
+  );
+  },
+  );
+
+  if (showRefreshOption && shouldRefresh == true && mounted) {
+  Navigator.pushReplacement(
+  context,
+  MaterialPageRoute(
+  builder: (context) => MapScreen(
+  planCode: widget.planCode,
+  VillageCode: widget.VillageCode,
+  ServerID: widget.ServerID,
+  changeLanguage: widget.changeLanguage,
+  height: widget.height,
+  width: widget.width,
+  villageName: widget.villageName,
+  brand: widget.brand,
+  tensil: widget.tensil,
+  artworkId: widget.artworkId,
+  ),
+  ),
+  );
+  }
   }
 
   Future<void> _requestCameraPermissions() async {
-    print(" Checking camera permissions...");
+  print(" Checking camera permissions...");
 
-    final permissions = await [
-      Permission.camera,
-      Permission.storage,
-      Permission.photos,
-    ].request();
+  final permissions = await [
+  Permission.camera,
+  Permission.storage,
+  Permission.photos,
+  ].request();
 
-    print(" Permission results:");
-    print("   Camera: ${permissions[Permission.camera]}");
-    print("   Storage: ${permissions[Permission.storage]}");
-    print("   Photos: ${permissions[Permission.photos]}");
+  print(" Permission results:");
+  print("   Camera: ${permissions[Permission.camera]}");
+  print("   Storage: ${permissions[Permission.storage]}");
+  print("   Photos: ${permissions[Permission.photos]}");
 
-    if (permissions[Permission.camera] != PermissionStatus.granted) {
-      print(" Camera permission NOT granted");
-      throw PlatformException(
-        code: "CAMERA_PERMISSION_DENIED",
-        message: S.of(context).cameraPermission,
-      );
-    }
-    print(" All permissions granted");
+  if (permissions[Permission.camera] != PermissionStatus.granted) {
+  print(" Camera permission NOT granted");
+  throw PlatformException(
+  code: "CAMERA_PERMISSION_DENIED",
+  message: S.of(context).cameraPermission,
+  );
+  }
+  print(" All permissions granted");
   }
 
   void _removeImage(int index) {
-    if (_isPickerActiveList[index]) return;
-    setState(() {
-      images[index].imagePath = null;
-      images[index].lat = 0.0;
-      images[index].long = 0.0;
-    });
+  if (_isPickerActiveList[index]) return;
+  setState(() {
+  images[index].imagePath = null;
+  images[index].lat = 0.0;
+  images[index].long = 0.0;
+  });
   }
 
   /// ============================================================
@@ -1040,812 +1102,833 @@ class _UploadSeePlanScreenState extends State<UploadSeePlanScreen>
   /// Stores an image in internal documents WITHOUT re-compressing.
   /// The image is already compressed during capture.
   Future<String> _storeImageInInternalDocuments(String imagePath) async {
-    try {
-      Directory? externalDir = await getExternalStorageDirectory();
-      if (externalDir == null) {
-        throw 'Unable to access external storage directory';
-      }
+  try {
+  Directory? externalDir = await getExternalStorageDirectory();
+  if (externalDir == null) {
+  throw 'Unable to access external storage directory';
+  }
 
-      Directory appDocDir = Directory('${externalDir.path}/CIMTDWP');
-      if (!await appDocDir.exists()) {
-        await appDocDir.create(recursive: true);
-      }
+  Directory appDocDir = Directory('${externalDir.path}/CIMTDWP');
+  if (!await appDocDir.exists()) {
+  await appDocDir.create(recursive: true);
+  }
 
-      Directory dwPaintingDir = Directory(
-        '${appDocDir.path}/Execution/Plans/${widget.ServerID}/${widget.planCode}/${widget.VillageCode}/${printNoController1.text}${printNoController2.text}/Images',
-      );
+  Directory dwPaintingDir = Directory(
+  '${appDocDir.path}/Execution/Plans/${widget.ServerID}/${widget.planCode}/${widget.VillageCode}/${printNoController1.text}${printNoController2.text}/Images',
+  );
 
-      if (!await dwPaintingDir.exists()) {
-        await dwPaintingDir.create(recursive: true);
-      }
+  if (!await dwPaintingDir.exists()) {
+  await dwPaintingDir.create(recursive: true);
+  }
 
-      File sourceFile = File(imagePath);
-      if (!await sourceFile.exists()) {
-        throw 'Source image file does not exist: $imagePath';
-      }
+  File sourceFile = File(imagePath);
+  if (!await sourceFile.exists()) {
+  throw 'Source image file does not exist: $imagePath';
+  }
 
-      final originalSizeKB = await sourceFile.length() / 1024;
-      print(" Image size before storing: ${originalSizeKB.toStringAsFixed(2)} KB");
+  final originalSizeKB = await sourceFile.length() / 1024;
+  print(" Image size before storing: ${originalSizeKB.toStringAsFixed(2)} KB");
 
-      // Generate unique image name
-      String imageName = 'Img_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      String imagePathInStorage = '${dwPaintingDir.path}/$imageName';
+  // Generate unique image name
+  String imageName = 'Img_${DateTime.now().millisecondsSinceEpoch}.jpg';
+  String imagePathInStorage = '${dwPaintingDir.path}/$imageName';
 
-      // ========== COPY THE FILE (NO RE-COMPRESSION) ==========
-      await sourceFile.copy(imagePathInStorage);
+  // ========== COPY THE FILE (NO RE-COMPRESSION) ==========
+  await sourceFile.copy(imagePathInStorage);
 
-      // Verify the copied file
-      File copiedFile = File(imagePathInStorage);
-      if (!await copiedFile.exists()) {
-        throw 'Failed to copy image to storage';
-      }
+  // Verify the copied file
+  File copiedFile = File(imagePathInStorage);
+  if (!await copiedFile.exists()) {
+  throw 'Failed to copy image to storage';
+  }
 
-      final copiedSizeKB = await copiedFile.length() / 1024;
-      print(" Image size after storing: ${copiedSizeKB.toStringAsFixed(2)} KB");
+  final copiedSizeKB = await copiedFile.length() / 1024;
+  print(" Image size after storing: ${copiedSizeKB.toStringAsFixed(2)} KB");
 
-      // Delete the source file (temporary compressed file)
-      try {
-        await sourceFile.delete();
-        print(" Temporary file deleted: $imagePath");
-      } catch (e) {
-        print(" Could not delete temporary file: $e");
-      }
+  // Delete the source file (temporary compressed file)
+  try {
+  await sourceFile.delete();
+  print(" Temporary file deleted: $imagePath");
+  } catch (e) {
+  print(" Could not delete temporary file: $e");
+  }
 
-      return imagePathInStorage;
+  return imagePathInStorage;
 
-    } catch (e) {
-      throw 'Failed to store image: $e';
-    }
+  } catch (e) {
+  throw 'Failed to store image: $e';
+  }
   }
 
   bool get _isAnyPickerActive =>
-      _isPickerActiveList.any((isActive) => isActive) ||
-          _isProcessingRecoveredImage;
+  _isPickerActiveList.any((isActive) => isActive) ||
+  _isProcessingRecoveredImage;
 
   Future<bool> _onWillPop() async {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => SeePlanScreen(changeLanguage: widget.changeLanguage,)),
-    );
-    return false;
+  Navigator.push(
+  context,
+  MaterialPageRoute(builder: (context) => SeePlanScreen(changeLanguage: widget.changeLanguage,)),
+  );
+  return false;
   }
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: _onWillPop,
-      child: SafeArea(
-        child: Scaffold(
-          backgroundColor: Color(0xFFF8F9FA),
-          resizeToAvoidBottomInset: true,
-          appBar: AppBar(
-            elevation: 0,
-            backgroundColor: Font.primaryColor,
-            title: Text(
-              S.of(context).printDetails,
-              style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 18,
-                  letterSpacing: 1,
-                  fontFamily: "Roboto"
-              ),
-            ),
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => LandingScreen(changeLanguage: widget.changeLanguage,)),
-                );
-              },
-            ),
-            actions: [
-              IconButton(
-                icon: Icon(Icons.home, color: Colors.white),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => LandingScreen(changeLanguage: widget.changeLanguage)),
-                  );
-                },
-              ),
-            ],
-          ),
-          body: SingleChildScrollView(
-            child: Column(
-              children: [
-                // Header Card
-                Container(
-                  margin: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        Colors.white,
-                        Colors.grey[50]!,
-                      ],
-                    ),
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.12),
-                        blurRadius: 20,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _EnhancedMetaRow(label: S.of(context).villageNameMap, value: widget.villageName),
-                        _EnhancedMetaRow(label: S.of(context).brand, value: widget.brand),
-                        _EnhancedMetaRowWithInputs(
-                          label: S.of(context).size,
-                          value: widget.width.toString(),
-                          secondValue: widget.height.toString(),
-                        ),
-                        Row(
-                          children: [
-                            Expanded(
-                              flex: 2,
-                              child: Text(
-                                S.of(context).printNo,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                  color: neutralDarkColor,
-                                  fontFamily: "Roboto",
-                                ),
-                              ),
-                            ),
-                            Container(
-                                width: 100,
-                                height: 50,
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[50],
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: Colors.grey),
-                                ),
-                                child: TextField(
-                                  keyboardType: TextInputType.text,
-                                  controller: printNoController1,
-                                  focusNode: _focusNode1,
-                                  textAlign: TextAlign.center,
-                                  onEditingComplete: _dismissKeyboard,
-                                  onSubmitted: (_) => _dismissKeyboard(),
-                                  onTapOutside: (_) => _dismissKeyboard(),
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: neutralDarkColor,
-                                    fontFamily: "Roboto",
-                                  ),
-                                  decoration: InputDecoration(
-                                    border: InputBorder.none,
-                                    contentPadding: EdgeInsets.symmetric(vertical: 8),
-                                  ),
-                                  inputFormatters: [
-                                    FilteringTextInputFormatter.allow(RegExp("[a-zA-Z]")),
-                                    UpperCaseTextInputFormatter(),
-                                  ],
-                                )
-                            ),
-                            SizedBox(width: 4),
-                            Text('/', style: TextStyle(color: Colors.grey[400], fontSize: 16)),
-                            SizedBox(width: 4),
-                            Container(
-                              width: 100,
-                              height: 50,
-                              decoration: BoxDecoration(
-                                color: Colors.grey[50],
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: Colors.grey),
-                              ),
-                              child: TextField(
-                                keyboardType: TextInputType.number,
-                                controller: printNoController2,
-                                textAlign: TextAlign.center,
-                                focusNode: _focusNode2,
-                                onEditingComplete: _dismissKeyboard,
-                                onSubmitted: (_) => _dismissKeyboard(),
-                                onTapOutside: (_) => _dismissKeyboard(),
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: neutralDarkColor,
-                                  fontFamily: "Roboto",
-                                ),
-                                decoration: InputDecoration(
-                                  border: InputBorder.none,
-                                  contentPadding: EdgeInsets.symmetric(vertical: 8),
-                                ),
-                              ),
-                            ),
-                          ],
-                        )
-                      ],
-                    ),
-                  ),
-                ),
+  return WillPopScope(
+  onWillPop: _onWillPop,
+  child: SafeArea(
+  child: Scaffold(
+  backgroundColor: Color(0xFFF8F9FA),
+  resizeToAvoidBottomInset: true,
+  appBar: AppBar(
+  elevation: 0,
+  backgroundColor: Font.primaryColor,
+  title: Text(
+  S.of(context).printDetails,
+  style: TextStyle(
+  color: Colors.white,
+  fontWeight: FontWeight.w600,
+  fontSize: 18,
+  letterSpacing: 1,
+  fontFamily: "Roboto"
+  ),
+  ),
+  leading: IconButton(
+  icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
+  onPressed: () {
+  Navigator.push(
+  context,
+  MaterialPageRoute(builder: (context) => LandingScreen(changeLanguage: widget.changeLanguage,)),
+  );
+  },
+  ),
+  actions: [
+  IconButton(
+  icon: Icon(Icons.home, color: Colors.white),
+  onPressed: () {
+  Navigator.push(
+  context,
+  MaterialPageRoute(builder: (context) => LandingScreen(changeLanguage: widget.changeLanguage)),
+  );
+  },
+  ),
+  ],
+  ),
+  body: SingleChildScrollView(
+  child: Column(
+  children: [
+  // Header Card
+  Container(
+  margin: const EdgeInsets.all(8),
+  decoration: BoxDecoration(
+  gradient: LinearGradient(
+  begin: Alignment.topLeft,
+  end: Alignment.bottomRight,
+  colors: [
+  Colors.white,
+  Colors.grey[50]!,
+  ],
+  ),
+  borderRadius: BorderRadius.circular(20),
+  boxShadow: [
+  BoxShadow(
+  color: Colors.black.withOpacity(0.12),
+  blurRadius: 20,
+  offset: const Offset(0, 4),
+  ),
+  ],
+  ),
+  child: Padding(
+  padding: const EdgeInsets.all(12),
+  child: Column(
+  crossAxisAlignment: CrossAxisAlignment.start,
+  children: [
+  _EnhancedMetaRow(label: S.of(context).villageNameMap, value: widget.villageName),
+  _EnhancedMetaRow(label: S.of(context).brand, value: widget.brand),
+  _EnhancedMetaRowWithInputs(
+  label: S.of(context).size,
+  value: widget.width.toString(),
+  secondValue: widget.height.toString(),
+  ),
+  Row(
+  children: [
+  Expanded(
+  flex: 2,
+  child: Text(
+  S.of(context).printNo,
+  style: TextStyle(
+  fontSize: 12,
+  fontWeight: FontWeight.w500,
+  color: neutralDarkColor,
+  fontFamily: "Roboto",
+  ),
+  ),
+  ),
+  Container(
+  width: 100,
+  height: 50,
+  decoration: BoxDecoration(
+  color: Colors.grey[50],
+  borderRadius: BorderRadius.circular(8),
+  border: Border.all(color: Colors.grey),
+  ),
+  child: TextField(
+  keyboardType: TextInputType.text,
+  controller: printNoController1,
+  focusNode: _focusNode1,
+  textAlign: TextAlign.center,
+  onEditingComplete: _dismissKeyboard,
+  onSubmitted: (_) => _dismissKeyboard(),
+  onTapOutside: (_) => _dismissKeyboard(),
+  style: TextStyle(
+  fontSize: 12,
+  color: neutralDarkColor,
+  fontFamily: "Roboto",
+  ),
+  decoration: InputDecoration(
+  border: InputBorder.none,
+  contentPadding: EdgeInsets.symmetric(vertical: 8),
+  ),
+  inputFormatters: [
+  FilteringTextInputFormatter.allow(RegExp("[a-zA-Z]")),
+  UpperCaseTextInputFormatter(),
+  ],
+  )
+  ),
+  SizedBox(width: 4),
+  Text('/', style: TextStyle(color: Colors.grey[400], fontSize: 16)),
+  SizedBox(width: 4),
+  Container(
+  width: 100,
+  height: 50,
+  decoration: BoxDecoration(
+  color: Colors.grey[50],
+  borderRadius: BorderRadius.circular(8),
+  border: Border.all(color: Colors.grey),
+  ),
+  child: TextField(
+  keyboardType: TextInputType.number,
+  controller: printNoController2,
+  textAlign: TextAlign.center,
+  focusNode: _focusNode2,
+  onEditingComplete: _dismissKeyboard,
+  onSubmitted: (_) => _dismissKeyboard(),
+  onTapOutside: (_) => _dismissKeyboard(),
+  style: TextStyle(
+  fontSize: 12,
+  color: neutralDarkColor,
+  fontFamily: "Roboto",
+  ),
+  decoration: InputDecoration(
+  border: InputBorder.none,
+  contentPadding: EdgeInsets.symmetric(vertical: 8),
+  ),
+  ),
+  ),
+  ],
+  )
+  ],
+  ),
+  ),
+  ),
 
-                // Images Grid Section
-                Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.only(left: 4, bottom: 12),
-                        child: Row(
-                          children: [
-                            Icon(Icons.photo_library, color: Font.primaryColor, size: 20),
-                            SizedBox(width: 8),
-                            Text(
-                              S.of(context).uploadImages,
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: neutralDarkColor,
-                                fontFamily: "Roboto",
-                              ),
-                            ),
-                            Spacer(),
-                            Container(
-                              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: accentColor.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                '${images.where((img) => img.imagePath != null).length}/7',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: Font.primaryColor,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      GridView.builder(
-                        physics: const BouncingScrollPhysics(),
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 12,
-                          childAspectRatio: 0.85,
-                        ),
-                        itemCount: 7,
-                        itemBuilder: (context, index) {
-                          return _buildEnhancedImageCard(index);
-                        },
-                        shrinkWrap: true,
-                      ),
-                    ],
-                  ),
-                ),
+  // Images Grid Section
+  Container(
+  margin: const EdgeInsets.symmetric(horizontal: 16),
+  child: Column(
+  crossAxisAlignment: CrossAxisAlignment.start,
+  children: [
+  Padding(
+  padding: const EdgeInsets.only(left: 4, bottom: 12),
+  child: Row(
+  children: [
+  Icon(Icons.photo_library, color: Font.primaryColor, size: 20),
+  SizedBox(width: 8),
+  Text(
+  S.of(context).uploadImages,
+  style: TextStyle(
+  fontSize: 16,
+  fontWeight: FontWeight.w600,
+  color: neutralDarkColor,
+  fontFamily: "Roboto",
+  ),
+  ),
+  Spacer(),
+  Container(
+  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+  decoration: BoxDecoration(
+  color: accentColor.withOpacity(0.2),
+  borderRadius: BorderRadius.circular(12),
+  ),
+  child: Text(
+  '${images.where((img) => img.imagePath != null).length}/7',
+  style: TextStyle(
+  fontSize: 12,
+  fontWeight: FontWeight.w600,
+  color: Font.primaryColor,
+  ),
+  ),
+  ),
+  ],
+  ),
+  ),
+  GridView.builder(
+  physics: const BouncingScrollPhysics(),
+  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+  crossAxisCount: 2,
+  crossAxisSpacing: 12,
+  mainAxisSpacing: 12,
+  childAspectRatio: 0.85,
+  ),
+  itemCount: 7,
+  itemBuilder: (context, index) {
+  return _buildEnhancedImageCard(index);
+  },
+  shrinkWrap: true,
+  ),
+  ],
+  ),
+  ),
 
-                // Submit Button
-                Container(
-                  margin: const EdgeInsets.only(bottom: 10, top: 10),
-                  width: 200,
-                  height: 50,
-                  child: GestureDetector(
-                    onTap: (isRefreshing || _isAnyPickerActive) ? null : _submitDetails,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                      decoration: BoxDecoration(
-                        color: (isRefreshing || _isAnyPickerActive) ? Colors.grey : Font.primaryColor,
-                        borderRadius: BorderRadius.circular(25),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          if (isRefreshing) ...[
-                            SizedBox(
-                              width: 12,
-                              height: 12,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                              ),
-                            ),
-                            SizedBox(width: 8),
-                          ] else if (_isAnyPickerActive) ...[
-                            Icon(Icons.camera_alt, size: 20, color: Colors.white),
-                            SizedBox(width: 8),
-                          ] else ...[
-                            Icon(Icons.cloud_upload_outlined, size: 20, color: Colors.white),
-                            SizedBox(width: 8),
-                          ],
+  // Submit Button
+  Container(
+  margin: const EdgeInsets.only(bottom: 10, top: 10),
+  width: 200,
+  height: 50,
+  child: GestureDetector(
+  onTap: (isRefreshing || _isAnyPickerActive) ? null : _submitDetails,
+  child: Container(
+  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+  decoration: BoxDecoration(
+  color: (isRefreshing || _isAnyPickerActive) ? Colors.grey : Font.primaryColor,
+  borderRadius: BorderRadius.circular(25),
+  ),
+  child: Row(
+  mainAxisSize: MainAxisSize.min,
+  mainAxisAlignment: MainAxisAlignment.center,
+  children: [
+  if (isRefreshing) ...[
+  SizedBox(
+  width: 12,
+  height: 12,
+  child: CircularProgressIndicator(
+  strokeWidth: 2,
+  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+  ),
+  ),
+  SizedBox(width: 8),
+  ] else if (_isAnyPickerActive) ...[
+  Icon(Icons.camera_alt, size: 20, color: Colors.white),
+  SizedBox(width: 8),
+  ] else ...[
+  Icon(Icons.cloud_upload_outlined, size: 20, color: Colors.white),
+  SizedBox(width: 8),
+  ],
 
-                          Text(
-                            isRefreshing ? "Saving..." :
-                            S.of(context).submitDetails,
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 16,
-                              fontFamily: "Roboto",
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
+  Text(
+  isRefreshing ? "Saving..." :
+  S.of(context).submitDetails,
+  style: TextStyle(
+  color: Colors.white,
+  fontWeight: FontWeight.w600,
+  fontSize: 16,
+  fontFamily: "Roboto",
+  ),
+  ),
+  ],
+  ),
+  ),
+  ),
+  ),
+  ],
+  ),
+  ),
+  ),
+  ),
+  );
   }
 
   Widget _buildEnhancedImageCard(int index) {
-    final hasImage = images[index].imagePath != null;
-    final isThisCardActive = _isPickerActiveList[index];
+  final hasImage = images[index].imagePath != null;
+  final isThisCardActive = _isPickerActiveList[index];
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 12,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Expanded(
-            child: GestureDetector(
-              onTap: () => _pickImage(index),
-              child: Container(
-                width: double.infinity,
-                margin: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: hasImage ? Colors.transparent :
-                    isThisCardActive ? Colors.blue : Colors.grey[300]!,
-                    width: 1.5,
-                    style: BorderStyle.solid,
-                  ),
-                ),
-                child: hasImage ? _buildImageDisplay(index) : _buildPlaceholder(index),
-              ),
-            ),
-          ),
+  return Container(
+  decoration: BoxDecoration(
+  color: Colors.white,
+  borderRadius: BorderRadius.circular(16),
+  boxShadow: [
+  BoxShadow(
+  color: Colors.black.withOpacity(0.06),
+  blurRadius: 12,
+  offset: const Offset(0, 2),
+  ),
+  ],
+  ),
+  child: Column(
+  children: [
+  Expanded(
+  child: GestureDetector(
+  onTap: () => _pickImage(index),
+  child: Container(
+  width: double.infinity,
+  margin: const EdgeInsets.all(8),
+  decoration: BoxDecoration(
+  borderRadius: BorderRadius.circular(12),
+  border: Border.all(
+  color: hasImage ? Colors.transparent :
+  isThisCardActive ? Colors.blue : Colors.grey[300]!,
+  width: 1.5,
+  style: BorderStyle.solid,
+  ),
+  ),
+  child: hasImage ? _buildImageDisplay(index) : _buildPlaceholder(index),
+  ),
+  ),
+  ),
 
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: hasImage ? primaryColor.withOpacity(0.1) :
-              isThisCardActive ? Colors.blue.withOpacity(0.1) : Colors.grey[50],
-              borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(16),
-                bottomRight: Radius.circular(16),
-              ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: hasImage ? primaryColor :
-                    isThisCardActive ? Colors.blue : Colors.grey[400],
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    '${index + 1}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-                if (isThisCardActive)
-                  SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
-                    ),
-                  )
-                else
-                  Icon(
-                    hasImage ? Icons.check_circle : Icons.radio_button_unchecked,
-                    color: hasImage ? Colors.green : Colors.grey[400],
-                    size: 16,
-                  ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
+  Container(
+  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+  decoration: BoxDecoration(
+  color: hasImage ? primaryColor.withOpacity(0.1) :
+  isThisCardActive ? Colors.blue.withOpacity(0.1) : Colors.grey[50],
+  borderRadius: BorderRadius.only(
+  bottomLeft: Radius.circular(16),
+  bottomRight: Radius.circular(16),
+  ),
+  ),
+  child: Row(
+  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  children: [
+  Container(
+  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+  decoration: BoxDecoration(
+  color: hasImage ? primaryColor :
+  isThisCardActive ? Colors.blue : Colors.grey[400],
+  borderRadius: BorderRadius.circular(8),
+  ),
+  child: Text(
+  '${index + 1}',
+  style: TextStyle(
+  fontSize: 12,
+  fontWeight: FontWeight.w600,
+  color: Colors.white,
+  ),
+  ),
+  ),
+  if (isThisCardActive)
+  SizedBox(
+  width: 16,
+  height: 16,
+  child: CircularProgressIndicator(
+  strokeWidth: 2,
+  valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+  ),
+  )
+  else
+  Icon(
+  hasImage ? Icons.check_circle : Icons.radio_button_unchecked,
+  color: hasImage ? Colors.green : Colors.grey[400],
+  size: 16,
+  ),
+  ],
+  ),
+  ),
+  ],
+  ),
+  );
   }
 
   Widget _buildImageDisplay(int index) {
-    final isThisCardActive = _isPickerActiveList[index];
+  final isThisCardActive = _isPickerActiveList[index];
 
-    return Stack(
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            width: double.infinity,
-            height: double.infinity,
-            child: FutureBuilder<bool>(
-              future: File(images[index].imagePath!).exists(),
-              builder: (context, snapshot) {
-                if (snapshot.data == true) {
-                  return Image.file(
-                    File(images[index].imagePath!),
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                    height: double.infinity,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        color: Colors.grey[300],
-                        child: Icon(Icons.error, color: Colors.red),
-                      );
-                    },
-                  );
-                }
-                return Container(
-                  color: Colors.grey[300],
-                  child: Center(child: CircularProgressIndicator()),
-                );
-              },
-            ),
-          ),
-        ),
-        Positioned(
-          top: 4,
-          right: 4,
-          child: GestureDetector(
-            onTap: isThisCardActive ? null : () => _removeImage(index),
-            child: Container(
-              padding: EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: isThisCardActive ? Colors.grey : Colors.red,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(Icons.close, color: Colors.white, size: 14),
-            ),
-          ),
-        ),
-        if (!isThisCardActive)
-          Positioned.fill(
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                color: Colors.black.withOpacity(0.3),
-              ),
-              child: Center(child: Icon(Icons.edit, color: Colors.white, size: 24)),
-            ),
-          ),
-      ],
-    );
+  return Stack(
+  children: [
+  ClipRRect(
+  borderRadius: BorderRadius.circular(12),
+  child: Container(
+  width: double.infinity,
+  height: double.infinity,
+  child: FutureBuilder<bool>(
+  future: File(images[index].imagePath!).exists(),
+  builder: (context, snapshot) {
+  if (snapshot.data == true) {
+  return Image.file(
+  File(images[index].imagePath!),
+  fit: BoxFit.cover,
+  width: double.infinity,
+  height: double.infinity,
+  errorBuilder: (context, error, stackTrace) {
+  return Container(
+  color: Colors.grey[300],
+  child: Icon(Icons.error, color: Colors.red),
+  );
+  },
+  );
+  }
+  return Container(
+  color: Colors.grey[300],
+  child: Center(child: CircularProgressIndicator()),
+  );
+  },
+  ),
+  ),
+  ),
+  Positioned(
+  top: 4,
+  right: 4,
+  child: GestureDetector(
+  onTap: isThisCardActive ? null : () => _removeImage(index),
+  child: Container(
+  padding: EdgeInsets.all(4),
+  decoration: BoxDecoration(
+  color: isThisCardActive ? Colors.grey : Colors.red,
+  borderRadius: BorderRadius.circular(12),
+  ),
+  child: Icon(Icons.close, color: Colors.white, size: 14),
+  ),
+  ),
+  ),
+  if (!isThisCardActive)
+  Positioned.fill(
+  child: Container(
+  decoration: BoxDecoration(
+  borderRadius: BorderRadius.circular(12),
+  color: Colors.black.withOpacity(0.3),
+  ),
+  child: Center(child: Icon(Icons.edit, color: Colors.white, size: 24)),
+  ),
+  ),
+  ],
+  );
   }
 
   Widget _buildPlaceholder(int index) {
-    final isThisCardActive = _isPickerActiveList[index];
+  final isThisCardActive = _isPickerActiveList[index];
 
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            (isThisCardActive ? primaryColor : accentColor).withOpacity(0.1),
-            (isThisCardActive ? primaryColor : primaryLightColor).withOpacity(0.1),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: (isThisCardActive ? Colors.blue : primaryColor).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: isThisCardActive
-                ? SizedBox(
-              width: 24,
-              height: 24,
-              child: CircularProgressIndicator(
-                color: Colors.blue,
-                strokeWidth: 2,
-              ),
-            )
-                : Icon(Icons.add_a_photo, size: 24, color: Font.primaryColor),
-          ),
-          SizedBox(height: 8),
-          Text(
-            isThisCardActive ? S.of(context).openingCamera : S.of(context).addPhoto,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: isThisCardActive ? Font.primaryColor : Font.primaryColor,
-              fontFamily: "Roboto",
-            ),
-          ),
-        ],
-      ),
-    );
+  return Container(
+  decoration: BoxDecoration(
+  gradient: LinearGradient(
+  begin: Alignment.topLeft,
+  end: Alignment.bottomRight,
+  colors: [
+  (isThisCardActive ? primaryColor : accentColor).withOpacity(0.1),
+  (isThisCardActive ? primaryColor : primaryLightColor).withOpacity(0.1),
+  ],
+  ),
+  borderRadius: BorderRadius.circular(12),
+  ),
+  child: Column(
+  mainAxisAlignment: MainAxisAlignment.center,
+  children: [
+  Container(
+  padding: EdgeInsets.all(12),
+  decoration: BoxDecoration(
+  color: (isThisCardActive ? Colors.blue : primaryColor).withOpacity(0.1),
+  borderRadius: BorderRadius.circular(20),
+  ),
+  child: isThisCardActive
+  ? SizedBox(
+  width: 24,
+  height: 24,
+  child: CircularProgressIndicator(
+  color: Colors.blue,
+  strokeWidth: 2,
+  ),
+  )
+      : Icon(Icons.add_a_photo, size: 24, color: Font.primaryColor),
+  ),
+  SizedBox(height: 8),
+  Text(
+  isThisCardActive ? S.of(context).openingCamera : S.of(context).addPhoto,
+  style: TextStyle(
+  fontSize: 12,
+  fontWeight: FontWeight.w500,
+  color: isThisCardActive ? Font.primaryColor : Font.primaryColor,
+  fontFamily: "Roboto",
+  ),
+  ),
+  ],
+  ),
+  );
   }
 
   Future<bool> _checkNetworkConnectivity() async {
-    try {
-      final connectivityResult = await Connectivity().checkConnectivity();
-      return connectivityResult == ConnectivityResult.mobile ||
-          connectivityResult == ConnectivityResult.wifi;
-    } catch (e) {
-      return false;
-    }
+  try {
+  final connectivityResult = await Connectivity().checkConnectivity();
+  return connectivityResult == ConnectivityResult.mobile ||
+  connectivityResult == ConnectivityResult.wifi;
+  } catch (e) {
+  return false;
+  }
   }
 
   void _submitDetails() async {
-    setState(() {
-      isRefreshing = true;
-    });
+  setState(() {
+  isRefreshing = true;
+  });
 
-    String printNumber1 = printNoController1.text.trim();
-    String printNumber2 = printNoController2.text.trim();
+  String printNumber1 = printNoController1.text.trim();
+  String printNumber2 = printNoController2.text.trim();
 
-    if (printNumber1.isEmpty || printNumber2.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(S.of(context).pleaseEnterPrintNumber),
-            backgroundColor: Colors.red,
-          )
-      );
-      setState(() {
-        isRefreshing = false;
-      });
-      return;
-    }
+  if (printNumber1.isEmpty || printNumber2.isEmpty) {
+  ScaffoldMessenger.of(context).showSnackBar(
+  SnackBar(
+  content: Text(S.of(context).pleaseEnterPrintNumber),
+  backgroundColor: Colors.red,
+  )
+  );
+  setState(() {
+  isRefreshing = false;
+  });
+  return;
+  }
 
-    String fullPrintNumber = '$printNumber1$printNumber2';
+  String fullPrintNumber = '$printNumber1$printNumber2';
 
-    final uploadedCount = images.where((img) => img.imagePath != null).length;
-    if (uploadedCount != 7) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text(S.of(context).imageVal),
-              backgroundColor: Colors.red
-          )
-      );
-      setState(() {
-        isRefreshing = false;
-      });
-      return;
-    }
+  final uploadedCount = images.where((img) => img.imagePath != null).length;
+  if (uploadedCount != 7) {
+  ScaffoldMessenger.of(context).showSnackBar(
+  SnackBar(
+  content: Text(S.of(context).imageVal),
+  backgroundColor: Colors.red
+  )
+  );
+  setState(() {
+  isRefreshing = false;
+  });
+  return;
+  }
 
-    Position? submitPosition;
-    try {
-      submitPosition = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.best,
-        timeLimit: Duration(seconds: 10),
-      );
-    } catch (e) {
-      setState(() {
-        isRefreshing = false;
-      });
-      Fluttertoast.showToast(
-        msg: S.of(context).unableCurrentLocationSubmission,
-        toastLength: Toast.LENGTH_LONG,
-        gravity: ToastGravity.CENTER,
-        backgroundColor: Colors.red,
-        textColor: Colors.white,
-      );
-      return;
-    }
+  Position? submitPosition;
 
-    if (images[0].imagePath != null) {
-      double distanceFromFirstImage = _calculateDistance(
-        submitPosition.latitude,
-        submitPosition.longitude,
-        images[0].lat,
-        images[0].long,
-      );
+  try {
+  if (_latestPosition != null) {
+  submitPosition = _latestPosition!;
+  } else {
+  submitPosition = await Geolocator.getCurrentPosition(
+  desiredAccuracy: LocationAccuracy.high,
+  );
+  }
+  } catch (e) {
+  setState(() {
+  isRefreshing = false;
+  });
 
-      if (distanceFromFirstImage > 100) {
-        setState(() {
-          isRefreshing = false;
-        });
+  Fluttertoast.showToast(
+  msg: S.of(context).unableCurrentLocationSubmission,
+  toastLength: Toast.LENGTH_LONG,
+  gravity: ToastGravity.CENTER,
+  backgroundColor: Colors.red,
+  textColor: Colors.white,
+  );
+  return;
+  }
 
-        await showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (BuildContext context) {
-            return AlertDialog(
-              title: Row(
-                children: [
-                  Icon(Icons.warning_amber_rounded, color: Colors.red),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      S.of(context).cannotSubmit,
-                      style: TextStyle(fontSize: 16, fontFamily: "Roboto", color: Colors.red),
-                    ),
-                  ),
-                ],
-              ),
-              content: Text(
-                'You are ${distanceFromFirstImage.toStringAsFixed(0)} meters away from Image 1. You must be within 100 meters to submit.',
-                style: TextStyle(fontSize: 14, fontFamily: "Roboto"),
-              ),
-              actions: [
-                ElevatedButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text('Understood', style: TextStyle(fontFamily: "Roboto")),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Font.primaryColor,
-                    foregroundColor: Colors.white,
-                  ),
-                ),
-              ],
-            );
-          },
-        );
-        return;
-      }
-    }
+// Safety check
+  if (submitPosition == null) {
+  setState(() {
+  isRefreshing = false;
+  });
 
-    try {
-      bool isNetworkAvailable = await _checkNetworkConnectivity();
-      String currentDate = DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now());
+  Fluttertoast.showToast(
+  msg: "Unable to fetch current location.",
+  toastLength: Toast.LENGTH_LONG,
+  gravity: ToastGravity.CENTER,
+  backgroundColor: Colors.red,
+  textColor: Colors.white,
+  );
+  return;
+  }
 
-      // Store images (NO re-compression - already compressed)
-      for (var i = 0; i < images.length; i++) {
-        if (images[i].imagePath != null) {
-          final storedPath = await _storeImageInInternalDocuments(images[i].imagePath!);
-          images[i].imagePath = storedPath;
-        }
-      }
+  if (images[0].imagePath != null) {
+  double distanceFromFirstImage = _calculateDistance(
+  submitPosition.latitude,
+  submitPosition.longitude,
+  images[0].lat,
+  images[0].long,
+  );
 
-      ImageUploaddata metadata = ImageUploaddata(
-        ServerPlanId: widget.ServerID,
-        PlanCode: widget.planCode,
-        PrintNo: fullPrintNumber,
-        VillageCode: widget.VillageCode,
-        Address: widget.Address,
-        ExecutionDate: currentDate,
-        UploadDate: '',
-        CleanImage: images[0].imagePath,
-        CleanLatitude: images[0].lat.toString(),
-        CleanLongitude: images[0].long.toString(),
-        WBImage: images[1].imagePath,
-        WBLatitude: images[1].lat.toString(),
-        WBLongitude: images[1].long.toString(),
-        SprayImage: images[2].imagePath,
-        SprayLatitude: images[2].lat.toString(),
-        SprayLongitude: images[2].long.toString(),
-        NearImage: images[3].imagePath,
-        NearLatitude: images[3].lat.toString(),
-        NearLongitude: images[3].long.toString(),
-        FarImage: images[4].imagePath,
-        FarLatitude: images[4].lat.toString(),
-        FarLongitude: images[4].long.toString(),
-        NewImage6: images[5].imagePath,
-        New6Latitude: images[5].lat.toString(),
-        New6Longitude: images[5].long.toString(),
-        NewImage7: images[6].imagePath,
-        New7Latitude: images[6].lat.toString(),
-        New7Longitude: images[6].long.toString(),
-        VillageName: widget.villageName,
-        Tensil: widget.tensil,
-        createdAt: DateTime.now(),
-        networkFlagString: isNetworkAvailable ? "online" : "offline",
-        locateId: widget.locateId,
-      );
+  if (distanceFromFirstImage > 100) {
+  setState(() {
+  isRefreshing = false;
+  });
 
-      await ExecutionImageUploadHiveRepository().saveMetadata(metadata);
-      await PlanCountChangeHiveRepository().incrementOfflineCount(
-        widget.planCode.toString(),
-        widget.VillageCode.toString(),
-        widget.villageName.toString(),
-        widget.tensil.toString(),
-      );
+  await showDialog(
+  context: context,
+  barrierDismissible: false,
+  builder: (BuildContext context) {
+  return AlertDialog(
+  title: Row(
+  children: [
+  Icon(Icons.warning_amber_rounded, color: Colors.red),
+  SizedBox(width: 8),
+  Expanded(
+  child: Text(
+  S.of(context).cannotSubmit,
+  style: TextStyle(fontSize: 16, fontFamily: "Roboto", color: Colors.red),
+  ),
+  ),
+  ],
+  ),
+  content: Text(
+  'You are ${distanceFromFirstImage.toStringAsFixed(0)} meters away from Image 1. You must be within 100 meters to submit.',
+  style: TextStyle(fontSize: 14, fontFamily: "Roboto"),
+  ),
+  actions: [
+  ElevatedButton(
+  onPressed: () => Navigator.of(context).pop(),
+  child: Text('Understood', style: TextStyle(fontFamily: "Roboto")),
+  style: ElevatedButton.styleFrom(
+  backgroundColor: Font.primaryColor,
+  foregroundColor: Colors.white,
+  ),
+  ),
+  ],
+  );
+  },
+  );
+  return;
+  }
+  }
 
-      await PlanCountChangeHiveRepository().incrementArtworkOfflineCount(
-        widget.ServerID.toString(),
-        widget.planCode.toString(),
-        widget.VillageCode.toString(),
-        widget.artworkId,
-      );
+  try {
+  bool isNetworkAvailable = await _checkNetworkConnectivity();
+  String currentDate = DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now());
 
-      // ========== MARK LOCATE AS CAPTURED ==========
-      // Check if locateId exists and is not empty
-      if (widget.locateId != null &&
-          widget.locateId!.trim().isNotEmpty &&
-          widget.ServerID != null &&
-          widget.ServerID!.trim().isNotEmpty) {
+  // Store images (NO re-compression - already compressed)
+  for (var i = 0; i < images.length; i++) {
+  if (images[i].imagePath != null) {
+  final storedPath = await _storeImageInInternalDocuments(images[i].imagePath!);
+  images[i].imagePath = storedPath;
+  }
+  }
 
-        try {
-          await CapturedLocateRepository().markAsCaptured(
-            widget.locateId!.trim(),
-            widget.ServerID!.trim(),
-          );
-          print(" Successfully marked locateId ${widget.locateId} as captured");
-        } catch (e) {
-          print(" Failed to mark locate as captured: $e");
-          // Don't fail the submission if marking fails
-          // Log the error but continue with the submission
-          await CrashReportManager.storeLogMessage(
-              "event=mark_captured_failed | "
-                  "locateId=${widget.locateId} | "
-                  "error=$e | "
-                  "timestamp=${DateTime.now().toIso8601String()}"
-          );
-        }
-      } else {
-        print(" No locateId to mark as captured (locateId: ${widget.locateId})");
-      }
+  ImageUploaddata metadata = ImageUploaddata(
+  ServerPlanId: widget.ServerID,
+  PlanCode: widget.planCode,
+  PrintNo: fullPrintNumber,
+  VillageCode: widget.VillageCode,
+  Address: widget.Address,
+  ExecutionDate: currentDate,
+  UploadDate: '',
+  CleanImage: images[0].imagePath,
+  CleanLatitude: images[0].lat.toString(),
+  CleanLongitude: images[0].long.toString(),
+  WBImage: images[1].imagePath,
+  WBLatitude: images[1].lat.toString(),
+  WBLongitude: images[1].long.toString(),
+  SprayImage: images[2].imagePath,
+  SprayLatitude: images[2].lat.toString(),
+  SprayLongitude: images[2].long.toString(),
+  NearImage: images[3].imagePath,
+  NearLatitude: images[3].lat.toString(),
+  NearLongitude: images[3].long.toString(),
+  FarImage: images[4].imagePath,
+  FarLatitude: images[4].lat.toString(),
+  FarLongitude: images[4].long.toString(),
+  NewImage6: images[5].imagePath,
+  New6Latitude: images[5].lat.toString(),
+  New6Longitude: images[5].long.toString(),
+  NewImage7: images[6].imagePath,
+  New7Latitude: images[6].lat.toString(),
+  New7Longitude: images[6].long.toString(),
+  VillageName: widget.villageName,
+  Tensil: widget.tensil,
+  createdAt: DateTime.now(),
+  networkFlagString: isNetworkAvailable ? "online" : "offline",
+  locateId: widget.locateId,
+  );
 
-      String uploadDate = DateFormat('yyyy-MM-dd').format(DateTime.now());
-      await UploadCountRepository().incrementUploadCount(uploadDate);
+  await ExecutionImageUploadHiveRepository().saveMetadata(metadata);
+  await PlanCountChangeHiveRepository().incrementOfflineCount(
+  widget.planCode.toString(),
+  widget.VillageCode.toString(),
+  widget.villageName.toString(),
+  widget.tensil.toString(),
+  );
 
-      // await _clearSavedState();
+  await PlanCountChangeHiveRepository().incrementArtworkOfflineCount(
+  widget.ServerID.toString(),
+  widget.planCode.toString(),
+  widget.VillageCode.toString(),
+  widget.artworkId,
+  );
 
-      setState(() {
-        for (var i = 0; i < images.length; i++) {
-          images[i].imagePath = null;
-          images[i].lat = 0.0;
-          images[i].long = 0.0;
-        }
-      });
+  // ========== MARK LOCATE AS CAPTURED ==========
+  // Check if locateId exists and is not empty
+  if (widget.locateId != null &&
+  widget.locateId!.trim().isNotEmpty &&
+  widget.ServerID != null &&
+  widget.ServerID!.trim().isNotEmpty) {
 
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text(S.of(context).submitPlan),
-              backgroundColor: Colors.green
-          )
-      );
+  try {
+  await CapturedLocateRepository().markAsCaptured(
+  widget.locateId!.trim(),
+  widget.ServerID!.trim(),
+  );
+  print(" Successfully marked locateId ${widget.locateId} as captured");
+  } catch (e) {
+  print(" Failed to mark locate as captured: $e");
+  // Don't fail the submission if marking fails
+  // Log the error but continue with the submission
+  await CrashReportManager.storeLogMessage(
+  "event=mark_captured_failed | "
+  "locateId=${widget.locateId} | "
+  "error=$e | "
+  "timestamp=${DateTime.now().toIso8601String()}"
+  );
+  }
+  } else {
+  print(" No locateId to mark as captured (locateId: ${widget.locateId})");
+  }
 
-      setState(() {
-        isRefreshing = false;
-      });
+  String uploadDate = DateFormat('yyyy-MM-dd').format(DateTime.now());
+  await UploadCountRepository().incrementUploadCount(uploadDate);
 
-      Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-              builder: (context) => SeePlanScreen(changeLanguage: widget.changeLanguage)
-          )
-      );
+  // await _clearSavedState();
 
-    } catch (e) {
-      await CrashReportManager.storeCrashReport(
-        error: "Submit details error: $e",
-        stackTrace: StackTrace.current.toString(),
-      );
+  setState(() {
+  for (var i = 0; i < images.length; i++) {
+  images[i].imagePath = null;
+  images[i].lat = 0.0;
+  images[i].long = 0.0;
+  }
+  });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text(S.of(context).errorOccurredSubmitting),
-              backgroundColor: Colors.red
-          )
-      );
-      setState(() {
-        isRefreshing = false;
-      });
-    }
+  ScaffoldMessenger.of(context).showSnackBar(
+  SnackBar(
+  content: Text(S.of(context).submitPlan),
+  backgroundColor: Colors.green
+  )
+  );
+
+  setState(() {
+  isRefreshing = false;
+  });
+
+  Navigator.pushReplacement(
+  context,
+  MaterialPageRoute(
+  builder: (context) => SeePlanScreen(changeLanguage: widget.changeLanguage)
+  )
+  );
+
+  } catch (e) {
+  await CrashReportManager.storeCrashReport(
+  error: "Submit details error: $e",
+  stackTrace: StackTrace.current.toString(),
+  );
+
+  ScaffoldMessenger.of(context).showSnackBar(
+  SnackBar(
+  content: Text(S.of(context).errorOccurredSubmitting),
+  backgroundColor: Colors.red
+  )
+  );
+  setState(() {
+  isRefreshing = false;
+  });
+  }
   }
 }
 
@@ -1986,14 +2069,16 @@ const Color primaryLightColor = Color(0xFF64B5F6);
 const Color accentColor = Color(0xFF03DAC6);
 const Color neutralDarkColor = Color(0xFF212121);
 
+
 // ============================================================
-// CAMERA SCREEN
+// CAMERA SCREEN WITH LIVE LOCATION OVERLAY
 // ============================================================
 class CameraScreen extends StatefulWidget {
   final Function(String, double, double) onImageCaptured;
   final int imageIndex;
   final double? targetLatitude;
   final double? targetLongitude;
+  final Position? latestPosition;
   final double? referenceLatitude;
   final double? referenceLongitude;
   final String imageLabel;
@@ -2006,6 +2091,7 @@ class CameraScreen extends StatefulWidget {
     required this.imageIndex,
     this.targetLatitude,
     this.targetLongitude,
+    required this.latestPosition,
     this.referenceLatitude,
     this.referenceLongitude,
     required this.imageLabel,
@@ -2018,24 +2104,40 @@ class CameraScreen extends StatefulWidget {
 }
 
 class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver {
+// ========== CAMERA VARIABLES ==========
   CameraController? _cameraController;
   bool _isCameraInitialized = false;
   bool _isCapturing = false;
   bool _isProcessing = false;
-  Position? _currentPosition;
+
+// Camera toggle
+  int _cameraIndex = 0;
+  List<CameraDescription> _availableCameras = [];
+
+// ========== LOCATION VARIABLES ==========
+  Position? _livePosition;
   bool _isLocationValid = false;
   String _locationError = '';
+  String _locationStatus = ' Getting GPS...';
+  bool _isLocationStreamActive = false;
+  StreamSubscription<Position>? _positionStream;
 
-  // Camera toggle
-  int _cameraIndex = 0; // 0 = back, 1 = front
-  List<CameraDescription> _availableCameras = [];
+// ========== DISTANCE TRACKING ==========
+  double _distanceToTarget = 0.0;
+  double _distanceToReference = 0.0;
+  bool _showDistanceWarning = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _initializeCameras();
-    _getCurrentLocation();
+
+    _livePosition = widget.latestPosition;
+
+    if (_livePosition != null) {
+      _validateLocation(_livePosition!);
+    }
   }
 
   @override
@@ -2051,9 +2153,11 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
       _cameraController?.pausePreview();
     } else if (state == AppLifecycleState.resumed) {
       _cameraController?.resumePreview();
+      _startLocationUpdates();
     }
   }
 
+// ========== CAMERA METHODS ==========
   Future<void> _initializeCameras() async {
     try {
       if (cameras == null || cameras!.isEmpty) {
@@ -2076,7 +2180,7 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     } catch (e) {
       print(" Camera initialization error: $e");
       Fluttertoast.showToast(
-        msg: "Failed to initialize camera: $e",
+        msg: "Failed to initialize camera",
         toastLength: Toast.LENGTH_LONG,
         gravity: ToastGravity.CENTER,
         backgroundColor: Colors.red,
@@ -2095,7 +2199,6 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
         index = 0;
       }
 
-      // Dispose old controller if exists
       if (_cameraController != null) {
         await _cameraController!.dispose();
       }
@@ -2123,7 +2226,7 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
         _isCameraInitialized = false;
       });
       Fluttertoast.showToast(
-        msg: "Failed to switch camera: $e",
+        msg: "Failed to switch camera",
         toastLength: Toast.LENGTH_LONG,
         gravity: ToastGravity.CENTER,
         backgroundColor: Colors.red,
@@ -2134,13 +2237,6 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
 
   Future<void> _toggleCamera() async {
     if (_availableCameras.length < 2) {
-      // Fluttertoast.showToast(
-      //   msg: "Only one camera available",
-      //   toastLength: Toast.LENGTH_SHORT,
-      //   gravity: ToastGravity.CENTER,
-      //   backgroundColor: Colors.orange,
-      //   textColor: Colors.white,
-      // );
       return;
     }
 
@@ -2148,83 +2244,165 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
       _isCameraInitialized = false;
     });
 
-    // Switch to next camera
     _cameraIndex = (_cameraIndex + 1) % _availableCameras.length;
-
     await _initializeCamera(_cameraIndex);
   }
 
+// ========== LOCATION METHODS ==========
+// Future<void> _getCurrentLocation() async {
+// try {
+// setState(() {
+// _isLocationValid = false;
+// _locationError = '';
+// _locationStatus = 'Getting GPS...';
+// });
+//
+// Position position;
+//
+// // Use latest position from parent if available
+// if (widget.latestPosition != null) {
+// position = widget.latestPosition!;
+// } else {
+// // Fallback to fresh GPS
+// position = await Geolocator.getCurrentPosition(
+// desiredAccuracy: LocationAccuracy.best,
+// );
+// }
+//
+// setState(() {
+// _livePosition = position;
+// _isLocationStreamActive = true;
+// _isLocationValid = true;
+// _locationStatus = 'Location OK';
+// });
+//
+// _validateLocation(position);
+//
+// } catch (e) {
+// setState(() {
+// _isLocationValid = false;
+// _locationError = 'Unable to get location. Please enable GPS.';
+// _locationStatus = 'GPS Unavailable';
+// });
+//
+// Fluttertoast.showToast(
+// msg: "Please enable GPS and try again",
+// toastLength: Toast.LENGTH_LONG,
+// gravity: ToastGravity.CENTER,
+// backgroundColor: Colors.red,
+// textColor: Colors.white,
+// );
+// }
+// }
   Future<void> _getCurrentLocation() async {
     try {
       setState(() {
         _isLocationValid = false;
         _locationError = '';
+        _locationStatus = 'Getting GPS...';
       });
 
-      final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-        timeLimit: Duration(seconds: 10),
-      );
+      Position position;
 
-      setState(() {
-        _currentPosition = position;
-        _isLocationValid = true;
-        _locationError = '';
-      });
+      // Use latest position from parent if available
+      if (widget.latestPosition != null) {
+        position = widget.latestPosition!;
+        print("📍 Using cached GPS");
+      } else {
+        print("📍 Fetching fresh GPS...");
+        position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.best,
+          timeLimit: const Duration(seconds: 15),
+        );
+      }
 
-      if (widget.targetLatitude != null && widget.targetLongitude != null) {
-        double distance = _calculateDistance(
+      // -----------------------------
+      // IMAGE 1 VALIDATION
+      // -----------------------------
+      if (widget.imageIndex == 0 &&
+          widget.targetLatitude != null &&
+          widget.targetLongitude != null) {
+
+        final distance = Geolocator.distanceBetween(
           position.latitude,
           position.longitude,
           widget.targetLatitude!,
           widget.targetLongitude!,
         );
 
+        print("📏 Image 1 Distance = ${distance.toStringAsFixed(2)} m");
+
         if (distance > 50) {
           setState(() {
             _isLocationValid = false;
-            _locationError = 'You are ${distance.toStringAsFixed(0)}m away. Must be within 50m.';
+            _locationStatus = "Move within 50 meters";
+            _locationError =
+            "You are ${distance.toStringAsFixed(0)}m away from target.";
           });
+
           Fluttertoast.showToast(
-            msg: " ${_locationError}",
-            toastLength: Toast.LENGTH_LONG,
-            gravity: ToastGravity.CENTER,
-            backgroundColor: Colors.orange,
+            msg: "Move within 50 meters of target location",
+            backgroundColor: Colors.red,
             textColor: Colors.white,
           );
+          return;
         }
       }
 
-      if (widget.referenceLatitude != null && widget.referenceLongitude != null) {
-        double distanceFromReference = _calculateDistance(
+      // -----------------------------
+      // IMAGE 3 & IMAGE 7 VALIDATION
+      // -----------------------------
+      if ((widget.imageIndex == 2 || widget.imageIndex == 6) &&
+          widget.referenceLatitude != null &&
+          widget.referenceLongitude != null) {
+
+        final distance = Geolocator.distanceBetween(
           position.latitude,
           position.longitude,
           widget.referenceLatitude!,
           widget.referenceLongitude!,
         );
 
-        if (distanceFromReference > 50) {
+        print("📏 Image ${widget.imageIndex + 1} Distance = ${distance.toStringAsFixed(2)} m");
+
+        if (distance > 50) {
           setState(() {
             _isLocationValid = false;
-            _locationError = 'You are ${distanceFromReference.toStringAsFixed(0)}m away from reference image. Must be within 50m.';
+            _locationStatus = "Move within 50 meters";
+            _locationError =
+            "You are ${distance.toStringAsFixed(0)}m away from Image 1.";
           });
+
           Fluttertoast.showToast(
-            msg: " ${_locationError}",
-            toastLength: Toast.LENGTH_LONG,
-            gravity: ToastGravity.CENTER,
-            backgroundColor: Colors.orange,
+            msg: "Move within 50 meters of Image 1",
+            backgroundColor: Colors.red,
             textColor: Colors.white,
           );
+          return;
         }
       }
+
+      // -----------------------------
+      // LOCATION VALID
+      // -----------------------------
+      setState(() {
+        _livePosition = position;
+        _isLocationStreamActive = true;
+        _isLocationValid = true;
+        _locationStatus = 'Location OK';
+      });
+
+      _validateLocation(position);
 
     } catch (e) {
       setState(() {
         _isLocationValid = false;
         _locationError = 'Unable to get location. Please enable GPS.';
+        _locationStatus = 'GPS Unavailable';
       });
+
       Fluttertoast.showToast(
-        msg: "⚠️ Please enable GPS",
+        msg: "Please enable GPS and try again",
         toastLength: Toast.LENGTH_LONG,
         gravity: ToastGravity.CENTER,
         backgroundColor: Colors.red,
@@ -2233,20 +2411,146 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     }
   }
 
+  void _startLocationUpdates() {
+    try {
+// Cancel existing stream if any
+      _positionStream?.cancel();
+
+      _positionStream = Geolocator.getPositionStream(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.bestForNavigation,
+          distanceFilter: 1, // Update every 1 meter
+          timeLimit: Duration(seconds: 1),
+        ),
+      ).listen(
+            (position) {
+          if (mounted) {
+            setState(() {
+              _livePosition = position;
+              _isLocationStreamActive = true;
+              _locationStatus = ' Live Tracking';
+            });
+
+            _validateLocation(position);
+            _showLiveLocationToast(position);
+          }
+        },
+        onError: (error) {
+          if (mounted) {
+            setState(() {
+              _locationStatus = ' GPS Error';
+              _isLocationStreamActive = false;
+            });
+          }
+          print(' Location stream error: $error');
+        },
+      );
+    } catch (e) {
+      print(' Failed to start location stream: $e');
+      setState(() {
+        _locationStatus = ' GPS Unavailable';
+        _isLocationStreamActive = false;
+      });
+    }
+  }
+
+  void _validateLocation(Position position) {
+    bool isValid = true;
+    String errorMsg = '';
+    double distance = 0.0;
+
+// Check target location (for Image 1)
+    if (widget.targetLatitude != null && widget.targetLongitude != null) {
+      distance = _calculateDistance(
+        position.latitude,
+        position.longitude,
+        widget.targetLatitude!,
+        widget.targetLongitude!,
+      );
+
+      _distanceToTarget = distance;
+
+      if (distance > 50) {
+        isValid = false;
+        errorMsg = ' ${distance.toStringAsFixed(0)}m from target (must be within 50m)';
+        _showDistanceWarning = true;
+      } else {
+        _showDistanceWarning = false;
+      }
+    }
+
+// Check reference location (for Image 3 & 7)
+    if (widget.referenceLatitude != null && widget.referenceLongitude != null) {
+      double refDistance = _calculateDistance(
+        position.latitude,
+        position.longitude,
+        widget.referenceLatitude!,
+        widget.referenceLongitude!,
+      );
+
+      _distanceToReference = refDistance;
+
+      if (refDistance > 50) {
+        isValid = false;
+        errorMsg = ' ${refDistance.toStringAsFixed(0)}m from reference image (must be within 50m)';
+        _showDistanceWarning = true;
+      }
+    }
+
+    setState(() {
+      _isLocationValid = isValid;
+      if (!isValid) {
+        _locationError = errorMsg;
+        _locationStatus = ' $errorMsg';
+      } else {
+        _locationError = '';
+        _locationStatus = ' Location OK';
+        _showDistanceWarning = false;
+      }
+    });
+  }
+
   double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
     return Geolocator.distanceBetween(lat1, lon1, lat2, lon2);
   }
 
-  /// ============================================================
-  /// COMPRESS IMAGE ON CAPTURE (Camera Screen)
-  /// ============================================================
-  /// Uses the SAME logic as the main screen.
-  /// Min height = 1024, auto width, target size under 200 KB.
-  /// ============================================================
-  /// COMPRESS IMAGE ON CAPTURE (Camera Screen)
-  /// ============================================================
-  /// Uses the SAME logic as the main screen.
-  /// Min height = 1024, auto width, target 100-200 KB.
+// ========== LIVE LOCATION TOAST ==========
+  void _showLiveLocationToast(Position position) {
+// Only show toast occasionally to avoid spam
+// Using a timer to throttle toast messages
+    if (!mounted) return;
+
+    String speedText = (position.speed * 3.6).toStringAsFixed(1);
+    String accuracyText = position.accuracy.toStringAsFixed(1);
+    String latText = position.latitude.toStringAsFixed(6);
+    String longText = position.longitude.toStringAsFixed(6);
+
+    String distanceText = widget.targetLatitude != null && widget.targetLongitude != null
+        ? _distanceToTarget.toStringAsFixed(0)
+        : 'N/A';
+
+// Only show toast every 5 seconds to avoid spam
+    _lastToastTime ??= DateTime.now().subtract(Duration(seconds: 5));
+    if (DateTime.now().difference(_lastToastTime!).inSeconds >= 3) {
+      _lastToastTime = DateTime.now();
+
+      Fluttertoast.showToast(
+        msg: " $latText, $longText\n"
+            " Speed: $speedText km/h | Accuracy: ±${accuracyText}m\n"
+            " Distance to target: ${distanceText}m",
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.TOP,
+        backgroundColor: Colors.black.withOpacity(0.85),
+        textColor: Colors.white,
+        fontSize: 12.0,
+        timeInSecForIosWeb: 2,
+      );
+    }
+  }
+
+  DateTime? _lastToastTime;
+
+// ========== COMPRESSION METHOD ==========
   Future<File?> _compressImageOnCapture(File imageFile) async {
     const int minTargetKB = 100;
     const int maxTargetKB = 200;
@@ -2272,7 +2576,6 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
       final dir = await getTemporaryDirectory();
       final ts = DateTime.now().millisecondsSinceEpoch;
 
-      // HIGHER quality values to avoid over-compression
       final int quality = originalSizeKB <= 300
           ? 95
           : originalSizeKB <= 600
@@ -2292,7 +2595,6 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
 
       double sizeKB = await out.length() / 1024;
 
-      // If below 100 KB, increase quality
       if (sizeKB < minTargetKB) {
         final int higherQuality = (quality * (minTargetKB / sizeKB)).ceil().clamp(quality + 5, 98);
         final File? retry = await _compress(
@@ -2305,9 +2607,7 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
           out = retry;
           sizeKB = await out.length() / 1024;
         }
-      }
-      // If over 200 KB, reduce quality
-      else if (sizeKB > maxTargetKB) {
+      } else if (sizeKB > maxTargetKB) {
         final int lowerQuality = (quality * (maxTargetKB / sizeKB)).floor().clamp(15, quality - 5);
         final File? retry = await _compress(
           imageFile.path,
@@ -2321,41 +2621,9 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
         }
       }
 
-      // Cleanup original
       try { await imageFile.delete(); } catch (_) {}
 
       print("📸 Image ${widget.imageIndex + 1}: ${originalSizeKB.toStringAsFixed(0)}KB → ${sizeKB.toStringAsFixed(0)}KB");
-
-      // ========== SHOW TOAST WITH SIZE ==========
-      String sizeDisplay;
-      if (sizeKB >= 1024) {
-        sizeDisplay = "${(sizeKB / 1024).toStringAsFixed(1)} MB";
-      } else {
-        sizeDisplay = "${sizeKB.toStringAsFixed(0)} KB";
-      }
-
-      Color toastColor;
-      String statusIcon;
-      if (sizeKB >= minTargetKB && sizeKB <= maxTargetKB) {
-        toastColor = Colors.yellow;
-        statusIcon = "";
-      } else if (sizeKB < minTargetKB) {
-        toastColor = Colors.green;
-        statusIcon = "";
-      } else {
-        toastColor = Colors.green;
-        statusIcon = "";
-      }
-
-      // Fluttertoast.showToast(
-      //   msg: "$statusIcon Image ${widget.imageIndex + 1}:"" "
-      //      // "$sizeDisplay (Target: $minTargetKB-$maxTargetKB KB)",
-      //       "$sizeDisplay",
-      //   toastLength: Toast.LENGTH_LONG,
-      //   gravity: ToastGravity.BOTTOM,
-      //   backgroundColor: toastColor,
-      //   textColor: Colors.white,
-      // );
 
       return out;
 
@@ -2365,21 +2633,22 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     }
   }
 
+// ========== CAPTURE METHOD ==========
   Future<void> _captureImage() async {
     if (_isCapturing || _isProcessing || !_isCameraInitialized || _cameraController == null) {
       return;
     }
 
-    if (!_isLocationValid) {
-      // Fluttertoast.showToast(
-      //   msg: "",
-      //   toastLength: Toast.LENGTH_LONG,
-      //   gravity: ToastGravity.CENTER,
-      //   backgroundColor: Colors.orange,
-      //   textColor: Colors.white,
-      // );
+    _livePosition = widget.latestPosition;
+
+    if (_livePosition == null) {
+      Fluttertoast.showToast(
+        msg: "Waiting for GPS...",
+      );
       return;
     }
+
+    _validateLocation(_livePosition!);
 
     setState(() {
       _isCapturing = true;
@@ -2396,27 +2665,23 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
       final File imageFile = File(picture.path);
       File? compressedFile = await _compressImageOnCapture(imageFile);
 
-      String finalImagePath;
-      if (compressedFile != null) {
-        finalImagePath = compressedFile.path;
-      } else {
-        finalImagePath = picture.path;
-      }
+      String finalImagePath = compressedFile != null ? compressedFile.path : picture.path;
 
+      // Use live position for geotagging
       widget.onImageCaptured(
         finalImagePath,
-        _currentPosition!.latitude,
-        _currentPosition!.longitude,
+        _livePosition!.latitude,
+        _livePosition!.longitude,
       );
 
-      // Double toast for success (compression toast already shown)
-      // Fluttertoast.showToast(
-      //   msg: " Image ${widget.imageIndex + 1} captured",
-      //   toastLength: Toast.LENGTH_SHORT,
-      //   gravity: ToastGravity.BOTTOM,
-      //   backgroundColor: Colors.green,
-      //   textColor: Colors.white,
-      // );
+      // Show success toast
+      Fluttertoast.showToast(
+        msg: " Image ${widget.imageIndex + 1} captured successfully!",
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        backgroundColor: Colors.green,
+        textColor: Colors.white,
+      );
 
       if (mounted) {
         Navigator.pop(context);
@@ -2425,11 +2690,10 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     } catch (e) {
       print(" Capture error: $e");
       Fluttertoast.showToast(
-        // msg: "Failed to capture image: $e",
-        msg: "Tap on the cross icon and retry capturing the image. ",
+        msg: "Failed to capture image. Please try again.",
         toastLength: Toast.LENGTH_SHORT,
         gravity: ToastGravity.CENTER,
-        backgroundColor: Colors.orange,
+        backgroundColor: Colors.red,
         textColor: Colors.white,
       );
 
@@ -2440,6 +2704,64 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     }
   }
 
+  Widget _buildLocationOverlay() {
+    return Positioned(
+      bottom: 150,
+      left: 16,
+      right: 16,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.30),
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: const [
+            BoxShadow(
+              blurRadius: 10,
+              offset: Offset(0, 5),
+              color: Colors.black26,
+            ),
+          ],
+        ),
+        child: _livePosition == null
+            ? const Center(
+          child: Text(
+            "Fetching Location...",
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontFamily: "Roboto",
+            ),
+          ),
+        )
+            : Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              "Latitude : ${_livePosition!.latitude.toStringAsFixed(6)}",
+              style: const TextStyle(
+                color: Colors.black,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                fontFamily: "Roboto",
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              "Longitude : ${_livePosition!.longitude.toStringAsFixed(6)}",
+              style: const TextStyle(
+                color: Colors.black,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                fontFamily: "Roboto",
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+// ========== BUILD METHOD ==========
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -2447,7 +2769,7 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
       body: SafeArea(
         child: Stack(
           children: [
-            // Camera Preview
+// ========== CAMERA PREVIEW ==========
             if (_isCameraInitialized && _cameraController != null)
               Positioned.fill(
                 child: CameraPreview(_cameraController!),
@@ -2459,7 +2781,9 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
                 ),
               ),
 
-            // Capture Button
+            // ========== LOCATION OVERLAY ==========
+            _buildLocationOverlay(),
+            // ========== CAPTURE BUTTON ==========
             Positioned(
               bottom: 50,
               left: 0,
@@ -2472,13 +2796,19 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
                     height: 80,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: Colors.white,
+                      color: _isLocationValid ? Colors.white : Colors.grey[600],
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.3),
-                          blurRadius: 10,
+                          color: Colors.black.withOpacity(0.4),
+                          blurRadius: 15,
                           offset: Offset(0, 4),
                         ),
+                        if (_isLocationValid)
+                          BoxShadow(
+                            color: Colors.green.withOpacity(0.3),
+                            blurRadius: 20,
+                            offset: Offset(0, 0),
+                          ),
                       ],
                     ),
                     child: Center(
@@ -2487,9 +2817,9 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
                         height: 68,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: Colors.white,
+                          color: _isLocationValid ? Colors.white : Colors.grey[500],
                           border: Border.all(
-                            color: Colors.grey[400]!,
+                            color: _isLocationValid ? Colors.grey[400]! : Colors.grey[600]!,
                             width: 2,
                           ),
                         ),
@@ -2500,7 +2830,9 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
                             height: 30,
                             child: CircularProgressIndicator(
                               strokeWidth: 3,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                _isLocationValid ? Colors.blue : Colors.grey,
+                              ),
                             ),
                           ),
                         )
@@ -2512,12 +2844,13 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
               ),
             ),
 
-            // Cancel Button (Left)
+            // ========== CANCEL BUTTON ==========
             Positioned(
               bottom: 50,
               left: 30,
               child: GestureDetector(
                 onTap: () {
+                  _positionStream?.cancel();
                   _cameraController?.dispose();
                   Navigator.pop(context);
                 },
@@ -2526,8 +2859,12 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
                   decoration: BoxDecoration(
                     color: Colors.black.withOpacity(0.6),
                     shape: BoxShape.circle,
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.2),
+                      width: 1,
+                    ),
                   ),
-                  child: Icon(
+                  child: const Icon(
                     Icons.close,
                     color: Colors.white,
                     size: 28,
@@ -2536,7 +2873,7 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
               ),
             ),
 
-            // Flip Camera Button (Right)
+            // ========== FLIP CAMERA BUTTON ==========
             Positioned(
               bottom: 50,
               right: 30,
@@ -2548,11 +2885,11 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
                     color: Colors.black.withOpacity(0.6),
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: Colors.white.withOpacity(0.3),
+                      color: Colors.white.withOpacity(0.2),
                       width: 1,
                     ),
                   ),
-                  child: Icon(
+                  child: const Icon(
                     Icons.flip_camera_ios,
                     color: Colors.white,
                     size: 28,
@@ -2566,3 +2903,4 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     );
   }
 }
+
