@@ -1955,30 +1955,30 @@ class _MapScreenState extends State<MapScreenpointer> with WidgetsBindingObserve
                   ],
                 ),
               ),
-              Positioned(
-                bottom: 100,
-                right: 10,
-                child: FloatingActionButton(
-                  heroTag: "street",
-                  backgroundColor: Font.primaryColor,
-                  child: const Icon(
-                    Icons.travel_explore,
-                    color: Colors.white,
-                  ),
-                  onPressed: () {
-                    if (_currentPosition == null) return;
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => Execution360ViewScreen(
-                          latitude: _currentPosition!.latitude,
-                          longitude: _currentPosition!.longitude,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
+              // Positioned(
+              //   bottom: 100,
+              //   right: 10,
+              //   child: FloatingActionButton(
+              //     heroTag: "street",
+              //     backgroundColor: Font.primaryColor,
+              //     child: const Icon(
+              //       Icons.travel_explore,
+              //       color: Colors.white,
+              //     ),
+              //     onPressed: () {
+              //       if (_currentPosition == null) return;
+              //       Navigator.push(
+              //         context,
+              //         MaterialPageRoute(
+              //           builder: (_) => Execution360ViewScreen(
+              //             latitude: _currentPosition!.latitude,
+              //             longitude: _currentPosition!.longitude,
+              //           ),
+              //         ),
+              //       );
+              //     },
+              //   ),
+              // ),
               if (_showNextButton)
                 Positioned(
                   left: 10,

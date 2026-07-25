@@ -1,7 +1,5 @@
 import 'dart:math';
-import 'package:camera/camera.dart';
 import 'package:canimage/APIService/auth_service.dart';
-import 'package:canimage/utils/DeviceIdManager.dart';
 import 'package:canimage/utils/crash_manager.dart';
 import 'package:canimage/utils/security_guard_widget.dart' show SecurityGuard;
 import 'package:canimage/utils/shared_preference.dart';
@@ -22,6 +20,7 @@ import 'Hive_Database/execution_seeplan_location_db.dart';
 import 'Hive_Database/post_recca_image_upload_db.dart';
 import 'Hive_Database/post_recca_seePlan_db.dart';
 import 'Hive_Database/execution_image_upload_db.dart';
+import 'Hive_Database/execution_image_draft_db.dart';
 import 'Hive_Database/offline_count_db.dart';
 import 'Hive_Database/plan_offline_count_db.dart';
 import 'Hive_Database/remarks_db.dart';
@@ -34,95 +33,69 @@ import 'Repository/execution_image_upload_repository.dart';
 import 'Repository/post_recca_image_upload_repository.dart';
 import 'Repository/execution_resend_repository.dart';
 import 'Screens/splash_screen.dart';
-import 'Screens/ExecutionSeePlans/execution_upload_see_plan.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'generated/l10n.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'dart:async';
-import 'dart:io';
-import 'dart:convert';
-import 'package:path_provider/path_provider.dart';
 
-List<CameraDescription>? cameras;
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+  ]);
 
-void main() {
-  runZonedGuarded(() async {
-    WidgetsFlutterBinding.ensureInitialized();
-    await DeviceIdManager.init();
-    print("Device ID initialized: ${await DeviceIdManager.getDeviceId()}");
+  await Firebase.initializeApp();
+  await _setupCrashlytics();
+  /// New Developermode code add
+  if (kReleaseMode) {
+    FlutterError.onError =
+        FirebaseCrashlytics.instance.recordFlutterFatalError;
+  }
+  ///
 
-    // ========== INITIALIZE CAMERAS BEFORE APP STARTS ==========
-    try {
-      cameras = await availableCameras();
-      if (cameras != null && cameras!.isNotEmpty) {
-        print("📷 Found ${cameras!.length} cameras");
-        for (var cam in cameras!) {
-          print("   - ${cam.name} (${cam.lensDirection})");
-        }
-      } else {
-        print(" No cameras found on device");
-        cameras = [];
-      }
-    } catch (e) {
-      print(" Error initializing cameras: $e");
-      cameras = [];
-    }
-
-    // ========== INITIALIZE FIREBASE ==========
-    await Firebase.initializeApp();
-
-    // ========== SETUP CRASHLYTICS ==========
-    await _setupCrashlytics();
-
-    // ========== INITIALIZE AUTH ==========
+  try {
     Auth.initialize();
-
-    // ========== INITIALIZE HIVE ==========
     await _initializeHive();
-
-    // ========== SET PREFERRED ORIENTATIONS ==========
-    await SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.portraitDown,
-    ]);
-
-    // ========== RUN APP ==========
-    runApp(
-      const ProviderScope(
-        child: MyApp(),
-      ),
+    runApp(ProviderScope(child: MyApp()));
+  } catch (e, stackTrace) {
+    await FirebaseCrashlytics.instance.recordError(
+      e,
+      stackTrace,
+      fatal: false,
+      information: [
+        'Error during app initialization',
+        'Phase: App Initialization',
+        'Timestamp: ${DateTime.now().toIso8601String()}',
+      ],
     );
-  }, (error, stack) async {
+
     await CrashReportManager.storeCrashReport(
-      error: error.toString(),
-      stackTrace: stack.toString(),
+      error: "Error during app initialization: $e",
+      stackTrace: stackTrace.toString(),
+      additionalInfo: {
+        'phase': 'App Initialization',
+        'timestamp': DateTime.now().toIso8601String(),
+      },
     );
-  });
+
+    runApp(ProviderScope(child: MyApp()));
+  }
 }
 
 Future<void> _setupCrashlytics() async {
-  FlutterError.onError = (errorDetails) {
-    FirebaseCrashlytics.instance.recordFlutterFatalError(errorDetails);
-    CrashReportManager.storeCrashReport(
-      error: errorDetails.exceptionAsString(),
-      stackTrace: errorDetails.stack?.toString() ?? StackTrace.current.toString(),
-    );
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+    FirebaseCrashlytics.instance.recordFlutterFatalError(details);
   };
 
   PlatformDispatcher.instance.onError = (error, stack) {
     FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
-    CrashReportManager.storeCrashReport(
-      error: error.toString(),
-      stackTrace: stack.toString(),
-    );
     return true;
   };
 
   CrashReportManager.setupGlobalErrorHandling();
   await CrashReportManager.storeLogMessage("App starting up...");
   await FirebaseCrashlytics.instance.setUserIdentifier("user_${DateTime.now().millisecondsSinceEpoch}");
-
-  await _reportUnresolvedCameraMarker();
 
   if (kDebugMode) {
     // await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(false);
@@ -136,13 +109,14 @@ Future<void> _initializeHive() async {
   Hive.registerAdapter(PlanItemAdapter());
   Hive.registerAdapter(VillageArtworkAdapter());
   Hive.registerAdapter(ImageUploaddataAdapter());
+  Hive.registerAdapter(ExecutionImageDraftAdapter());
   Hive.registerAdapter(SUPlanModelAdapter());
   Hive.registerAdapter(SUImageUploaddataAdapter());
   Hive.registerAdapter(OfflineCountAdapter());
   Hive.registerAdapter(RemarksAdapter());
   Hive.registerAdapter(ApiResponseDataAdapter());
   Hive.registerAdapter(PlanOfflineCountAdapter());
-  Hive.registerAdapter(UploadCountDataAdapter());
+  Hive.registerAdapter(UploadCountDataAdapter()) ;
   Hive.registerAdapter(ReworkModelAdapter());
   Hive.registerAdapter(ReworkImageUploadDataAdapter());
   Hive.registerAdapter(LocationItemAdapter());
@@ -150,48 +124,8 @@ Future<void> _initializeHive() async {
   await Hive.openBox<CapturedLocate>('capturedLocates');
 }
 
-Future<void> _reportUnresolvedCameraMarker() async {
-  try {
-    final docs = await getApplicationDocumentsDirectory();
-    final file = File('${docs.path}/CIMTDWP/last_camera_action.json');
-    if (await file.exists()) {
-      final content = await file.readAsString();
-      Map<String, dynamic> data = {};
-      try {
-        data = jsonDecode(content);
-      } catch (e) {
-        data = {'raw': content};
-      }
-
-      try {
-        await FirebaseCrashlytics.instance.setCustomKey('camera_marker_unresolved', true);
-        await FirebaseCrashlytics.instance.log('Unresolved camera marker found at startup');
-        await FirebaseCrashlytics.instance.recordError(
-          Exception('Unresolved camera-in-flight detected at startup'),
-          StackTrace.current,
-          fatal: false,
-        );
-      } catch (e) {
-        await CrashReportManager.storeLogMessage('Crashlytics record failed for unresolved marker: $e');
-      }
-
-      await CrashReportManager.storeCrashReport(
-        error: 'Unresolved camera marker at startup',
-        stackTrace: content,
-        additionalInfo: data,
-      );
-    } else {
-      try {
-        await FirebaseCrashlytics.instance.setCustomKey('camera_marker_unresolved', false);
-      } catch (e) {}
-    }
-  } catch (e) {
-    await CrashReportManager.storeLogMessage('Failed to check camera marker at startup: $e');
-  }
-}
-
 bool isManualSyncing = false;
-bool isBackgroundSyncInProgress = false;
+bool isBackgroundSyncInProgress = false;  // NEW: Track background sync separately
 bool isPrintSyncInProgress = false;
 bool isSyncAllInProgress = false;
 final backgroundSyncCompletedProvider = StateProvider<int>((ref) => 0);
@@ -209,8 +143,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   final Auth _apiService = Auth();
   final ExecutionImageUploadHiveRepository _hiveRepository =
   ExecutionImageUploadHiveRepository();
-  final PostReccaImageUploadHiveRepository _suHiveRepository =
-  PostReccaImageUploadHiveRepository();
   Locale _locale = Locale('en');
 
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
@@ -220,7 +152,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
   DateTime? _lastSyncTime;
   static const Duration _minSyncInterval = Duration(minutes: 3);
-
   @override
   void initState() {
     super.initState();
@@ -250,6 +181,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     }
   }
 
+  // NEW: Listen for connectivity changes
   void _startConnectivityListener() {
     _connectivitySubscription = Connectivity().onConnectivityChanged.listen(
           (List<ConnectivityResult> results) {
@@ -261,33 +193,30 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     );
   }
 
+  // NEW: Update connection status and trigger sync when network comes back
   void _updateConnectionStatus(List<ConnectivityResult> results) {
     bool wasConnected = _isConnected;
     _isConnected = results.any((result) =>
     result == ConnectivityResult.mobile ||
         result == ConnectivityResult.wifi ||
-        result == ConnectivityResult.ethernet);
+        result == ConnectivityResult.ethernet
+    );
 
+    // If connection was restored, trigger sync
     if (!wasConnected && _isConnected && !isManualSyncing) {
-      if (!UploadSeePlanScreen.isCameraActive) {
-        Future.delayed(Duration(seconds: 2), () {
-          _checkAndSyncPendingUploads();
-          _SUcheckAndSyncPendingUploads();
-        });
-      } else {
-        print(" Camera is active, skipping connectivity-triggered sync");
-      }
+      // FirebaseCrashlytics.instance.log('Network connectivity restored, triggering sync');
+      Future.delayed(Duration(seconds: 2), () {
+        _checkAndSyncPendingUploads();
+        _SUcheckAndSyncPendingUploads();
+      });
     }
   }
 
+  // NEW: Periodic sync every 5 minutes when connected
   void _startPeriodicSync() {
     _syncTimer = Timer.periodic(Duration(minutes: 5), (timer) async {
-      if (UploadSeePlanScreen.isCameraActive) {
-        print(" Camera is active, skipping periodic sync");
-        return;
-      }
-
       if (_isConnected && !isManualSyncing) {
+        // await FirebaseCrashlytics.instance.log('Periodic sync triggered');
         _checkAndSyncPendingUploads();
         _SUcheckAndSyncPendingUploads();
       }
@@ -301,7 +230,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
   Future<bool> acquireBackgroundSyncLock() async {
     if (isPrintSyncInProgress || isSyncAllInProgress) {
-      return false;
+      return false; // Manual sync is in progress
     }
     isBackgroundSyncInProgress = true;
     return true;
@@ -310,9 +239,11 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   void releaseBackgroundSyncLock() {
     isBackgroundSyncInProgress = false;
 
+    // Also update the provider
     try {
       final container = ProviderScope.containerOf(context, listen: false);
       container.read(backgroundSyncStatusProvider.notifier).state = false;
+
     } catch (e) {
       // print(' Error updating background sync status provider: $e');
     }
@@ -493,44 +424,56 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
   void _notifyPrintSyncRefresh(int remainingCount) async {
     try {
+      // print(' Starting UI refresh notification...');
+
       final container = ProviderScope.containerOf(context, listen: false);
 
+      // Reset background sync status
       container.read(backgroundSyncStatusProvider.notifier).state = false;
+      // print('Reset background sync status');
 
+      // Wait for state to propagate
       await Future.delayed(Duration(milliseconds: 500));
 
+      // Update pending count with actual remaining count
       container.read(pendingSyncCountProviderPlan.notifier).state = remainingCount;
+      // print(' Updated pendingSyncCountProviderPlan to: $remainingCount');
 
+      // Increment completion counter to trigger listeners
       final currentValue = container.read(backgroundSyncCompletedProvider);
       final newValue = currentValue + 1;
       container.read(backgroundSyncCompletedProvider.notifier).state = newValue;
+      // print(' Incremented backgroundSyncCompletedProvider: $currentValue -> $newValue');
 
+      // Additional delay for UI propagation
       await Future.delayed(Duration(milliseconds: 500));
 
+      // print(0 UI refresh notification completed');
+
     } catch (e) {
-      print(' Error in _notifyPrintSyncRefresh: $e');
+      // print(' Error in _notifyPrintSyncRefresh: $e');
       await FirebaseCrashlytics.instance.recordError(e, null, fatal: false);
     }
   }
 
-  Future<void> _SUcheckAndSyncPendingUploads() async {
-    if (UploadSeePlanScreen.isCameraActive) {
-      print(" Camera is active, skipping SU background sync");
-      return;
-    }
 
+
+  // UPDATED: Check network before syncing
+  Future<void> _SUcheckAndSyncPendingUploads() async {
     if (isManualSyncing) return;
 
+    // Check network connectivity first
     if (!_isConnected) {
       await FirebaseCrashlytics.instance.log('SU Sync skipped: No network connectivity');
       return;
     }
 
     try {
-      final metadataList = await _suHiveRepository.getAllMetadata();
+      final _hiveRepository = PostReccaImageUploadHiveRepository();
+      final metadataList = await _hiveRepository.getAllMetadata();
 
       if (metadataList.isEmpty) {
-        return;
+        return; // Nothing to sync
       }
 
       await FirebaseCrashlytics.instance.log('Starting SU background sync for ${metadataList.length} items');
@@ -551,15 +494,11 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (UploadSeePlanScreen.isCameraActive) {
-      print(" Camera is active, skipping lifecycle sync");
-      return;
-    }
-
     if (state == AppLifecycleState.paused && !isManualSyncing && _isConnected && _shouldSync()) {
       _checkAndSyncPendingUploads();
       _SUcheckAndSyncPendingUploads();
     }
+    // Also check when app resumes
     else if (state == AppLifecycleState.resumed && !isManualSyncing && _isConnected && _shouldSync()) {
       Future.delayed(Duration(seconds: 1), () {
         _checkAndSyncPendingUploads();
@@ -592,7 +531,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     return MaterialApp(
       title: 'Can Image',
       debugShowCheckedModeBanner: false,
-      navigatorKey: _navigatorKey,
+
+      navigatorKey: _navigatorKey, //
       locale: _locale,
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
@@ -608,37 +548,45 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         Locale('ta', ''),
         Locale('gu', ''),
       ],
+      // CRITICAL FIX: Use builder to wrap entire app
+      // builder: (context, child) {
+      //   return SecurityGuard(
+      //     enablePeriodicCheck: true,
+      //     onSecurityViolation: () {
+      //       print('Security violation detected!');
+      //       // Log to Crashlytics
+      //       // FirebaseCrashlytics.instance.log('Security violation: Developer mode or mock location detected');
+      //     },
+      //     child: child ?? SizedBox.shrink(),
+      //   );
+      // },
+      // Remove SecurityGuard from home - it's now wrapping everything via builder
+      /// developer mode add on releaseMode
       builder: (context, child) {
+        // 🔴 Only wrap in RELEASE mode
         if (kReleaseMode) {
           return SecurityGuard(
             enablePeriodicCheck: true,
             onSecurityViolation: () {
-              try {
-                FirebaseCrashlytics.instance.log(
-                  'Security violation detected: Developer mode or mock location',
-                );
+              // Log to Crashlytics in release only
+              FirebaseCrashlytics.instance.log(
+                'Security violation detected: Developer mode or mock location',
+              );
 
-                FirebaseCrashlytics.instance
-                    .recordError(
-                  Exception('Security violation detected'),
-                  StackTrace.current,
-                  fatal: false,
-                )
-                    .catchError((e) {
-                  CrashReportManager.storeLogMessage(
-                      'Crashlytics.recordError failed: $e');
-                });
-              } catch (e) {
-                CrashReportManager.storeLogMessage(
-                    'Security violation logging failed: $e');
-              }
+              FirebaseCrashlytics.instance.recordError(
+                Exception('Security violation detected'),
+                StackTrace.current,
+                fatal: false,
+              );
             },
             child: child ?? const SizedBox.shrink(),
           );
         }
 
+        // 🟢 Debug / Profile → normal app
         return child ?? const SizedBox.shrink();
       },
+      ///
       home: SplashScreen(changeLanguage: _changeLanguage),
     );
   }
