@@ -16,10 +16,10 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../Hive_Database/execution_image_upload_db.dart';
-import '../../Hive_Database/execution_image_draft_db.dart';
+import '../../Hive_Database/rework_image_draft_db.dart';
 import '../../Repository/execution_balance_count_change_repository.dart';
 import '../../Repository/execution_image_upload_repository.dart';
-import '../../Repository/execution_image_draft_repository.dart';
+import '../../Repository/rework_image_draft_repository.dart';
 import '../../Repository/rework_balance_count_change_repository.dart';
 import '../../Repository/upload_count_repository.dart';
 import '../../generated/l10n.dart';
@@ -92,8 +92,8 @@ class _ReworkUploadSeePlansState extends State<ReworkUploadSeePlans> with Widget
   // Persists already-captured images to Hive as soon as each one is taken,
   // keyed per rework item, so closing this screen (or a camera crash) before
   // Submit does not lose captures already made.
-  final ExecutionImageDraftHiveRepository _draftRepository =
-      ExecutionImageDraftHiveRepository();
+  final ReworkImageDraftHiveRepository _draftRepository =
+      ReworkImageDraftHiveRepository();
   late final String _draftKey;
 
   String _buildDraftKey() {
@@ -242,12 +242,12 @@ class _ReworkUploadSeePlansState extends State<ReworkUploadSeePlans> with Widget
   /// Persists the current in-memory capture state (all 7 slots + print
   /// numbers) to Hive so it survives the screen being closed or a crash.
   Future<void> _saveDraftToHive() async {
-    final draft = ExecutionImageDraft(
+    final draft = ReworkImageDraft(
       draftKey: _draftKey,
       ServerPlanId: widget.ServerID,
       PlanCode: widget.planCode,
       VillageCode: widget.VillageCode,
-      locateId: widget.printId,
+      printId: widget.printId,
       printNumber1: printNoController1.text,
       printNumber2: printNoController2.text,
     );

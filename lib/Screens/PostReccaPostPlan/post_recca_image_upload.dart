@@ -1850,13 +1850,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../APIService/auth_service.dart';
 import '../../Hive_Database/post_recca_image_upload_db.dart';
 import '../../Hive_Database/execution_image_upload_db.dart';
-import '../../Hive_Database/execution_image_draft_db.dart';
+import '../../Hive_Database/post_recca_image_draft_db.dart';
 import '../../Hive_Database/remarks_db.dart';
 import '../../Model/recca_remarks_model.dart';
 import '../../Repository/completed_upload_repository.dart';
 import '../../Repository/postRecca_balance_count_change_repository.dart';
 import '../../Repository/post_recca_image_upload_repository.dart';
-import '../../Repository/execution_image_draft_repository.dart';
+import '../../Repository/post_recca_image_draft_repository.dart';
 
 import '../../generated/l10n.dart';
 import '../../utils/crash_manager.dart';
@@ -1918,8 +1918,8 @@ class _SUUploadSeePlanScreenState extends State<SUUploadSeePlanScreen> with Widg
   // Persists already-captured images to Hive as soon as each one is taken,
   // keyed per print item, so closing this screen (or a camera crash) before
   // Submit does not lose captures already made.
-  final ExecutionImageDraftHiveRepository _draftRepository =
-      ExecutionImageDraftHiveRepository();
+  final PostReccaImageDraftHiveRepository _draftRepository =
+      PostReccaImageDraftHiveRepository();
   late final String _draftKey;
 
   String _buildDraftKey() {
@@ -2019,8 +2019,7 @@ class _SUUploadSeePlanScreenState extends State<SUUploadSeePlanScreen> with Widg
 
   /// Restores any images captured on a previous visit to this screen that
   /// were never submitted, so re-opening it (or recovering from a crash)
-  /// does not show a blank form. This screen only uses slots 0 (near) and
-  /// 1 (far) of the shared draft model.
+  /// does not show a blank form. Slot 0 = near, slot 1 = far.
   Future<void> _restoreDraftIfNeeded() async {
     final draft = await _draftRepository.getDraft(_draftKey);
     if (draft == null || !draft.hasAnyImage) return;
@@ -2055,11 +2054,11 @@ class _SUUploadSeePlanScreenState extends State<SUUploadSeePlanScreen> with Widg
   /// Persists the current in-memory capture state (near/far images) to
   /// Hive so it survives the screen being closed or a crash.
   Future<void> _saveDraftToHive() async {
-    final draft = ExecutionImageDraft(
+    final draft = PostReccaImageDraft(
       draftKey: _draftKey,
-      PlanCode: widget.planCode,
-      VillageCode: widget.villageCode,
-      locateId: widget.printId,
+      planCode: widget.planCode,
+      villageCode: widget.villageCode,
+      printId: widget.printId,
     );
     for (var i = 0; i < images.length; i++) {
       draft.setSlot(i, images[i].imagePath, images[i].lat, images[i].long);

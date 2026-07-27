@@ -269,10 +269,10 @@ class Auth {
   Future<SeePlanModel> fetchSeePlanModel() async {
     try {
       final token = await getAuthToken();
-     //final String userId = (await getUserID()).toString();
-      final String uId = (await getFirstUID()).toString();
-       final String userId = '20369';
-      // final String uId = '1204884291782376';
+     // final String userId = (await getUserID()).toString();
+     //  final String uId = (await getFirstUID()).toString();
+      final String userId = '20369';
+      final String uId = '2153914631785126';
 
       final url = "${APIURLs.URL}${APIURLs.seePlanURL}";
 

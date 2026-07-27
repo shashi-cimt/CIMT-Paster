@@ -21,6 +21,8 @@ import 'Hive_Database/post_recca_image_upload_db.dart';
 import 'Hive_Database/post_recca_seePlan_db.dart';
 import 'Hive_Database/execution_image_upload_db.dart';
 import 'Hive_Database/execution_image_draft_db.dart';
+import 'Hive_Database/rework_image_draft_db.dart';
+import 'Hive_Database/post_recca_image_draft_db.dart';
 import 'Hive_Database/offline_count_db.dart';
 import 'Hive_Database/plan_offline_count_db.dart';
 import 'Hive_Database/remarks_db.dart';
@@ -110,6 +112,8 @@ Future<void> _initializeHive() async {
   Hive.registerAdapter(VillageArtworkAdapter());
   Hive.registerAdapter(ImageUploaddataAdapter());
   Hive.registerAdapter(ExecutionImageDraftAdapter());
+  Hive.registerAdapter(ReworkImageDraftAdapter());
+  Hive.registerAdapter(PostReccaImageDraftAdapter());
   Hive.registerAdapter(SUPlanModelAdapter());
   Hive.registerAdapter(SUImageUploaddataAdapter());
   Hive.registerAdapter(OfflineCountAdapter());

@@ -12,6 +12,7 @@ import '../../generated/l10n.dart';
 import '../../utils/fonts.dart';
 import '../../utils/shared_preference.dart';
 import '../../utils/textStyle.dart';
+import '../../utils/uid_file_helper.dart';
 
 class RegistrationScreen extends ConsumerStatefulWidget {
   final Function(String) changeLanguage;
@@ -165,18 +166,12 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
 
       File uidFile = File('${externalDir.path}/$folderName/Appfiles/UID.txt');
 
-      if (await uidFile.exists()) {
-        String uid = await uidFile.readAsString();
-        uid = uid.trim();
-
-        if (uid.length == 16 && RegExp(r'^\d{16}$').hasMatch(uid)) {
-          // print(' Retrieved $roleName UID: $uid from $folderName');
-          return uid;
-        } else {
-          // print(' Invalid UID format in $folderName');
-        }
+      String? uid = await UidFileHelper.readUidFromFile(uidFile);
+      if (uid != null) {
+        // print(' Retrieved $roleName UID: $uid from $folderName');
+        return uid;
       } else {
-        // print(' UID file not found in $folderName');
+        // print(' UID file missing or invalid in $folderName');
       }
 
       return null;
