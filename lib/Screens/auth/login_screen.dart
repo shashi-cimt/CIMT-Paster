@@ -116,7 +116,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
       File uidFile = File('${externalDir.path}/$folderName/Appfiles/UID.txt');
 
-      String? uid = await UidFileHelper.readUidFromFile(uidFile);
+      String? uid = await UidFileHelper.readRawUidContent(uidFile);
       if (uid != null) {
         // print(' Retrieved $roleName UID: $uid from $folderName');
         return uid;

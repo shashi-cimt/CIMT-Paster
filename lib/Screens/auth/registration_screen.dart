@@ -166,7 +166,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
 
       File uidFile = File('${externalDir.path}/$folderName/Appfiles/UID.txt');
 
-      String? uid = await UidFileHelper.readUidFromFile(uidFile);
+      String? uid = await UidFileHelper.readRawUidContent(uidFile);
       if (uid != null) {
         // print(' Retrieved $roleName UID: $uid from $folderName');
         return uid;
@@ -222,6 +222,58 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
   }
 
 
+  Future<void> _saveUidWithUserId(String androidId, String userId, int roleId) async {
+    try {
+      Directory? externalDir = await getExternalStorageDirectory();
+      if (externalDir == null) {
+        return;
+      }
+
+      String folderName = (roleId == 6) ? 'CIMTDWP' : 'CIMTDWPSUP';
+      Directory roleDir = Directory('${externalDir.path}/$folderName/Appfiles');
+      if (!await roleDir.exists()) {
+        await roleDir.create(recursive: true);
+      }
+
+      File uidFile = File('${roleDir.path}/UID.txt');
+      await uidFile.writeAsString('$androidId|$userId');
+    } catch (e) {
+      debugPrint('Failed to save UID mapping: $e');
+    }
+  }
+
+  Future<String?> _getSavedUserIdForDevice(String androidId, int roleId) async {
+    try {
+      Directory? externalDir = await getExternalStorageDirectory();
+      if (externalDir == null) {
+        return null;
+      }
+
+      String folderName = (roleId == 6) ? 'CIMTDWP' : 'CIMTDWPSUP';
+      File uidFile = File('${externalDir.path}/$folderName/Appfiles/UID.txt');
+      if (!await uidFile.exists()) {
+        return null;
+      }
+
+      final content = await uidFile.readAsString();
+      if (content.contains('|')) {
+        final parts = content.split('|');
+        if (parts.length >= 2) {
+          final savedAndroidId = parts.first.trim();
+          final savedUserId = parts.last.trim();
+          if (savedAndroidId == androidId && savedUserId.isNotEmpty) {
+            return savedUserId;
+          }
+        }
+      }
+
+      return null;
+    } catch (e) {
+      debugPrint('Failed to read UID mapping: $e');
+      return null;
+    }
+  }
+
   RegistrationAuthModel? registrationAuthModel;
 
   register(String firstname, String lastName, String phoneNo, String password, int roleId, File? profileImage,) async {
@@ -265,6 +317,15 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
       return;
     }
 
+    final existingUserId = await _getSavedUserIdForDevice(roleSpecificUID, roleId);
+    if (existingUserId != null && existingUserId.isNotEmpty) {
+      setState(() {
+        isLoading = false;
+      });
+      _showErrorDialog('This device is Already Register ');
+      return;
+    }
+
     // Save the role-specific UID to shared preferences
     setFirstUID(roleSpecificUID);
 
@@ -283,6 +344,8 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
           if (profileImage != null) {
             await _saveProfileImageToRoleFolder(profileImage, roleId, roleSpecificUID);
           }
+
+          await _saveUidWithUserId(roleSpecificUID, value.data!.userId.toString(), roleId);
 
           showDialog(
             context: context,

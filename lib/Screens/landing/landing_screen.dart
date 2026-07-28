@@ -80,7 +80,6 @@ class _LandingScreenState extends ConsumerState<LandingScreen> with WidgetsBindi
   int failedResendCount = 0;
   String? userID;
   String? uidDetails;
-  String deviceId = '';
 
   bool _isZipping = false;
   bool _isEncrypting = false;
@@ -96,7 +95,6 @@ class _LandingScreenState extends ConsumerState<LandingScreen> with WidgetsBindi
     loadSyncData();
     loadSyncDataSU();
     userDetails();
-    _loadDeviceId();
     _loadAppInfo();
     refreshPendingCounts();
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -110,13 +108,8 @@ class _LandingScreenState extends ConsumerState<LandingScreen> with WidgetsBindi
     super.dispose();
   }
 
-  Future<void> _loadDeviceId() async {
-    deviceId = await DeviceIdManager.getDeviceId();
 
-    if (mounted) {
-      setState(() {});
-    }
-  }
+
 
   Future<void> _loadAppInfo() async {
     final packageInfo = await PackageInfo.fromPlatform();
@@ -435,13 +428,6 @@ class _LandingScreenState extends ConsumerState<LandingScreen> with WidgetsBindi
                         iconColor: Colors.orange,
                         title: S.of(context).uid,
                         value: uidDetails ?? 'N/A',
-                      ),
-                      SizedBox(height: 12),
-                      _buildInfoCard(
-                        icon: Icons.devices            ,
-                        iconColor: Colors.orange,
-                        title: 'device',
-                        value: deviceId ?? 'N/A',
                       ),
                     ],
                   ),

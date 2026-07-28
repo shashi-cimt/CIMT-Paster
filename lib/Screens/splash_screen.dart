@@ -10,7 +10,6 @@ import '../utils/crash_manager.dart' show CrashReportManager;
 import '../utils/inactivity_detector.dart';
 import '../utils/shared_preference.dart';
 import '../utils/token_manager.dart';
-import '../utils/uid_file_helper.dart';
 import 'auth/login_screen.dart';
 import 'landing/landing_screen.dart';
 
@@ -124,7 +123,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
       if (androidVersion >= 33) {
         essentialPermissions.addAll([
-          Permission.photos,
           Permission.videos,
           Permission.audio,
         ]);
@@ -265,114 +263,48 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     });
   }
 
-  // ============================================================
-  // UID.txt stores BOTH values, one per line:
-  //   Line 1: UID=<16 digit uid>
-  //   Line 2: DEVICE_ID=<android id>
-  // Old files that contain only the bare 16-digit UID are
-  // automatically upgraded to the new format (UID is preserved,
-  // device id line is appended).
-  // ============================================================
-
-  // Create role-specific folder and check/create UID + Device ID
-  Future<void> _createRoleFolderWithUID(String basePath, String folderName, String role) async {
+  // Create role-specific folder and check/create UID
+  Future<void> _createRoleFolderWithUID(
+      String basePath,
+      String folderName,
+      String role,
+      ) async {
     try {
-      // Create main folder (CIMTDWP or CIMTDWPSUP)
       Directory roleDir = Directory('$basePath/$folderName/Appfiles');
+
       if (!await roleDir.exists()) {
         await roleDir.create(recursive: true);
-        // print(' Created folder: ${roleDir.path}');
-      } else {
-        // print(' Folder already exists: ${roleDir.path}');
       }
 
-      // Android ID of this device (same value device_info_plus's
-      // androidInfo.id returns)
-      String deviceId = await _getDeviceInfo();
-
-      // Check for UID.txt file
       File uidFile = File('${roleDir.path}/UID.txt');
 
-      String? existingUID;
-
-      if (await uidFile.exists()) {
-        String content = (await uidFile.readAsString()).trim();
-        existingUID = UidFileHelper.parseUid(content);
-
-        if (existingUID != null) {
-          // Valid UID found (old or new format). Rewrite the file in the
-          // new format so the device id is always present and up to date.
-          // print(' $role UID already exists: $existingUID');
-          await _writeUidFile(uidFile, existingUID, deviceId);
-        } else {
-          // Invalid/corrupt content, create new UID
-          // print(' Invalid $role UID found, creating new one');
-          String newUID = await _generateUniqueUID();
-          await _writeUidFile(uidFile, newUID, deviceId);
-          // print(' New $role UID created: $newUID');
-        }
+      if (!await uidFile.exists()) {
+        final androidId = await _getAndroidId();
+        await uidFile.writeAsString(androidId);
+        print('$role Android ID saved: $androidId');
       } else {
-        // UID doesn't exist, create new one along with the device id
-        // print(' $role UID not found, creating new one');
-        String newUID = await _generateUniqueUID();
-        await _writeUidFile(uidFile, newUID, deviceId);
+        final lines = await uidFile.readAsLines();
 
-        // Verify the file was written successfully
-        if (await uidFile.exists()) {
-          String savedUID = UidFileHelper.parseUid(await uidFile.readAsString()) ?? '';
-          if (savedUID == newUID) {
-            // print(' $role UID created successfully: $newUID');
-          } else {
-            // print(' Failed to verify $role UID');
-          }
+        if (lines.isNotEmpty) {
+          print('$role Android ID: ${lines.first}');
         }
       }
-
     } catch (e) {
-      // print(' Error creating $role folder/UID: $e');
+      print('Error: $e');
     }
   }
+  Future<String> _getAndroidId() async {
+    final deviceInfo = DeviceInfoPlugin();
 
-  /// Writes UID.txt in the two-line format:
-  ///   UID=`<16 digits>`
-  ///   DEVICE_ID=`<android id>`
-  Future<void> _writeUidFile(File uidFile, String uid, String deviceId) async {
-    final content = 'UID=$uid\nDEVICE_ID=$deviceId';
-    await uidFile.writeAsString(content, flush: true);
+    if (Platform.isAndroid) {
+      final androidInfo = await deviceInfo.androidInfo;
+      return androidInfo.id; // Android ID
+    }
+
+    return "UNKNOWN_DEVICE";
   }
 
 
- // Generate unique 16-digit UID
-  Future<String> _generateUniqueUID() async {
-    int timestamp = DateTime.now().millisecondsSinceEpoch;
-    String deviceInfo = await _getDeviceInfo();
-    String combinedSeed = '$timestamp-$deviceInfo-${DateTime.now().microsecond}';
-
-    int hash = combinedSeed.hashCode.abs();
-    int randomComponent = (timestamp % 1000000) + (DateTime.now().microsecond % 1000);
-
-    String baseUID = (hash + randomComponent).toString();
-
-    String uid;
-    if (baseUID.length >= 16) {
-      uid = baseUID.substring(0, 16);
-    } else {
-      String padding = timestamp.toString();
-      uid = (baseUID + padding).substring(0, 16);
-    }
-
-    if (uid.startsWith('0')) {
-      uid = '1' + uid.substring(1);
-    }
-
-    while (uid.length < 16) {
-      uid = uid + '0';
-    }
-
-    uid = uid.substring(0, 16);
-
-    return uid;
-  }
 
   Future<String> _getDeviceInfo() async {
     DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();

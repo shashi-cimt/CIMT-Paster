@@ -64,7 +64,6 @@ class Auth {
         'firstName': firstName,
         'lastName': lastName,
         'phoneNumber': phoneNumber,
-       // 'uid': DeviceIdManager.deviceId,
         'uid': uid,
         'role': role,
         'image': userImage?.path ?? 'No Image',
@@ -75,7 +74,6 @@ class Auth {
         'LastName': lastName,
         'PhoneNumber': phoneNumber,
         'Password': password,
-        //'UId': DeviceIdManager.deviceId,
         'UId': uid,
         'RoleFlag': role,
         'UserImagePath': null,
@@ -85,6 +83,16 @@ class Auth {
             filename: userImage.path.split('/').last,
           ),
       });
+
+      print("========== FORM DATA ==========");
+      for (final field in formData.fields) {
+        print("${field.key}: ${field.value}");
+      }
+
+      for (final file in formData.files) {
+        print("${file.key}: ${file.value.filename}");
+      }
+      print("===============================");
 
       final response = await dio.post(
         '${APIURLs.baseURL}${APIURLs.registerURL}',
@@ -96,6 +104,15 @@ class Auth {
           },
         ),
       );
+      print("========== REGISTRATION PAYLOAD ==========");
+      print("FirstName : $firstName");
+      print("LastName  : $lastName");
+      print("Phone     : $phoneNumber");
+      print("Password  : $password");
+      print("UID        : $uid");
+      print("Role       : $role");
+      print("Image      : ${userImage?.path}");
+      print("=========================================");
 
       await _logResponse('REGISTRATION', response);
 
@@ -269,10 +286,10 @@ class Auth {
   Future<SeePlanModel> fetchSeePlanModel() async {
     try {
       final token = await getAuthToken();
-     // final String userId = (await getUserID()).toString();
-     //  final String uId = (await getFirstUID()).toString();
-      final String userId = '20369';
-      final String uId = '2153914631785126';
+     final String userId = (await getUserID()).toString();
+      final String uId = (await getFirstUID()).toString();
+     //  final String userId = '20369';
+     //  final String uId = '2153914631785126';
 
       final url = "${APIURLs.URL}${APIURLs.seePlanURL}";
 

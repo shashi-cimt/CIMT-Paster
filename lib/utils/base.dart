@@ -1,9 +1,12 @@
 
 class APIURLs{
   /// Live Portal
-  static const baseURL = "http://cimtapi.cimtapps.com/";
+ static const baseURL = "https://cimtapi.cimtapps.com/";
+
+
+ // static const baseURL = "http://27.107.233.154:9001/";
    /// Uat portal
-   // static const baseURL = "http://103.224.6.71:5006/";
+    //static const baseURL = "http://103.224.6.71:5006/";
 
 
   /// See Plan Portal
