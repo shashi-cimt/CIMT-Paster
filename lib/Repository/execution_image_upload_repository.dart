@@ -147,4 +147,23 @@ class ExecutionImageUploadHiveRepository {
         metadata.PlanCode == planCode)
         .toList();
   }
+
+  // Increments and persists the retry count for a pending item, matched by
+  // its own ServerPlanId/PrintNo fields (not the Hive key, whose format has
+  // been inconsistent across call sites). Returns the new count, or null if
+  // the item is no longer in the pending queue.
+  Future<int?> incrementRetryCount(String serverPlanId, String printNo) async {
+    await _openBox();
+
+    for (final entry in _metadataBox!.toMap().entries) {
+      final item = entry.value;
+      if (item.ServerPlanId == serverPlanId && item.PrintNo == printNo) {
+        item.retryCount = item.retryCount + 1;
+        await _metadataBox!.put(entry.key, item);
+        return item.retryCount;
+      }
+    }
+
+    return null;
+  }
 }

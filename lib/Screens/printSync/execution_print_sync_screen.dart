@@ -370,16 +370,23 @@ class _PrintSyncScreenState extends ConsumerState<PrintSyncScreen> {
         print(' [_syncPrint] Unexpected response format: ${result.runtimeType}');
       }
 
-      print(' [_syncPrint] Saving API response to database...');
-      await apiResponseRepo.saveApiResponse(ApiResponseData(
-        planId: planId,
-        originalData: metadata,
-        isSuccess: success,
-        responseMessage: remarks,
-        responseTime: DateTime.now(),
-        statusCode: success ? 200 : 400,
-      ));
-      print(' [_syncPrint] API response saved');
+      // On failure, uploadPlanMetadata() has already retried internally (up
+      // to 4 attempts) and, once exhausted, already saved the Failed-tab
+      // record and removed the item from the pending queue itself. Only
+      // success needs to be recorded here — writing a failure record again
+      // would just overwrite that with a less accurate one (retryCount 0).
+      if (success) {
+        print(' [_syncPrint] Saving successful API response to database...');
+        await apiResponseRepo.saveApiResponse(ApiResponseData(
+          planId: planId,
+          originalData: metadata,
+          isSuccess: true,
+          responseMessage: remarks,
+          responseTime: DateTime.now(),
+          statusCode: 200,
+        ));
+        print(' [_syncPrint] API response saved');
+      }
 
       _updateIndividualProgress(uniqueKey, 1.0);
       await Future.delayed(Duration(milliseconds: 300));
@@ -397,7 +404,7 @@ class _PrintSyncScreenState extends ConsumerState<PrintSyncScreen> {
       } else {
         print(' [_syncPrint] Sync FAILED for $planId: $remarks');
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(' Failed to sync Print ${metadata.PrintNo}: $remarks'),
+          content: Text(' Failed to sync Print ${metadata.PrintNo} after 4 attempts: $remarks. Moved to Failed tab.'),
           backgroundColor: Colors.red,
           duration: Duration(seconds: 3),
         ));
@@ -647,15 +654,21 @@ class _PrintSyncScreenState extends ConsumerState<PrintSyncScreen> {
                 );
               });
 
-              await apiResponseRepo.saveApiResponse(ApiResponseData(
-                planId: planId,
-                originalData: metadata,
-                isSuccess: planSuccess,
-                responseMessage: planRemarks,
-                responseTime: DateTime.now(),
-                statusCode: statusCode,
-              ));
-              print(' [_syncAllPrints] Saved response for $planId: success=$planSuccess');
+              // On failure, uploadPlanMetadata() already retried internally
+              // (up to 4 attempts) and, once exhausted, already saved the
+              // Failed-tab record with the accurate retry count and removed
+              // the item from the pending queue. Only record success here.
+              if (planSuccess) {
+                await apiResponseRepo.saveApiResponse(ApiResponseData(
+                  planId: planId,
+                  originalData: metadata,
+                  isSuccess: true,
+                  responseMessage: planRemarks,
+                  responseTime: DateTime.now(),
+                  statusCode: statusCode,
+                ));
+                print(' [_syncAllPrints] Saved response for $planId: success=$planSuccess');
+              }
 
               processedCount++;
               double itemProgress = (processedCount / totalResults) * 20;
@@ -676,14 +689,18 @@ class _PrintSyncScreenState extends ConsumerState<PrintSyncScreen> {
               );
             });
 
-            await apiResponseRepo.saveApiResponse(ApiResponseData(
-              planId: planId,
-              originalData: metadata,
-              isSuccess: success,
-              responseMessage: remarks,
-              responseTime: DateTime.now(),
-              statusCode: success ? 200 : 400,
-            ));
+            // Same rule as above: failures are already recorded internally
+            // by uploadPlanMetadata() once its own retries are exhausted.
+            if (success) {
+              await apiResponseRepo.saveApiResponse(ApiResponseData(
+                planId: planId,
+                originalData: metadata,
+                isSuccess: true,
+                responseMessage: remarks,
+                responseTime: DateTime.now(),
+                statusCode: 200,
+              ));
+            }
           }
           setState(() => syncAllProgress = 0.90);
           print(' [_syncAllPrints] Batch processing complete, progress set to 90%');
@@ -1007,54 +1024,72 @@ class _PrintSyncScreenState extends ConsumerState<PrintSyncScreen> {
                     Expanded(
                       flex: 20,
                       child: Center(
-                        child: GestureDetector(
-                          onTap: (isThisItemSyncing || isBackgroundSyncing) ? null : () => _syncPrint(planId),
-                          child: Container(
-                            padding: EdgeInsets.symmetric(vertical: 6, horizontal: 12),
-                            decoration: BoxDecoration(
-                              color: (isThisItemSyncing || isBackgroundSyncing) ? Colors.grey : Font.accentColor,
-                              borderRadius: BorderRadius.circular(4),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            GestureDetector(
+                              onTap: (isThisItemSyncing || isBackgroundSyncing) ? null : () => _syncPrint(planId),
+                              child: Container(
+                                padding: EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+                                decoration: BoxDecoration(
+                                  color: (isThisItemSyncing || isBackgroundSyncing) ? Colors.grey : Font.accentColor,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    if (isThisItemSyncing) ...[
+                                      SizedBox(
+                                        width: 14,
+                                        height: 14,
+                                        child: CircularProgressIndicator(
+                                          value: progress,
+                                          strokeWidth: 2,
+                                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                          backgroundColor: Colors.white.withOpacity(0.3),
+                                        ),
+                                      ),
+                                      SizedBox(width: 6),
+                                      Text(
+                                        '${(progress * 100).toInt()}%',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 10,
+                                          fontFamily: "Roboto",
+                                        ),
+                                      ),
+                                    ] else ...[
+                                      Text(
+                                        S.of(context).sync,
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 10,
+                                          fontFamily: "Roboto",
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
                             ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                if (isThisItemSyncing) ...[
-                                  SizedBox(
-                                    width: 14,
-                                    height: 14,
-                                    child: CircularProgressIndicator(
-                                      value: progress,
-                                      strokeWidth: 2,
-                                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                      backgroundColor: Colors.white.withOpacity(0.3),
-                                    ),
+                            if (metadata.retryCount > 0)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Text(
+                                  'Attempt ${metadata.retryCount}/4',
+                                  style: TextStyle(
+                                    color: Colors.orange[800],
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w600,
+                                    fontFamily: "Roboto",
                                   ),
-                                  SizedBox(width: 6),
-                                  Text(
-                                    '${(progress * 100).toInt()}%',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 10,
-                                      fontFamily: "Roboto",
-                                    ),
-                                  ),
-                                ] else ...[
-                                  Text(
-                                    S.of(context).sync,
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 10,
-                                      fontFamily: "Roboto",
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
+                                ),
+                              ),
+                          ],
                         ),
                       ),
                     ),

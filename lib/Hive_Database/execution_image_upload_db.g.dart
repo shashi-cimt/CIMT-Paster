@@ -52,13 +52,14 @@ class ImageUploaddataAdapter extends TypeAdapter<ImageUploaddata> {
       uploadType: fields[33] as String?,
       networkFlagString: fields[32] as String?,
       locateId: fields[34] as String?,
+      retryCount: fields[35] == null ? 0 : fields[35] as int,
     );
   }
 
   @override
   void write(BinaryWriter writer, ImageUploaddata obj) {
     writer
-      ..writeByte(35)
+      ..writeByte(36)
       ..writeByte(0)
       ..write(obj.ServerPlanId)
       ..writeByte(1)
@@ -128,7 +129,9 @@ class ImageUploaddataAdapter extends TypeAdapter<ImageUploaddata> {
       ..writeByte(33)
       ..write(obj.uploadType)
       ..writeByte(34)
-      ..write(obj.locateId);
+      ..write(obj.locateId)
+      ..writeByte(35)
+      ..write(obj.retryCount);
   }
 
   @override

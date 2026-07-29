@@ -34,9 +34,12 @@ final plansProvider = FutureProvider<List<PlanItem>>((ref) async {
 final reloadPlansProvider = FutureProvider.family<void, bool>((ref, forceReload) async {
   try {
     ref.read(isRefreshingProvider.notifier).state = true;
-    await VillageArtworkHiveRepository().clearAllVillageArtworks();
 
+    // Fetch first; only touch local Hive data once we know the fetch succeeded,
+    // so a failed/offline reload doesn't wipe out previously downloaded plans.
     final plans = await fetchPlansFromApi();
+
+    await VillageArtworkHiveRepository().clearAllVillageArtworks();
     await ExecutionHiveRepository().clearAndSavePlansWithBalanceFilter(plans);
 
     if (plans.isNotEmpty) {
@@ -135,8 +138,8 @@ Future<List<PlanItem>> fetchPlansFromApi() async {
     final token = await getAuthToken();
     final String userId = (await getUserID()).toString();
     final String uId = (await getFirstUID()).toString();
-    //  final String userId = '20369';
-    // final String uId = '2153914631785126';
+    // final String userId = '20427';
+    // final String uId = 'RP1A.200720.011|20427';
 
     final url = "${APIURLs.URL}${APIURLs.seePlanURL}";
 
@@ -185,11 +188,12 @@ Future<List<PlanItem>> fetchPlansFromApi() async {
     print("========== DIO ERROR ==========");
     print(e.response?.data);
     print(e.response?.statusCode);
-    return [];
+    return _handleDioError<List<PlanItem>>(e, 'fetchPlansFromApi', []);
   } catch (e, s) {
     print(e);
     print(s);
-    return [];
+    await _logError('fetchPlansFromApi unexpected error', e);
+    rethrow;
   }
 }
 

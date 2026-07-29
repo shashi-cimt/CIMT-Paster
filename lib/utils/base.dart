@@ -1,18 +1,26 @@
 
 class APIURLs{
-  /// Live Portal
- static const baseURL = "https://cimtapi.cimtapps.com/";
+  /// Live Portal Failover
+  static const List<String> baseUrls = [
+    "https://cimtapi.cimtapps.com/", // Primary Domain
+    "http://27.107.233.154:9001/",   // Tata
+    "http://182.73.169.146:9001/",   // Airtel
+  ];
 
+  /// See Plan Portal Failover
+  static const List<String> seePlanUrls = [
+    "https://cimtone.cimtapps.com/", // Primary Domain
+    "http://27.107.233.154:9006/",   // Tata
+    "http://182.73.169.146:9006/",   // Airtel
+  ];
 
- // static const baseURL = "http://27.107.233.154:9001/";
-   /// Uat portal
-    //static const baseURL = "http://103.224.6.71:5006/";
+  /// Currently active URLs. Every call site below keeps reading these as
+  /// plain strings, so ServerFailoverInterceptor can swap them to a backup
+  /// domain (on connection failure) transparently, with no other code
+  /// needing to change.
+  static String baseURL = baseUrls[0];
+  static String URL = seePlanUrls[0];
 
-
-  /// See Plan Portal
-  static const URL = "https://cimtone.cimtapps.com/";
-
-//  static const seePlanURL = "api/Execution/plans/pending-plan";
   static const seePlanURL = "api/Pointer/Pending-Plan";
   static const seeSUPlanURL = "api/Supervisor/plans/post-recca/executed-plan";
   static const reccaRemarks = "api/Master/post-recca-remarks";

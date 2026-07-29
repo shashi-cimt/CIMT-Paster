@@ -109,6 +109,9 @@ class ImageUploaddata {
   @HiveField(34) // Use the next available number
   String? locateId;
 
+  @HiveField(35, defaultValue: 0)
+  int retryCount;
+
   ImageUploaddata({
     required this.ServerPlanId,
     required this.PlanCode,
@@ -144,7 +147,8 @@ class ImageUploaddata {
     this.printId,
     this.uploadType,
     this.networkFlagString,
-    this.locateId// NEW PARAMETER
+    this.locateId,// NEW PARAMETER
+    this.retryCount = 0,
   });
   // Convert an ImageUploaddata object to JSON
   Map<String, dynamic> toJson() {
@@ -184,6 +188,7 @@ class ImageUploaddata {
       'uploadType':uploadType,
       'networkFlag': networkFlagString,
       'locateId': locateId,  // NEW FIELD IN JSON
+      'retryCount': retryCount,
     };
   }
 
@@ -227,6 +232,7 @@ class ImageUploaddata {
       uploadType:json['uploadType'],
       networkFlagString: json['networkFlagString'],  // NEW FIELD FROM JSON
       locateId: json['locateId'],  // NEW FIELD FROM JSON
+      retryCount: json['retryCount'] ?? 0,
     );
   }
 }

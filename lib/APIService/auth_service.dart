@@ -288,8 +288,8 @@ class Auth {
       final token = await getAuthToken();
      final String userId = (await getUserID()).toString();
       final String uId = (await getFirstUID()).toString();
-     //  final String userId = '20369';
-     //  final String uId = '2153914631785126';
+     //  final String userId = '20427';
+     //  final String uId = 'RP1A.200720.011|20427';
 
       final url = "${APIURLs.URL}${APIURLs.seePlanURL}";
 
@@ -542,21 +542,61 @@ class Auth {
         return {'success': false, 'message': 'Rework upload requires printId'};
       }
 
-      final formData = await _buildExecutionFormData(metadata, uploadType);
       final apiUrl = uploadType == 'rework' ? APIURLs.ReworkUpload : APIURLs.executionPost;
 
-      final response = await dio.post(
-        '${APIURLs.baseURL}$apiUrl',
-        options: Options(
-          headers: {
-            'Content-Type': 'multipart/form-data',
-            'Authorization': token,
-          },
-        ),
-        data: formData,
-      );
+      Response response;
 
-      // ========== DEBUG: PRINT RESPONSE ==========
+      const int maxRetry = 4;
+      int attempt = 0;
+
+      while (true) {
+        attempt++;
+
+        try {
+          print("Upload Attempt: $attempt / $maxRetry");
+
+          // Rebuild FormData every attempt: MultipartFile file streams are
+          // consumed once they're sent, so retrying with the same instance
+          // would upload empty files on attempts 2-4.
+          final formData = await _buildExecutionFormData(metadata, uploadType);
+
+          response = await dio.post(
+            '${APIURLs.baseURL}$apiUrl',
+            options: Options(
+              headers: {
+                'Content-Type': 'multipart/form-data',
+                'Authorization': token,
+              },
+            ),
+            data: formData,
+          );
+
+          // Success -> stop retrying
+          break;
+        } on DioException catch (e) {
+          print("Attempt $attempt failed: ${e.message}");
+
+          if (attempt >= maxRetry) {
+            return await _handleExecutionError(e, metadata, attempt);
+          }
+
+          // Persist the retry count: the item stays in the pending Print
+          // Sync list, but its attempt count is durable even if the app is
+          // closed mid-sync, and is visible in the UI.
+          if (metadata.ServerPlanId != null && metadata.PrintNo != null) {
+            await ExecutionImageUploadHiveRepository().incrementRetryCount(
+              metadata.ServerPlanId!,
+              metadata.PrintNo!,
+            );
+          }
+          metadata.retryCount = attempt;
+
+          // Wait before retry
+          await Future.delayed(const Duration(seconds: 2));
+        }
+      }
+
+
       print("==============================================");
       print(" EXECUTION UPLOAD RESPONSE");
       print("Status Code: ${response.statusCode}");
@@ -709,7 +749,7 @@ class Auth {
     return {'success': false, 'message': message.isNotEmpty ? message : 'Upload failed'};
   }
 
-  Future<Map<String, dynamic>> _handleExecutionError(DioException e, ImageUploaddata metadata) async {
+  Future<Map<String, dynamic>> _handleExecutionError(DioException e, ImageUploaddata metadata, [int attemptCount = 1]) async {
     String serverMessage = _getServerMessage(e);
     String errorMessage = serverMessage.isNotEmpty ? serverMessage : _getErrorMessage(e, 'Execution Upload');
 
@@ -735,7 +775,7 @@ class Auth {
       responseMessage: errorMessage,
       responseTime: DateTime.now(),
       statusCode: e.response?.statusCode ?? 0,
-      retryCount: 0,
+      retryCount: attemptCount,
     ));
 
     await ExecutionImageUploadHiveRepository().deleteMetadata(
