@@ -9,9 +9,9 @@ import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../utils/image_compression_helper.dart';
 import '../../Hive_Database/execution_image_upload_db.dart';
 import '../../Hive_Database/execution_image_draft_db.dart';
 import '../../Repository/Map_pointer_locate_repository.dart';
@@ -1393,19 +1393,13 @@ class _UploadSeePlanScreenState extends State<UploadSeePlanScreen> with WidgetsB
 
       var imageBytes = await sourceFile.readAsBytes();
 
-      var result = await FlutterImageCompress.compressWithList(
+      final result = await ImageCompressionHelper.compressToTargetSize(
         imageBytes,
-        minWidth: 800,
-        minHeight: 800,
-        quality: 90,
-        format: CompressFormat.png,
+        targetMinKB: 100,
+        targetMaxKB: 150,
       );
 
-      if (result == null) {
-        throw 'Image compression failed';
-      }
-
-      String imageName = 'Img_${DateTime.now().toIso8601String().replaceAll(RegExp('[^0-9]'), '')}.png';
+      String imageName = 'Img_${DateTime.now().toIso8601String().replaceAll(RegExp('[^0-9]'), '')}.jpg';
       String imagePathInStorage = '${dwPaintingDir.path}/$imageName';
 
       File compressedImage = File(imagePathInStorage);

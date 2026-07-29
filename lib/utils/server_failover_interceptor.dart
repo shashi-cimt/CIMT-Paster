@@ -20,21 +20,45 @@ class ServerFailoverInterceptor extends Interceptor {
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) async {
-    if (!_isConnectivityError(err)) {
+
+    print("===== ServerFailoverInterceptor =====");
+    print("Status: ${err.response?.statusCode}");
+    print("Type: ${err.type}");
+    print("URL: ${err.requestOptions.path}");
+
+    final shouldFailover =
+        _isConnectivityError(err) || _isGatewayError(err);
+
+    if (!shouldFailover) {
       return handler.next(err);
     }
 
     final originalPath = err.requestOptions.path;
 
-    final isSeePlan = originalPath.startsWith(APIURLs.URL);
-    final isBase = !isSeePlan && originalPath.startsWith(APIURLs.baseURL);
+    // Derive which domain THIS request actually went out on directly from
+    // its own path, rather than trusting the shared, mutable APIURLs.URL /
+    // APIURLs.baseURL — a concurrent request's failover could have already
+    // advanced those between this request being sent and it erroring out,
+    // which would silently corrupt the substring split below.
+    String? firstMatch(List<String> candidates) {
+      for (final url in candidates) {
+        if (originalPath.startsWith(url)) return url;
+      }
+      return null;
+    }
+
+    final matchedSeePlanUrl = firstMatch(APIURLs.seePlanUrls);
+    final matchedBaseUrl = firstMatch(APIURLs.baseUrls);
+
+    final isSeePlan = matchedSeePlanUrl != null;
+    final isBase = matchedBaseUrl != null;
 
     if (!isSeePlan && !isBase) {
       // Doesn't match either known URL family — nothing safe to fail over to.
       return handler.next(err);
     }
 
-    String currentBase = isSeePlan ? APIURLs.URL : APIURLs.baseURL;
+    String currentBase = (isSeePlan ? matchedSeePlanUrl : matchedBaseUrl)!;
     final suffix = originalPath.substring(currentBase.length);
     DioException lastError = err;
 
@@ -57,13 +81,15 @@ class ServerFailoverInterceptor extends Interceptor {
         final response = await dio.fetch(retryOptions);
         return handler.resolve(response);
       } on DioException catch (retryError) {
-        if (!_isConnectivityError(retryError)) {
-          // Got a real server response this time (e.g. a 4xx/5xx) — stop
-          // failing over and let normal error handling take it from here.
+        final shouldRetry =
+            _isConnectivityError(retryError) || _isGatewayError(retryError);
+
+        if (!shouldRetry) {
           return handler.next(retryError);
         }
+
         lastError = retryError;
-        // loop again — try the next candidate, if any
+        // Try the next server
       }
     }
   }
@@ -78,5 +104,22 @@ class ServerFailoverInterceptor extends Interceptor {
       default:
         return false;
     }
+  }
+
+  bool _isGatewayError(DioException e) {
+    if (e.type != DioExceptionType.badResponse) {
+      return false;
+    }
+
+    final statusCode = e.response?.statusCode;
+    if (statusCode == null) return false;
+
+    // Any 5xx means the origin/upstream is the problem, not our request —
+    // safe to try a backup domain. This deliberately covers more than just
+    // 502/503/504: domains fronted by Cloudflare (cimtone.cimtapps.com is)
+    // surface origin-connectivity failures as 521-527 ("Web server is
+    // down", "Origin unreachable", "A timeout occurred", etc.), which were
+    // previously falling through as non-retryable application errors.
+    return statusCode >= 500 && statusCode < 600;
   }
 }

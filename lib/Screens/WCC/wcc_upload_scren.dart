@@ -9,7 +9,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:flutter_image_compress/flutter_image_compress.dart';
+import '../../utils/image_compression_helper.dart';
 import '../../Hive_Database/post_recca_image_upload_db.dart';
 import '../../Hive_Database/remarks_db.dart';
 import '../../Model/recca_remarks_model.dart';
@@ -102,25 +102,15 @@ class _WCCUploadSeePlanScreenState extends State<WCCUploadSeePlanScreen> {
     File imageFile = File(imagePath);
     var imageBytes = await imageFile.readAsBytes();
 
-    // Compress the image bytes to reduce size
-    int targetWidth = 800;
-    int targetHeight = 800;
-
-    var result = await FlutterImageCompress.compressWithList(
+    // Compress the image bytes to reduce size, targeting 100-150 KB
+    final result = await ImageCompressionHelper.compressToTargetSize(
       imageBytes,
-      minWidth: targetWidth,
-      minHeight: targetHeight,
-      quality: 90,
-      format: CompressFormat.png,
+      targetMinKB: 100,
+      targetMaxKB: 150,
     );
 
-    // Check if the image is compressed
-    if (result == null) {
-      throw 'Image compression failed';
-    }
-
     // Define the image name
-    String imageName = 'Img_${DateTime.now().toIso8601String().replaceAll(RegExp('[^0-9]'), '')}.png';
+    String imageName = 'Img_${DateTime.now().toIso8601String().replaceAll(RegExp('[^0-9]'), '')}.jpg';
 
     // Define the full path where the image will be stored
     String imagePathInStorage = '${dwPaintingDir.path}/$imageName';

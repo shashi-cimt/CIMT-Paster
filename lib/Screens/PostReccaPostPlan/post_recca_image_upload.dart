@@ -1844,9 +1844,9 @@ import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../utils/image_compression_helper.dart';
 import '../../APIService/auth_service.dart';
 import '../../Hive_Database/post_recca_image_upload_db.dart';
 import '../../Hive_Database/execution_image_upload_db.dart';
@@ -2509,7 +2509,7 @@ class _SUUploadSeePlanScreenState extends State<SUUploadSeePlanScreen> with Widg
     }
   }
 
-  // ========== IMPROVED COMPRESSION METHOD (150-200 KB) ==========
+  // ========== IMPROVED COMPRESSION METHOD (100-150 KB) ==========
   Future<String> _storeImageInInternalDocuments(String imagePath) async {
     try {
       print(' Storing image with compression...');
@@ -2543,23 +2543,10 @@ class _SUUploadSeePlanScreenState extends State<SUUploadSeePlanScreen> with Widg
       // Read original image bytes as Uint8List
       List<int> imageBytesList = await imageFile.readAsBytes();
       Uint8List imageBytes = Uint8List.fromList(imageBytesList);
-      int originalSizeBytes = imageBytes.length;
-      double originalSizeKB = originalSizeBytes / 1024;
+      double originalSizeKB = imageBytes.length / 1024;
 
-      // Target size: 150-200 KB
-      const int targetMinKB = 150;
-      const int targetMaxKB = 200;
-      const int targetMinBytes = targetMinKB * 1024;
-      const int targetMaxBytes = targetMaxKB * 1024;
-
-      // Start with higher quality and dimensions
-      int quality = 92;
-      int minWidth = 1600;
-      int minHeight = 1600;
-      Uint8List? bestCompressedBytes;
-      int? bestSize;
-      int attempt = 0;
-      const maxAttempts = 15;
+      const int targetMinKB = 100;
+      const int targetMaxKB = 150;
 
       debugPrint('==================================================');
       debugPrint('📸 IMAGE COMPRESSION STARTED (Post Recca)');
@@ -2567,117 +2554,15 @@ class _SUUploadSeePlanScreenState extends State<SUUploadSeePlanScreen> with Widg
       debugPrint('🎯 Target Range: $targetMinKB - $targetMaxKB KB');
       debugPrint('==================================================');
 
-      // Try different compression settings
-      while (attempt < maxAttempts) {
-        // Dynamic adjustment strategy
-        if (attempt > 0) {
-          // Reduce quality gradually
-          if (quality > 60) {
-            quality = (92 - (attempt * 3)).clamp(30, 92);
-          }
-
-          // Reduce dimensions more gradually
-          if (quality < 70 && minWidth > 800) {
-            minWidth = (minWidth * 0.92).round();
-            minHeight = (minHeight * 0.92).round();
-          }
-        }
-
-        // Compress with current settings
-        Uint8List? compressedBytes = await FlutterImageCompress.compressWithList(
-          imageBytes,
-          minWidth: minWidth,
-          minHeight: minHeight,
-          quality: quality,
-          format: CompressFormat.jpeg,
-        );
-
-        if (compressedBytes == null) {
-          debugPrint('❌ Compression failed at attempt $attempt');
-          attempt++;
-          continue;
-        }
-
-        int compressedSize = compressedBytes.length;
-        double compressedSizeKB = compressedSize / 1024;
-
-        // Log current attempt
-        debugPrint('🔁 Attempt ${attempt + 1}:');
-        debugPrint('   Quality: $quality');
-        debugPrint('   Dimensions: ${minWidth}x$minHeight');
-        debugPrint('   Size: ${compressedSizeKB.toStringAsFixed(2)} KB');
-
-        // Check if size is within target range
-        if (compressedSize >= targetMinBytes && compressedSize <= targetMaxBytes) {
-          bestCompressedBytes = compressedBytes;
-          bestSize = compressedSize;
-          debugPrint('✅ PERFECT! Within target range ✅');
-          debugPrint('   Final Size: ${compressedSizeKB.toStringAsFixed(2)} KB');
-          break;
-        }
-
-        // Store best result
-        if (bestCompressedBytes == null) {
-          bestCompressedBytes = compressedBytes;
-          bestSize = compressedSize;
-        } else if (compressedSize >= targetMinBytes &&
-            compressedSize <= targetMaxBytes) {
-          bestCompressedBytes = compressedBytes;
-          bestSize = compressedSize;
-          break;
-        } else if (compressedSize < targetMinBytes &&
-            compressedSize > (bestSize ?? 0)) {
-          bestCompressedBytes = compressedBytes;
-          bestSize = compressedSize;
-        } else if (compressedSize > targetMaxBytes &&
-            (bestSize == null || compressedSize < bestSize)) {
-          if (bestSize == null || compressedSize < bestSize) {
-            bestCompressedBytes = compressedBytes;
-            bestSize = compressedSize;
-          }
-        }
-
-        attempt++;
-      }
-
-      if (bestCompressedBytes == null) {
-        debugPrint('❌ No compression result found');
-        throw 'Compression failed';
-      }
-
-      // If best result is below target, try one more time with higher quality
-      if (bestSize != null && bestSize < targetMinBytes) {
-        debugPrint('⚠️ Final size ${(bestSize / 1024).toStringAsFixed(2)} KB below target');
-        debugPrint('🔄 Attempting final adjustment with higher quality...');
-
-        Uint8List? finalCompressed = await FlutterImageCompress.compressWithList(
-          imageBytes,
-          minWidth: 1800,
-          minHeight: 1800,
-          quality: 95,
-          format: CompressFormat.jpeg,
-        );
-
-        if (finalCompressed != null) {
-          int finalSize = finalCompressed.length;
-          double finalSizeKB = finalSize / 1024;
-
-          if (finalSize >= targetMinBytes && finalSize <= targetMaxBytes) {
-            bestCompressedBytes = finalCompressed;
-            bestSize = finalSize;
-            debugPrint('✅ Final adjustment successful: ${finalSizeKB.toStringAsFixed(2)} KB');
-          } else if (finalSize > (bestSize ?? 0) && finalSize <= targetMaxBytes) {
-            bestCompressedBytes = finalCompressed;
-            bestSize = finalSize;
-            debugPrint('⚠️ Final adjustment: ${finalSizeKB.toStringAsFixed(2)} KB');
-          } else {
-            debugPrint('⚠️ Final adjustment: ${finalSizeKB.toStringAsFixed(2)} KB (still outside range)');
-          }
-        }
-      }
+      final bestCompressedBytes = await ImageCompressionHelper.compressToTargetSize(
+        imageBytes,
+        targetMinKB: targetMinKB,
+        targetMaxKB: targetMaxKB,
+      );
+      final bestSize = bestCompressedBytes.length;
 
       // Final size check
-      double finalSizeKB = (bestSize ?? 0) / 1024;
+      double finalSizeKB = bestSize / 1024;
 
       debugPrint('==================================================');
       debugPrint('📊 COMPRESSION SUMMARY');
@@ -2686,12 +2571,12 @@ class _SUUploadSeePlanScreenState extends State<SUUploadSeePlanScreen> with Widg
       debugPrint('📉 Space Saved: ${(originalSizeKB - finalSizeKB).toStringAsFixed(2)} KB');
       debugPrint('📊 Compression Ratio: ${((originalSizeKB - finalSizeKB) / originalSizeKB * 100).toStringAsFixed(1)}%');
 
-      if (bestSize != null && bestSize >= targetMinBytes && bestSize <= targetMaxBytes) {
-        debugPrint('✅ STATUS: WITHIN TARGET RANGE (150-200 KB) ✅');
-      } else if (bestSize != null && bestSize < targetMinBytes) {
-        debugPrint('⚠️ STATUS: BELOW TARGET (${finalSizeKB.toStringAsFixed(2)} KB < 150 KB)');
-      } else if (bestSize != null && bestSize > targetMaxBytes) {
-        debugPrint('⚠️ STATUS: ABOVE TARGET (${finalSizeKB.toStringAsFixed(2)} KB > 200 KB)');
+      if (bestSize >= targetMinKB * 1024 && bestSize <= targetMaxKB * 1024) {
+        debugPrint('✅ STATUS: WITHIN TARGET RANGE ($targetMinKB-$targetMaxKB KB) ✅');
+      } else if (bestSize < targetMinKB * 1024) {
+        debugPrint('⚠️ STATUS: BELOW TARGET (${finalSizeKB.toStringAsFixed(2)} KB < $targetMinKB KB)');
+      } else {
+        debugPrint('⚠️ STATUS: ABOVE TARGET (${finalSizeKB.toStringAsFixed(2)} KB > $targetMaxKB KB)');
       }
       debugPrint('==================================================');
 

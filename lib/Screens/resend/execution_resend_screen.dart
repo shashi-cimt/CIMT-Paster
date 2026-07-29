@@ -1281,7 +1281,11 @@ Note: Keep the password secure and do not share publicly.
                                   final planId = response.planId;
                                   final isResending = resendingItems.contains(planId);
                                   final isFailed = !response.isSuccess;
-
+                                  print(
+                                    "PlanId: ${response.planId}, "
+                                        "PrintNo: ${response.originalData.PrintNo}, "
+                                        "CAN ID: ${response.originalData.printId}",
+                                  );
                                   return DataRow(
                                     cells: [
                                       if (isSuccessTab)
@@ -1423,8 +1427,10 @@ Note: Keep the password secure and do not share publicly.
                                           ),
                                         ),
                                       ),
+
                                     ],
                                   );
+
                                 },
                               ),
                             ),

@@ -31,6 +31,7 @@ import 'Hive_Database/execution_seeplan_db.dart';
 import 'Hive_Database/rework_db.dart';
 import 'Hive_Database/upload_count_db.dart';
 import 'Hive_Database/village_artwork_db.dart';
+import 'Provider/can_image_provider.dart' as ApiProvider;
 import 'Repository/execution_image_upload_repository.dart';
 import 'Repository/post_recca_image_upload_repository.dart';
 import 'Repository/execution_resend_repository.dart';
@@ -42,6 +43,7 @@ import 'dart:async';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  ApiProvider.initialize();
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
   ]);

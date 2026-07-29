@@ -495,7 +495,7 @@ class _LandingScreenState extends ConsumerState<LandingScreen> with WidgetsBindi
                 Text(
                   value,
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: 10,
                     color: Colors.black87,
                     fontFamily: "Roboto",
                     fontWeight: FontWeight.w600,

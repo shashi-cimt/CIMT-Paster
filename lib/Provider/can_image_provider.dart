@@ -16,6 +16,7 @@ import '../Repository/rework_post_plan_repository.dart';
 import '../utils/DeviceIdManager.dart';
 import '../utils/error_log.dart';
 import '../utils/print_crash_manager.dart';
+import '../utils/server_failover_interceptor.dart';
 import '../utils/shared_preference.dart';
 
 // ==================== PROVIDERS ====================
@@ -121,6 +122,8 @@ final Dio _dio = Dio();
 Dio get dio => _dio;
 
 void initialize() {
+
+  _dio.interceptors.add(ServerFailoverInterceptor(_dio));
   _dio.interceptors.add(LogInterceptor(
     responseBody: true,
     request: true,
@@ -142,6 +145,10 @@ Future<List<PlanItem>> fetchPlansFromApi() async {
     // final String uId = 'RP1A.200720.011|20427';
 
     final url = "${APIURLs.URL}${APIURLs.seePlanURL}";
+    print("===== BEFORE REQUEST =====");
+    print("Dio HashCode: ${identityHashCode(dio)}");
+    print("Interceptor Count: ${dio.interceptors.length}");
+    print(dio.interceptors);
 
     final body = {
       "planCode": "0",

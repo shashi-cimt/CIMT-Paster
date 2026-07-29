@@ -24,6 +24,7 @@ import '../utils/DeviceIdManager.dart';
 import '../utils/crash_manager.dart';
 import '../utils/error_log.dart';
 import '../utils/print_crash_manager.dart';
+import '../utils/server_failover_interceptor.dart';
 import '../utils/shared_preference.dart';
 import '../utils/token_manager.dart';
 import '../Model/login_model.dart' hide Data;
@@ -33,6 +34,15 @@ class Auth {
   static Dio get dio => _dio;
 
   static void initialize() {
+
+    print("******** Auth.initialize() ********");
+
+    _dio.interceptors.clear();
+
+    _dio.interceptors.add(AuthInterceptor());
+    _dio.interceptors.add(ServerFailoverInterceptor(_dio));
+
+    print("Interceptor Count: ${_dio.interceptors.length}");
     _dio.interceptors.add(AuthInterceptor());
     _dio.interceptors.add(LogInterceptor(
       responseBody: true,
@@ -546,7 +556,7 @@ class Auth {
 
       Response response;
 
-      const int maxRetry = 4;
+      const int maxRetry = 3;
       int attempt = 0;
 
       while (true) {
