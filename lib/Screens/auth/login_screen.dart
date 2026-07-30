@@ -131,6 +131,32 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
+  /// Repairs UID.txt after a successful login if it doesn't already carry
+  /// the account's userId — this is the normal state right after the app
+  /// was uninstalled and reinstalled: a fresh UID.txt gets generated with
+  /// just the device id, but the userId mapping (only ever written at
+  /// registration time) is gone with it. Writing it back here means the
+  /// file matches what a fresh registration would have produced.
+  Future<void> _updateUidFileWithUserIdIfMissing(
+      int roleId, String deviceUid, String userId) async {
+    if (userId.isEmpty) return;
+
+    try {
+      Directory? externalDir = await getExternalStorageDirectory();
+      if (externalDir == null) return;
+
+      String folderName = (roleId == 6) ? 'CIMTDWP' : 'CIMTDWPSUP';
+      File uidFile = File('${externalDir.path}/$folderName/Appfiles/UID.txt');
+
+      final existingUserId = await UidFileHelper.readUserIdFromFile(uidFile);
+      if (existingUserId == null || existingUserId.isEmpty) {
+        await UidFileHelper.writeUidWithUserId(uidFile, deviceUid, userId);
+      }
+    } catch (e) {
+      debugPrint('Failed to update UID.txt with userId after login: $e');
+    }
+  }
+
   // Login logic with role-based UID
   login(String phoneNo, String password) async {
     if (phoneNo.isEmpty) {
@@ -185,6 +211,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             setUserId(value.data?.userId?.toString() ?? '');
             setroleFlag(apiRoleFlag.toString());
             setFirstUID(roleSpecificUID);
+
+            // If UID.txt was regenerated fresh (e.g. app was uninstalled and
+            // reinstalled) it won't carry the account's userId yet — repair
+            // it from this login response, same as registration would write.
+            await _updateUidFileWithUserIdIfMissing(
+              selectedRoleId,
+              roleSpecificUID,
+              value.data?.userId?.toString() ?? '',
+            );
 
             await TokenManager().initializeTokenMonitoring(token);
 

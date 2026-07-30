@@ -81,4 +81,33 @@ class UidFileHelper {
     if (!await uidFile.exists()) return null;
     return parseDeviceId(await uidFile.readAsString());
   }
+
+  /// Returns the userId portion of a "`<deviceUid>`|`<userId>`" mapping
+  /// written after a successful registration or login, or null if the file
+  /// doesn't have one yet (e.g. a freshly regenerated UID.txt after the app
+  /// was reinstalled).
+  static String? parseUserId(String content) {
+    content = content.trim();
+    if (!content.contains('|')) return null;
+
+    final parts = content.split('|');
+    if (parts.length < 2) return null;
+
+    final userId = parts.last.trim();
+    return userId.isEmpty ? null : userId;
+  }
+
+  static Future<String?> readUserIdFromFile(File uidFile) async {
+    if (!await uidFile.exists()) return null;
+    return parseUserId(await uidFile.readAsString());
+  }
+
+  /// Writes/updates UID.txt with the "`<deviceUid>`|`<userId>`" mapping —
+  /// the same format registration writes on first success — so a reinstall
+  /// followed by a re-login on the same device repairs the file instead of
+  /// leaving it without a userId.
+  static Future<void> writeUidWithUserId(File uidFile, String deviceUid, String userId) async {
+    await uidFile.parent.create(recursive: true);
+    await uidFile.writeAsString('$deviceUid|$userId');
+  }
 }
