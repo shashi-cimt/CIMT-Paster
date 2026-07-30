@@ -178,6 +178,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             setAuthToken(value.data?.accessToken?.toString() ?? '');
             setLoginUID(value.data?.uId?.toString() ?? '');
             setUserIdLogin(value.data?.userId?.toString() ?? '');
+            // Landing screen's "User ID" card reads the 'userID' key (set at
+            // registration time), not 'userIDLogin' — keep it in sync here so
+            // it always reflects the most recent login response, for both
+            // Pastor and CanImage User (Supervisor) roles.
+            setUserId(value.data?.userId?.toString() ?? '');
             setroleFlag(apiRoleFlag.toString());
             setFirstUID(roleSpecificUID);
 

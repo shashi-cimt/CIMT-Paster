@@ -51,6 +51,7 @@ final selectedPlanProvider = StateProvider<String?>((ref) => null);
 final notificationCountProvider = StateProvider<int>((ref) => 5);
 String? userName;
 String? roleName;
+String? userid;
 String appVersion = "";
 String buildNumber = "";
 
@@ -132,6 +133,7 @@ class _LandingScreenState extends ConsumerState<LandingScreen> with WidgetsBindi
   void loadUserData() async {
     userName = await getUserName();
     roleName = await getRoleName();
+    userid = await getUserID();
     setState(() {});
   }
 
