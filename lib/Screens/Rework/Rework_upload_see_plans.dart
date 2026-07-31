@@ -25,6 +25,7 @@ import '../../Repository/upload_count_repository.dart';
 import '../../generated/l10n.dart';
 import '../../utils/crash_manager.dart';
 import '../../utils/fonts.dart';
+import '../../utils/uid_file_helper.dart';
 
 
 
@@ -369,6 +370,19 @@ class _ReworkUploadSeePlansState extends State<ReworkUploadSeePlans> with Widget
     return Geolocator.distanceBetween(lat1, lon1, lat2, lon2);
   }
 
+  /// Raw "deviceUid|userId" content of this device's UID.txt, for tagging
+  /// submission log entries with who/what device submitted them.
+  Future<String?> _getRawUidForLog() async {
+    try {
+      Directory? externalDir = await getExternalStorageDirectory();
+      if (externalDir == null) return null;
+      File uidFile = File('${externalDir.path}/CIMTDWP/Appfiles/UID.txt');
+      return await UidFileHelper.readRawUidContent(uidFile);
+    } catch (e) {
+      return null;
+    }
+  }
+
 
   Future<void> _pickImage(int index) async {
     if (isPickingImage) {
@@ -556,6 +570,10 @@ class _ReworkUploadSeePlansState extends State<ReworkUploadSeePlans> with Widget
           // Verify file is readable
           await file.length();
 
+          await CrashReportManager.logDWPTrace(
+            'returneduri uri = $capturedImagePath',
+          );
+
           if (mounted) {
             setState(() {
               images[index].imagePath = capturedImagePath;
@@ -569,6 +587,8 @@ class _ReworkUploadSeePlansState extends State<ReworkUploadSeePlans> with Widget
           // Persist immediately so this capture is not lost if the user
           // closes the screen (or the camera crashes) before submitting.
           await _saveDraftToHive();
+
+          await CrashReportManager.logDWPTrace('showImage start');
 
           Fluttertoast.showToast(
             msg: S.of(context).imageCaptured,
@@ -584,6 +604,7 @@ class _ReworkUploadSeePlansState extends State<ReworkUploadSeePlans> with Widget
             error: "Image file processing error: $e",
             stackTrace: StackTrace.current.toString(),
           );
+          await CrashReportManager.logDWPTrace('Image file processing error: $e');
 
           await _showErrorDialogWithRetry(
             context,
@@ -606,6 +627,7 @@ class _ReworkUploadSeePlansState extends State<ReworkUploadSeePlans> with Widget
         error: "Image picker critical error: $e",
         stackTrace: StackTrace.current.toString(),
       );
+      await CrashReportManager.logDWPTrace('Image picker critical error: $e');
 
       if (mounted) {
         await _showErrorDialogWithRetry(
@@ -1832,6 +1854,44 @@ class _ReworkUploadSeePlansState extends State<ReworkUploadSeePlans> with Widget
 
       // Submission succeeded, so the in-progress draft is no longer needed.
       await _draftRepository.deleteDraft(_draftKey);
+
+      // ========== ACTIVITY LOG: record what was submitted ==========
+      final rawUid = await _getRawUidForLog();
+      await CrashReportManager.storePrintSubmissionLog({
+        'ServerPlanId': metadata.ServerPlanId,
+        'VillageCode': metadata.VillageCode,
+        'PlanCode': metadata.PlanCode,
+        'PrintNo': metadata.PrintNo,
+        'Address': metadata.Address,
+        'ExecutionDate': metadata.ExecutionDate,
+        'UploadDate': metadata.UploadDate,
+        'Clean_Latitude': metadata.CleanLatitude,
+        'Clean_Longitude': metadata.CleanLongitude,
+        'WB_Latitude': metadata.WBLatitude,
+        'WB_Longitude': metadata.WBLongitude,
+        'Spray_Latitude': metadata.SprayLatitude,
+        'Spray_Longitude': metadata.SprayLongitude,
+        'Near_Latitude': metadata.NearLatitude,
+        'Near_Longitude': metadata.NearLongitude,
+        'Far_Latitude': metadata.FarLatitude,
+        'Far_Longitude': metadata.FarLongitude,
+        'New6_Latitude': metadata.New6Latitude,
+        'New6_Longitude': metadata.New6Longitude,
+        'New7_Latitude': metadata.New7Latitude,
+        'New7_Longitude': metadata.New7Longitude,
+        'NetworkStatus': metadata.networkFlagString,
+        'UID': rawUid,
+        'uploadType': 'rework',
+      });
+
+      // ========== LEGACY-FORMAT LOGS (AllDBPrints/AllPrints/HMData) ==========
+      // Same file names/fields as the old native app, for continuity with
+      // existing log-review tooling. Snapshot of everything still pending
+      // sync, taken right after this record was added to that queue.
+      final pendingPrints = await ExecutionImageUploadHiveRepository().getAllMetadata();
+      await CrashReportManager.logAllDBPrints(pendingPrints);
+      await CrashReportManager.logAllPrints(pendingPrints);
+      await CrashReportManager.logHMData(pendingPrints);
 
       await ReworkBalanceCountChangeRepository().incrementOfflineCount(
         widget.planCode.toString(),

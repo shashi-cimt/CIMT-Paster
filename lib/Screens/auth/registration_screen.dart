@@ -837,6 +837,7 @@ import 'package:path_provider/path_provider.dart';
 import '../../APIService/auth_service.dart';
 import '../../Model/registration_model.dart';
 import '../../generated/l10n.dart';
+import '../../utils/crash_manager.dart';
 import '../../utils/fonts.dart';
 import '../../utils/shared_preference.dart';
 import '../../utils/textStyle.dart';
@@ -1143,12 +1144,24 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
       isLoading = true;
     });
 
+    final maskedPhone = phoneNo.length >= 4
+        ? 'xxxxxx${phoneNo.substring(phoneNo.length - 4)}'
+        : phoneNo;
+    await CrashReportManager.logUserEvent('registration_attempt', details: {
+      'phone': maskedPhone,
+      'roleId': roleId,
+    });
+
     // Get role-specific UID from the appropriate folder
     String? roleSpecificUID = await _getRoleSpecificUID(roleId);
 
     if (roleSpecificUID == null) {
       setState(() {
         isLoading = false;
+      });
+      await CrashReportManager.logUserEvent('registration_failed', details: {
+        'phone': maskedPhone,
+        'reason': 'unable_to_get_uid',
       });
       _showErrorDialog('${S.of(context).unableUID}');
       return;
@@ -1158,6 +1171,11 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
     if (existingUserId != null && existingUserId.isNotEmpty) {
       setState(() {
         isLoading = false;
+      });
+      await CrashReportManager.logUserEvent('registration_failed', details: {
+        'phone': maskedPhone,
+        'reason': 'device_already_registered',
+        'UID': roleSpecificUID,
       });
       _showErrorDialog('This device is Already Register ');
       return;
@@ -1183,6 +1201,14 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
           }
 
           await _saveUidWithUserId(roleSpecificUID, value.data!.userId.toString(), roleId);
+
+          await CrashReportManager.logUserEvent('registration_success', details: {
+            'phone': maskedPhone,
+            'role': roleName,
+            'roleId': roleId,
+            'userId': value.data!.userId.toString(),
+            'UID': roleSpecificUID,
+          });
 
           showDialog(
             context: context,
@@ -1219,14 +1245,28 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
           );
         } else {
           String errorMessage = value.message ?? S.of(context).registrationFailed;
+          CrashReportManager.logUserEvent('registration_failed', details: {
+            'phone': maskedPhone,
+            'reason': 'server_rejected',
+            'message': errorMessage,
+          });
           _showErrorDialog(errorMessage);
         }
       } else {
+        CrashReportManager.logUserEvent('registration_failed', details: {
+          'phone': maskedPhone,
+          'reason': 'no_server_response',
+        });
         _showErrorDialog("${S.of(context).unableServer}");
       }
     }).catchError((e) {
       setState(() {
         isLoading = false;
+      });
+      CrashReportManager.logUserEvent('registration_failed', details: {
+        'phone': maskedPhone,
+        'reason': 'exception',
+        'error': e.toString(),
       });
       _showErrorDialog("${S.of(context).errorOccurredRegstration}");
     });

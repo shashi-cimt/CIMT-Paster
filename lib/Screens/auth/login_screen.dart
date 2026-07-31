@@ -7,6 +7,7 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import '../../APIService/auth_service.dart';
 import '../../generated/l10n.dart';
+import '../../utils/crash_manager.dart';
 import '../../utils/fonts.dart';
 import '../../utils/inactivity_detector.dart';
 import '../../utils/shared_preference.dart';
@@ -176,12 +177,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       isLoading = true;
     });
 
+    final maskedPhone = phoneNo.length >= 4
+        ? 'xxxxxx${phoneNo.substring(phoneNo.length - 4)}'
+        : phoneNo;
+    await CrashReportManager.logUserEvent('login_attempt', details: {
+      'phone': maskedPhone,
+      'role': selectedRole,
+      'roleId': selectedRoleId,
+    });
+
     // Get role-specific UID before login
     String? roleSpecificUID = await _getRoleSpecificUID(selectedRoleId);
 
     if (roleSpecificUID == null) {
       setState(() {
         isLoading = false;
+      });
+      await CrashReportManager.logUserEvent('login_failed', details: {
+        'phone': maskedPhone,
+        'reason': 'unable_to_get_uid',
       });
       _showErrorDialog('${S.of(context).unableUID}');
       return;
@@ -220,6 +234,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               roleSpecificUID,
               value.data?.userId?.toString() ?? '',
             );
+
+            await CrashReportManager.logUserEvent('login_success', details: {
+              'phone': maskedPhone,
+              'role': selectedRole,
+              'roleId': apiRoleFlag,
+              'userId': value.data?.userId?.toString() ?? '',
+              'UID': roleSpecificUID,
+            });
 
             await TokenManager().initializeTokenMonitoring(token);
 
@@ -264,20 +286,44 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           } else if (apiRoleFlag != null && apiRoleFlag != selectedRoleId) {
             // Role mismatch
             String correctRole = (apiRoleFlag == 6) ? 'Pastor' : 'Supervisor';
+            CrashReportManager.logUserEvent('login_failed', details: {
+              'phone': maskedPhone,
+              'reason': 'role_mismatch',
+              'selectedRole': selectedRole,
+              'accountRole': correctRole,
+            });
             _showErrorDialog('${S.of(context).accountRegistered} $correctRole. ${S.of(context).pleaseCorrectRole}');
           } else {
+            CrashReportManager.logUserEvent('login_failed', details: {
+              'phone': maskedPhone,
+              'reason': 'missing_role_info',
+            });
             _showErrorDialog('${S.of(context).roleInformation}');
           }
         } else {
           String errorMessage = value.message ?? "${S.of(context).phoneNumberIncorrect}";
+          CrashReportManager.logUserEvent('login_failed', details: {
+            'phone': maskedPhone,
+            'reason': 'server_rejected',
+            'message': errorMessage,
+          });
           _showErrorDialog(errorMessage);
         }
       } else {
+        CrashReportManager.logUserEvent('login_failed', details: {
+          'phone': maskedPhone,
+          'reason': 'no_server_response',
+        });
         _showErrorDialog("${S.of(context).unableServer}");
       }
     }).catchError((e) {
       setState(() {
         isLoading = false;
+      });
+      CrashReportManager.logUserEvent('login_failed', details: {
+        'phone': maskedPhone,
+        'reason': 'exception',
+        'error': e.toString(),
       });
       _showErrorDialog("${S.of(context).errorOccurredLogin}");
     });

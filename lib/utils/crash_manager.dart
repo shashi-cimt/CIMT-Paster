@@ -6,6 +6,10 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:device_info_plus/device_info_plus.dart';
+import '../Hive_Database/execution_image_upload_db.dart';
+import 'DeviceIdManager.dart';
 
 class CrashReportManager {
   /// Store crash report in external storage with fallback
@@ -473,6 +477,362 @@ ADDITIONAL INFO: ${additionalInfo?.toString() ?? 'None'}
     } catch (e) {
       // print('Error getting latest crash report: $e');
       return null;
+    }
+  }
+
+  /// Records one user-activity event (login, logout, screen opened, image
+  /// captured/removed, etc.) as JSON with a timestamp, so what the user did
+  /// in the app — not just errors — can be reviewed afterward. Separate
+  /// file from crash_report_*.json (errors), app_log_*.json (free-text
+  /// messages), and print_submission_log_*.json (completed submissions).
+  static Future<String> logUserEvent(String event, {Map<String, dynamic>? details}) async {
+    try {
+      Directory? logDir;
+
+      try {
+        Directory? externalDir = await getExternalStorageDirectory();
+        if (externalDir != null) {
+          Directory cimtdwpDir = Directory('${externalDir.path}/CIMTDWP');
+          if (await cimtdwpDir.exists() || await _canCreateDirectory(cimtdwpDir)) {
+            logDir = Directory('${cimtdwpDir.path}/Logs/AppLogs');
+          }
+        }
+      } catch (e) {
+        // External storage not accessible
+      }
+
+      if (logDir == null) {
+        Directory appDocDir = await getApplicationDocumentsDirectory();
+        logDir = Directory('${appDocDir.path}/Logs/AppLogs');
+      }
+
+      if (!await logDir.exists()) {
+        await logDir.create(recursive: true);
+      }
+
+      Map<String, dynamic> logEntry = {
+        'timestamp': DateTime.now().toIso8601String(),
+        'event': event,
+        'details': details ?? {},
+      };
+
+      String dateString = DateTime.now().toIso8601String().substring(0, 10);
+      String fileName = 'user_activity_log_$dateString.json';
+      String filePath = '${logDir.path}/$fileName';
+      File logFile = File(filePath);
+
+      List<Map<String, dynamic>> existingLogs = [];
+      if (await logFile.exists()) {
+        try {
+          List<dynamic> decoded = jsonDecode(await logFile.readAsString());
+          existingLogs = decoded.cast<Map<String, dynamic>>();
+        } catch (e) {
+          // Continue with empty logs list
+        }
+      }
+
+      existingLogs.add(logEntry);
+
+      // Keep only last 3000 entries to prevent the file from growing unbounded
+      if (existingLogs.length > 3000) {
+        existingLogs = existingLogs.sublist(existingLogs.length - 3000);
+      }
+
+      await logFile.writeAsString(
+        JsonEncoder.withIndent('  ').convert(existingLogs),
+        encoding: utf8,
+      );
+
+      return filePath;
+    } catch (e) {
+      return 'Failed to store user activity log: $e';
+    }
+  }
+
+  /// Resolves the same Logs/AppLogs directory the other log*/store* methods
+  /// use, with the same external-storage-then-app-documents fallback.
+  static Future<Directory> _resolveAppLogsDir() async {
+    Directory? logDir;
+
+    try {
+      Directory? externalDir = await getExternalStorageDirectory();
+      if (externalDir != null) {
+        Directory cimtdwpDir = Directory('${externalDir.path}/CIMTDWP');
+        if (await cimtdwpDir.exists() || await _canCreateDirectory(cimtdwpDir)) {
+          logDir = Directory('${cimtdwpDir.path}/Logs/AppLogs');
+        }
+      }
+    } catch (e) {
+      // External storage not accessible
+    }
+
+    if (logDir == null) {
+      Directory appDocDir = await getApplicationDocumentsDirectory();
+      logDir = Directory('${appDocDir.path}/Logs/AppLogs');
+    }
+
+    if (!await logDir.exists()) {
+      await logDir.create(recursive: true);
+    }
+
+    return logDir;
+  }
+
+  /// Formats a timestamp the same way the legacy native app's log files did:
+  /// "Thu Jul 30 17:19:39 GMT+05:30 2026".
+  static String _legacyTimestamp(DateTime dt) {
+    const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    final weekday = weekdays[dt.weekday - 1];
+    final month = months[dt.month - 1];
+    final time = '${dt.hour.toString().padLeft(2, '0')}:'
+        '${dt.minute.toString().padLeft(2, '0')}:'
+        '${dt.second.toString().padLeft(2, '0')}';
+    final offset = dt.timeZoneOffset;
+    final sign = offset.isNegative ? '-' : '+';
+    final offHours = offset.abs().inHours.toString().padLeft(2, '0');
+    final offMinutes = (offset.abs().inMinutes % 60).toString().padLeft(2, '0');
+    return '$weekday $month ${dt.day} $time GMT$sign$offHours:$offMinutes ${dt.year}';
+  }
+
+  /// Legacy log files prefixed locally-stored image paths with the
+  /// "file:" URI scheme — replicated here for format parity.
+  static String _legacyFileUri(String? path) {
+    if (path == null || path.isEmpty) return '';
+    return path.startsWith('file:') ? path : 'file:$path';
+  }
+
+  static Future<Map<String, String>> _deviceAndAppInfo() async {
+    String appVersion = '';
+    String androidVersion = '';
+    String deviceId = '';
+    try {
+      final packageInfo = await PackageInfo.fromPlatform();
+      appVersion = packageInfo.version;
+    } catch (_) {}
+    try {
+      if (Platform.isAndroid) {
+        final androidInfo = await DeviceInfoPlugin().androidInfo;
+        androidVersion = androidInfo.version.sdkInt.toString();
+      }
+    } catch (_) {}
+    try {
+      deviceId = await DeviceIdManager.getDeviceId();
+    } catch (_) {}
+    return {
+      'appVersion': appVersion,
+      'androidVersion': androidVersion,
+      'deviceId': deviceId,
+    };
+  }
+
+  /// Appends a snapshot of the currently-pending (not-yet-synced) print
+  /// records to AllDBPrints.txt — same file name and field names as the
+  /// legacy native app's local execution DB table dump.
+  static Future<void> logAllDBPrints(List<ImageUploaddata> pendingRecords) async {
+    try {
+      final logDir = await _resolveAppLogsDir();
+      final file = File('${logDir.path}/AllDBPrints.txt');
+
+      final entries = <Map<String, dynamic>>[];
+      for (var i = 0; i < pendingRecords.length; i++) {
+        final m = pendingRecords[i];
+        entries.add({
+          'DATAID': (i + 1).toString(),
+          'SERVERID': m.ServerPlanId ?? '',
+          'SERVERPLANID': m.PlanCode ?? '',
+          'PRINTNO': m.PrintNo ?? '',
+          'CLEANIMAGE': _legacyFileUri(m.CleanImage),
+          'WBIMAGE': _legacyFileUri(m.WBImage),
+          'SPRAYIMAGE': _legacyFileUri(m.SprayImage),
+          'NEARIMAGE': _legacyFileUri(m.NearImage),
+          'FARIMAGE': _legacyFileUri(m.FarImage),
+          'LAT': m.CleanLatitude ?? '',
+          'LNG': m.CleanLongitude ?? '',
+          'ADDRESS': m.Address ?? '',
+          'EXECUTIONDATE': m.ExecutionDate ?? '',
+          'FLAG': '0',
+          'VILLAGECODE': m.VillageCode ?? '',
+          'SIXTHIMAGE': _legacyFileUri(m.NewImage6),
+          'SEVENTHIMAGE': _legacyFileUri(m.NewImage7),
+          'LOCATION': '${m.CleanLatitude ?? ''},${m.CleanLongitude ?? ''},0.0,0.0,0.0',
+        });
+      }
+
+      final line = '${_legacyTimestamp(DateTime.now())} -- ${jsonEncode(entries)}\n\n';
+      await file.writeAsString(line, mode: FileMode.append, encoding: utf8);
+    } catch (e) {
+      // Best-effort logging only; never let logging break the submit flow.
+    }
+  }
+
+  /// Appends a snapshot to AllPrints.txt — same file name, field names, and
+  /// "Android version / App Version" header the legacy app used.
+  static Future<void> logAllPrints(List<ImageUploaddata> pendingRecords) async {
+    try {
+      final logDir = await _resolveAppLogsDir();
+      final file = File('${logDir.path}/AllPrints.txt');
+      final info = await _deviceAndAppInfo();
+
+      final entries = <Map<String, dynamic>>[];
+      for (final m in pendingRecords) {
+        entries.add({
+          'id': m.ServerPlanId ?? '',
+          'planid': m.PlanCode ?? '',
+          'Printno': m.PrintNo ?? '',
+          'CleanImage': _legacyFileUri(m.CleanImage),
+          'WBImage': _legacyFileUri(m.WBImage),
+          'SprayImage': _legacyFileUri(m.SprayImage),
+          'NearImage': _legacyFileUri(m.NearImage),
+          'FarImage': _legacyFileUri(m.FarImage),
+          'newImage6': _legacyFileUri(m.NewImage6),
+          'newImage7': _legacyFileUri(m.NewImage7),
+          'Latitude': m.CleanLatitude ?? '',
+          'Longitude': m.CleanLongitude ?? '',
+          'ExecutionDate': m.ExecutionDate ?? '',
+          'UploadDate': m.UploadDate ?? '',
+          // True IMEI is not obtainable on modern Android without a
+          // privileged/carrier permission; the app's own device UID is
+          // used here instead so each device is still distinguishable.
+          'imei': info['deviceId'],
+          'VillageCode': m.VillageCode ?? '',
+          'Address': m.Address ?? '',
+        });
+      }
+
+      final line = '${_legacyTimestamp(DateTime.now())} -- '
+          'Android version = ${info['androidVersion']} -- '
+          'App Version : ${info['appVersion']} --  ${jsonEncode(entries)}\n\n';
+      await file.writeAsString(line, mode: FileMode.append, encoding: utf8);
+    } catch (e) {
+      // Best-effort logging only; never let logging break the submit flow.
+    }
+  }
+
+  /// Appends a snapshot to HMData.txt — same file name and field names
+  /// (including the legacy "Upload Date" key with a space, and "null" as a
+  /// literal string for a blank address) as the legacy pending-sync queue.
+  static Future<void> logHMData(List<ImageUploaddata> pendingRecords) async {
+    try {
+      final logDir = await _resolveAppLogsDir();
+      final file = File('${logDir.path}/HMData.txt');
+
+      final entries = <Map<String, dynamic>>[];
+      for (var i = 0; i < pendingRecords.length; i++) {
+        final m = pendingRecords[i];
+        entries.add({
+          'localid': (i + 1).toString(),
+          'id': m.ServerPlanId ?? '',
+          'planid': m.PlanCode ?? '',
+          'Printno': m.PrintNo ?? '',
+          'CleanImage': _legacyFileUri(m.CleanImage),
+          'WBImage': _legacyFileUri(m.WBImage),
+          'SprayImage': _legacyFileUri(m.SprayImage),
+          'NearImage': _legacyFileUri(m.NearImage),
+          'FarImage': _legacyFileUri(m.FarImage),
+          'Latitude': m.CleanLatitude ?? '',
+          'Longitude': m.CleanLongitude ?? '',
+          'Address': (m.Address == null || m.Address!.isEmpty) ? 'null' : m.Address,
+          'ExecutionDate': m.ExecutionDate ?? '',
+          'Upload Date': m.UploadDate ?? '',
+          'flag': '0',
+          'VillageCode': m.VillageCode ?? '',
+          'newImage6': _legacyFileUri(m.NewImage6),
+          'newImage7': _legacyFileUri(m.NewImage7),
+          'CurrentLocation': '${m.CleanLatitude ?? ''},${m.CleanLongitude ?? ''},0.0,0.0,0.0',
+        });
+      }
+
+      final line = '\n${_legacyTimestamp(DateTime.now())} -- ${jsonEncode(entries)}\n';
+      await file.writeAsString(line, mode: FileMode.append, encoding: utf8);
+    } catch (e) {
+      // Best-effort logging only; never let logging break the submit flow.
+    }
+  }
+
+  /// Appends one free-text trace line to DWPError.txt — same file name and
+  /// "timestamp -- message" / "tag" shape as the legacy step-by-step trace
+  /// of the image capture flow and any errors hit along the way.
+  static Future<void> logDWPTrace(String message, {String tag = 'DWP P ExecuteActivity'}) async {
+    try {
+      final logDir = await _resolveAppLogsDir();
+      final file = File('${logDir.path}/DWPError.txt');
+      final line = '${_legacyTimestamp(DateTime.now())} -- $message\n$tag\n';
+      await file.writeAsString(line, mode: FileMode.append, encoding: utf8);
+    } catch (e) {
+      // Best-effort logging only; never let logging break the capture flow.
+    }
+  }
+
+  /// Records a structured JSON snapshot of a completed print/plan
+  /// submission — what got submitted (plan/print/village/address), the
+  /// GPS reading behind each captured image, network status, and the
+  /// device/user identity (UID.txt content) at that moment. Separate from
+  /// crash_report_*.json (errors) and app_log_*.json (free-text messages)
+  /// so submissions can be audited on their own.
+  static Future<String> storePrintSubmissionLog(Map<String, dynamic> data) async {
+    try {
+      Directory? logDir;
+
+      try {
+        Directory? externalDir = await getExternalStorageDirectory();
+        if (externalDir != null) {
+          Directory cimtdwpDir = Directory('${externalDir.path}/CIMTDWP');
+          if (await cimtdwpDir.exists() || await _canCreateDirectory(cimtdwpDir)) {
+            logDir = Directory('${cimtdwpDir.path}/Logs/AppLogs');
+          }
+        }
+      } catch (e) {
+        // External storage not accessible
+      }
+
+      if (logDir == null) {
+        Directory appDocDir = await getApplicationDocumentsDirectory();
+        logDir = Directory('${appDocDir.path}/Logs/AppLogs');
+      }
+
+      if (!await logDir.exists()) {
+        await logDir.create(recursive: true);
+      }
+
+      Map<String, dynamic> logEntry = {
+        'timestamp': DateTime.now().toIso8601String(),
+        ...data,
+      };
+
+      String dateString = DateTime.now().toIso8601String().substring(0, 10);
+      String fileName = 'print_submission_log_$dateString.json';
+      String filePath = '${logDir.path}/$fileName';
+      File logFile = File(filePath);
+
+      List<Map<String, dynamic>> existingLogs = [];
+      if (await logFile.exists()) {
+        try {
+          List<dynamic> decoded = jsonDecode(await logFile.readAsString());
+          existingLogs = decoded.cast<Map<String, dynamic>>();
+        } catch (e) {
+          // Continue with empty logs list
+        }
+      }
+
+      existingLogs.add(logEntry);
+
+      // Keep only last 2000 entries to prevent the file from growing unbounded
+      if (existingLogs.length > 2000) {
+        existingLogs = existingLogs.sublist(existingLogs.length - 2000);
+      }
+
+      await logFile.writeAsString(
+        JsonEncoder.withIndent('  ').convert(existingLogs),
+        encoding: utf8,
+      );
+
+      return filePath;
+    } catch (e) {
+      return 'Failed to store print submission log: $e';
     }
   }
 

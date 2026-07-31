@@ -1862,6 +1862,7 @@ import '../../generated/l10n.dart';
 import '../../utils/crash_manager.dart';
 import '../../utils/fonts.dart';
 import '../../utils/print_crash_manager.dart';
+import '../../utils/uid_file_helper.dart';
 import '../printSync/post_recca_print_sync_screen.dart';
 import 'post_recca_see_plans.dart';
 
@@ -2150,6 +2151,29 @@ class _SUUploadSeePlanScreenState extends State<SUUploadSeePlanScreen> with Widg
 
   double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
     return Geolocator.distanceBetween(lat1, lon1, lat2, lon2);
+  }
+
+  /// Raw "deviceUid|userId" content of this device's UID.txt, for tagging
+  /// submission log entries with who/what device submitted them.
+  Future<String?> _getRawUidForLog() async {
+    try {
+      Directory? externalDir = await getExternalStorageDirectory();
+      if (externalDir == null) return null;
+      File uidFile = File('${externalDir.path}/CIMTDWP/Appfiles/UID.txt');
+      return await UidFileHelper.readRawUidContent(uidFile);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  Future<bool> _hasRealInternetForLog() async {
+    try {
+      final result = await InternetAddress.lookup('google.com')
+          .timeout(Duration(seconds: 3));
+      return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
+    } catch (e) {
+      return false;
+    }
   }
 
   Future<void> _pickImage(int index) async {
@@ -3315,6 +3339,25 @@ class _SUUploadSeePlanScreenState extends State<SUUploadSeePlanScreen> with Widg
 
       // Submission succeeded, so the in-progress draft is no longer needed.
       await _draftRepository.deleteDraft(_draftKey);
+
+      // ========== ACTIVITY LOG: record what was submitted ==========
+      final rawUid = await _getRawUidForLog();
+      final isNetworkAvailable = await _hasRealInternetForLog();
+      await CrashReportManager.storePrintSubmissionLog({
+        'printId': metadata.printId,
+        'PlanCode': metadata.planCode,
+        'PrintNo': metadata.printNo,
+        'VillageCode': metadata.villageCode,
+        'ExecutionDate': metadata.executionDate,
+        'UploadDate': metadata.uploadDate,
+        'Near_Latitude': metadata.nearLatitude,
+        'Near_Longitude': metadata.nearLongitude,
+        'Far_Latitude': metadata.farLatitude,
+        'Far_Longitude': metadata.farLongitude,
+        'remark': metadata.remark,
+        'NetworkStatus': isNetworkAvailable ? 'online' : 'offline',
+        'UID': rawUid,
+      });
 
       await CompletedUploadRepository().markAsCompleted(widget.printId.toString());
 
