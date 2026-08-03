@@ -722,42 +722,45 @@ ADDITIONAL INFO: ${additionalInfo?.toString() ?? 'None'}
   /// Appends a snapshot to HMData.txt — same file name and field names
   /// (including the legacy "Upload Date" key with a space, and "null" as a
   /// literal string for a blank address) as the legacy pending-sync queue.
+  ///
+  /// Disabled: kept as a no-op so existing call sites still compile.
   static Future<void> logHMData(List<ImageUploaddata> pendingRecords) async {
-    try {
-      final logDir = await _resolveAppLogsDir();
-      final file = File('${logDir.path}/HMData.txt');
-
-      final entries = <Map<String, dynamic>>[];
-      for (var i = 0; i < pendingRecords.length; i++) {
-        final m = pendingRecords[i];
-        entries.add({
-          'localid': (i + 1).toString(),
-          'id': m.ServerPlanId ?? '',
-          'planid': m.PlanCode ?? '',
-          'Printno': m.PrintNo ?? '',
-          'CleanImage': _legacyFileUri(m.CleanImage),
-          'WBImage': _legacyFileUri(m.WBImage),
-          'SprayImage': _legacyFileUri(m.SprayImage),
-          'NearImage': _legacyFileUri(m.NearImage),
-          'FarImage': _legacyFileUri(m.FarImage),
-          'Latitude': m.CleanLatitude ?? '',
-          'Longitude': m.CleanLongitude ?? '',
-          'Address': (m.Address == null || m.Address!.isEmpty) ? 'null' : m.Address,
-          'ExecutionDate': m.ExecutionDate ?? '',
-          'Upload Date': m.UploadDate ?? '',
-          'flag': '0',
-          'VillageCode': m.VillageCode ?? '',
-          'newImage6': _legacyFileUri(m.NewImage6),
-          'newImage7': _legacyFileUri(m.NewImage7),
-          'CurrentLocation': '${m.CleanLatitude ?? ''},${m.CleanLongitude ?? ''},0.0,0.0,0.0',
-        });
-      }
-
-      final line = '\n${_legacyTimestamp(DateTime.now())} -- ${jsonEncode(entries)}\n';
-      await file.writeAsString(line, mode: FileMode.append, encoding: utf8);
-    } catch (e) {
-      // Best-effort logging only; never let logging break the submit flow.
-    }
+    return;
+    // try {
+    //   final logDir = await _resolveAppLogsDir();
+    //   final file = File('${logDir.path}/HMData.txt');
+    //
+    //   final entries = <Map<String, dynamic>>[];
+    //   for (var i = 0; i < pendingRecords.length; i++) {
+    //     final m = pendingRecords[i];
+    //     entries.add({
+    //       'localid': (i + 1).toString(),
+    //       'id': m.ServerPlanId ?? '',
+    //       'planid': m.PlanCode ?? '',
+    //       'Printno': m.PrintNo ?? '',
+    //       'CleanImage': _legacyFileUri(m.CleanImage),
+    //       'WBImage': _legacyFileUri(m.WBImage),
+    //       'SprayImage': _legacyFileUri(m.SprayImage),
+    //       'NearImage': _legacyFileUri(m.NearImage),
+    //       'FarImage': _legacyFileUri(m.FarImage),
+    //       'Latitude': m.CleanLatitude ?? '',
+    //       'Longitude': m.CleanLongitude ?? '',
+    //       'Address': (m.Address == null || m.Address!.isEmpty) ? 'null' : m.Address,
+    //       'ExecutionDate': m.ExecutionDate ?? '',
+    //       'Upload Date': m.UploadDate ?? '',
+    //       'flag': '0',
+    //       'VillageCode': m.VillageCode ?? '',
+    //       'newImage6': _legacyFileUri(m.NewImage6),
+    //       'newImage7': _legacyFileUri(m.NewImage7),
+    //       'CurrentLocation': '${m.CleanLatitude ?? ''},${m.CleanLongitude ?? ''},0.0,0.0,0.0',
+    //     });
+    //   }
+    //
+    //   final line = '\n${_legacyTimestamp(DateTime.now())} -- ${jsonEncode(entries)}\n';
+    //   await file.writeAsString(line, mode: FileMode.append, encoding: utf8);
+    // } catch (e) {
+    //   // Best-effort logging only; never let logging break the submit flow.
+    // }
   }
 
   /// Appends one free-text trace line to DWPError.txt — same file name and

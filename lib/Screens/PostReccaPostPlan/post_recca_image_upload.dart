@@ -3350,6 +3350,8 @@ class _SUUploadSeePlanScreenState extends State<SUUploadSeePlanScreen> with Widg
         'VillageCode': metadata.villageCode,
         'ExecutionDate': metadata.executionDate,
         'UploadDate': metadata.uploadDate,
+        'NearImage': metadata.nearImagePath,
+        'FarImage': metadata.farImagePath,
         'Near_Latitude': metadata.nearLatitude,
         'Near_Longitude': metadata.nearLongitude,
         'Far_Latitude': metadata.farLatitude,
