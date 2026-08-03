@@ -41,6 +41,7 @@ import 'generated/l10n.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'dart:async';
 
+/// Version 2.0.1 code Live
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   ApiProvider.initialize();
