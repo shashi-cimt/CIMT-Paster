@@ -831,7 +831,9 @@ Note: Keep the password secure and do not share publicly.
           allFiles.addAll(folder.listSync(recursive: true));
         }
       }
-      return allFiles.where((entity) => entity is File).toList();
+      return allFiles
+          .where((entity) => entity is File && entity.path.split('/').last != 'HMData.txt')
+          .toList();
     } catch (e) {
       return [];
     }
