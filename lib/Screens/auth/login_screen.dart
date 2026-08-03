@@ -132,15 +132,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
-  /// Repairs UID.txt after a successful login if it doesn't already carry
-  /// the account's userId — this is the normal state right after the app
-  /// was uninstalled and reinstalled: a fresh UID.txt gets generated with
-  /// just the device id, but the userId mapping (only ever written at
-  /// registration time) is gone with it. Writing it back here means the
-  /// file matches what a fresh registration would have produced.
-  Future<void> _updateUidFileWithUserIdIfMissing(
-      int roleId, String deviceUid, String userId) async {
-    if (userId.isEmpty) return;
+  /// Refreshes UID.txt after a successful login so it always reflects the
+  /// server's response: the login API is the source of truth for the
+  /// account's UID, so it wins over whatever was previously on disk (e.g.
+  /// a device-generated UID from before this account was linked, or a stale
+  /// value left over from a reinstall).
+  Future<void> _updateUidFileFromLoginResponse(
+      int roleId, String uid, String userId) async {
+    if (uid.isEmpty) return;
 
     try {
       Directory? externalDir = await getExternalStorageDirectory();
@@ -149,12 +148,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       String folderName = (roleId == 6) ? 'CIMTDWP' : 'CIMTDWPSUP';
       File uidFile = File('${externalDir.path}/$folderName/Appfiles/UID.txt');
 
-      final existingUserId = await UidFileHelper.readUserIdFromFile(uidFile);
-      if (existingUserId == null || existingUserId.isEmpty) {
-        await UidFileHelper.writeUidWithUserId(uidFile, deviceUid, userId);
-      }
+      await UidFileHelper.writeUidWithUserId(uidFile, uid, userId);
     } catch (e) {
-      debugPrint('Failed to update UID.txt with userId after login: $e');
+      debugPrint('Failed to update UID.txt after login: $e');
     }
   }
 
@@ -224,14 +220,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             // Pastor and CanImage User (Supervisor) roles.
             setUserId(value.data?.userId?.toString() ?? '');
             setroleFlag(apiRoleFlag.toString());
-            setFirstUID(roleSpecificUID);
 
-            // If UID.txt was regenerated fresh (e.g. app was uninstalled and
-            // reinstalled) it won't carry the account's userId yet — repair
-            // it from this login response, same as registration would write.
-            await _updateUidFileWithUserIdIfMissing(
+            // The login response's uId is the source of truth for the
+            // account's UID — it wins over the UID read from the file
+            // before login, both for the landing screen's UID card and for
+            // what's persisted to UID.txt.
+            final String responseUid = (value.data?.uId != null && value.data!.uId!.isNotEmpty)
+                ? value.data!.uId!
+                : roleSpecificUID;
+            setFirstUID(responseUid);
+
+            await _updateUidFileFromLoginResponse(
               selectedRoleId,
-              roleSpecificUID,
+              responseUid,
               value.data?.userId?.toString() ?? '',
             );
 
@@ -240,7 +241,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               'role': selectedRole,
               'roleId': apiRoleFlag,
               'userId': value.data?.userId?.toString() ?? '',
-              'UID': roleSpecificUID,
+              'UID': responseUid,
             });
 
             await TokenManager().initializeTokenMonitoring(token);
@@ -261,7 +262,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 content: Text(
                     '${S.of(context).loggedIn}\n'
                         '${S.of(context).role}: $selectedRole\n'
-                        '${S.of(context).uid}: $roleSpecificUID\n',
+                        '${S.of(context).uid}: $responseUid\n',
                     style: TextStyle(
                       fontFamily: "Roboto",
                       color: Colors.grey[600],
