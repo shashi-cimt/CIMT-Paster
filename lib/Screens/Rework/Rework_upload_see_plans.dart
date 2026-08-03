@@ -1898,7 +1898,7 @@ class _ReworkUploadSeePlansState extends State<ReworkUploadSeePlans> with Widget
       final pendingPrints = await ExecutionImageUploadHiveRepository().getAllMetadata();
       await CrashReportManager.logAllDBPrints(pendingPrints);
       await CrashReportManager.logAllPrints(pendingPrints);
-      await CrashReportManager.logHMData(pendingPrints);
+     // await CrashReportManager.logHMData(pendingPrints);
 
       await ReworkBalanceCountChangeRepository().incrementOfflineCount(
         widget.planCode.toString(),

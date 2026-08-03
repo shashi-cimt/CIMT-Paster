@@ -2189,7 +2189,7 @@ class _UploadSeePlanScreenState extends State<UploadSeePlanScreen> with WidgetsB
       final pendingPrints = await ExecutionImageUploadHiveRepository().getAllMetadata();
       await CrashReportManager.logAllDBPrints(pendingPrints);
       await CrashReportManager.logAllPrints(pendingPrints);
-      await CrashReportManager.logHMData(pendingPrints);
+      //await CrashReportManager.logHMData(pendingPrints);
 
       // ========== INCREMENT OFFLINE COUNTS ==========
       await PlanCountChangeHiveRepository().incrementOfflineCount(

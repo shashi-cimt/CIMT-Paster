@@ -166,7 +166,9 @@ class _LandingScreenState extends ConsumerState<LandingScreen> with WidgetsBindi
   int getTotalPendingCount() {
     int total = 0;
     if (roleFlag == "6") {
-      total = planCount + failedResendCount;
+      total = planCount
+      //    + failedResendCount
+      ;
     } else if (roleFlag == "7") {
       total = SUPlanCount ;
     }
