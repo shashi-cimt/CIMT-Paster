@@ -77,6 +77,25 @@ class UidFileHelper {
     return _normalizeUidValue(content, preservePipe: true);
   }
 
+  /// Collapses a "`<deviceUid>`|`<userId>`" value down to exactly one pipe,
+  /// keeping the first segment as the device uid and the last as the userId.
+  /// Guards against stale files that already stacked multiple "|userId"
+  /// segments (e.g. "RP1A.200720.011|20487|20487") before the write-side fix,
+  /// so reads never re-propagate that duplication into a fresh API call.
+  static String? canonicalize(String? content) {
+    if (content == null) return null;
+
+    final normalized = _normalizeUidValue(content, preservePipe: true);
+    if (normalized == null) return null;
+    if (!normalized.contains('|')) return normalized;
+
+    final parts = normalized.split('|').map((p) => p.trim()).where((p) => p.isNotEmpty).toList();
+    if (parts.isEmpty) return null;
+    if (parts.length == 1) return parts.first;
+
+    return '${parts.first}|${parts.last}';
+  }
+
   static Future<String?> readDeviceIdFromFile(File uidFile) async {
     if (!await uidFile.exists()) return null;
     return parseDeviceId(await uidFile.readAsString());
@@ -107,7 +126,13 @@ class UidFileHelper {
   /// followed by a re-login on the same device repairs the file instead of
   /// leaving it without a userId.
   static Future<void> writeUidWithUserId(File uidFile, String deviceUid, String userId) async {
+    // deviceUid may already be in "deviceUid|userId" form if it was read back
+    // from a UID.txt written by a previous registration/login — keep only the
+    // bare device-uid portion so re-saving doesn't stack another "|userId"
+    // onto it (e.g. "deviceUid|20493|20493").
+    final bareDeviceUid = deviceUid.contains('|') ? deviceUid.split('|').first.trim() : deviceUid;
+
     await uidFile.parent.create(recursive: true);
-    await uidFile.writeAsString('$deviceUid|$userId');
+    await uidFile.writeAsString('$bareDeviceUid|$userId');
   }
 }

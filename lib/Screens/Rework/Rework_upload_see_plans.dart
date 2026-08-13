@@ -3,16 +3,17 @@ import 'dart:convert';
 import 'package:canimage/Screens/Rework/rework_see_plans.dart';
 import 'dart:io';
 import 'package:canimage/Repository/remarks_repository.dart';
-import '../Common/camera_capture_screen.dart';
 import 'package:canimage/Screens/landing/landing_screen.dart';
+import 'package:flutter/foundation.dart' show compute;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import '../../utils/image_compression_helper.dart';
+import '../../utils/image_orientation_utils.dart';
+import '../../utils/persistent_capture_store.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../Hive_Database/execution_image_upload_db.dart';
@@ -25,6 +26,9 @@ import '../../Repository/upload_count_repository.dart';
 import '../../generated/l10n.dart';
 import '../../utils/crash_manager.dart';
 import '../../utils/fonts.dart';
+import '../../utils/location_evidence/location_config.dart';
+import '../../utils/location_evidence/location_sample.dart';
+import '../../utils/location_evidence/location_tracking_session.dart';
 import '../../utils/uid_file_helper.dart';
 
 
@@ -75,9 +79,9 @@ class ReworkUploadSeePlans extends StatefulWidget {
 
 class _ReworkUploadSeePlansState extends State<ReworkUploadSeePlans> with WidgetsBindingObserver, AutomaticKeepAliveClientMixin {
   List<ImageData> images = List.generate(7, (index) => ImageData());
-  List<bool> _isPickerActiveList = List.generate(7, (index) => false);
+  final List<bool> _isPickerActiveList = List.generate(7, (index) => false);
   bool isPickingImage = false;
-  bool _isProcessingRecoveredImage = false;
+  final bool _isProcessingRecoveredImage = false;
   TextEditingController printNoController1 = TextEditingController();
   TextEditingController printNoController2 = TextEditingController();
   final FocusNode _focusNode = FocusNode();
@@ -89,6 +93,12 @@ class _ReworkUploadSeePlansState extends State<ReworkUploadSeePlans> with Widget
   // List<CameraDescription>? cameras;
   final ImagePicker _picker = ImagePicker();
   int? _currentImageIndex;
+
+  // Owns the ONE continuous background location stream for this capture
+  // session (started in initState), the rolling evidence buffer behind it,
+  // and the evaluation/logging of Image 1/3/7 movement. Replaces the old
+  // bare `_latestPosition` + `StreamSubscription<Position>` fields.
+  final LocationTrackingSession _locationSession = LocationTrackingSession();
 
   // Persists already-captured images to Hive as soon as each one is taken,
   // keyed per rework item, so closing this screen (or a camera crash) before
@@ -113,13 +123,18 @@ class _ReworkUploadSeePlansState extends State<ReworkUploadSeePlans> with Widget
     WidgetsBinding.instance.addObserver(this);
     _draftKey = _buildDraftKey();
     _recoverAfterRestart();
+    _locationSession.start();
   }
 
   Future<void> _recoverAfterRestart() async {
-    // Order matters: recover the one photo that was mid-flight when the
-    // process died, THEN layer the already-saved draft on top.
-    await _checkForLostCameraData();
+    // Order matters: restore the already-saved draft FIRST, then layer the
+    // one photo that was mid-flight when the process died on top. Doing it
+    // the other way round made _checkForLostCameraData's own
+    // _saveDraftToHive() overwrite the Hive draft while `images` still only
+    // held that one recovered slot — wiping every other already-captured
+    // image from the draft before _restoreDraftIfNeeded ever got to load them.
     await _restoreDraftIfNeeded();
+    await _checkForLostCameraData();
   }
 
   /// Recovers a photo that was captured right before Android (commonly MIUI,
@@ -150,22 +165,28 @@ class _ReworkUploadSeePlansState extends State<ReworkUploadSeePlans> with Widget
       final file = File(response.file!.path);
       if (!await file.exists()) return;
 
-      Position? currentPosition;
-      try {
-        currentPosition = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.best,
-          timeLimit: Duration(seconds: 10),
-        );
-      } catch (_) {
-        // Best effort only; the location captured before the crash is gone.
-      }
+      // Move it out of the picker's cache into permanent storage right away
+      // — otherwise this just-recovered photo is still sitting in a
+      // cache dir the OS can reclaim before the user gets to Submit.
+      final String permanentPath = await PersistentCaptureStore.persist(
+        file.path,
+        subfolder: 'Rework',
+      );
+
+      // The real capture-time location is gone — this is a best-effort
+      // backfill, explicitly tagged as a post-recovery read (never a live
+      // fix) throughout the GPS evidence log.
+      final recoveryEvidence = await _locationSession.recordRecoveryCapture(
+        savedIndex,
+        imageLabel: 'IMAGE_${savedIndex + 1}',
+      );
 
       if (mounted) {
         setState(() {
-          images[savedIndex].imagePath = file.path;
-          if (currentPosition != null) {
-            images[savedIndex].lat = currentPosition.latitude;
-            images[savedIndex].long = currentPosition.longitude;
+          images[savedIndex].imagePath = permanentPath;
+          if (recoveryEvidence.isValid) {
+            images[savedIndex].lat = recoveryEvidence.latitude;
+            images[savedIndex].long = recoveryEvidence.longitude;
           }
         });
       }
@@ -191,6 +212,7 @@ class _ReworkUploadSeePlansState extends State<ReworkUploadSeePlans> with Widget
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _locationSession.dispose();
     _focusNode1.dispose();
     _focusNode2.dispose();
     printNoController1.dispose();
@@ -366,8 +388,44 @@ class _ReworkUploadSeePlansState extends State<ReworkUploadSeePlans> with Widget
 
   // New image picker implementation using the plugin
 
-  double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
-    return Geolocator.distanceBetween(lat1, lon1, lat2, lon2);
+  /// The trusted Image 1 baseline for Image 3/7/Submit checks. Prefers this
+  /// session's own stabilized capture evidence; falls back to the raw
+  /// lat/long stored on [images]\[0\] (e.g. restored from a Hive draft on a
+  /// previous visit to this screen) so those flows still get an evidence-
+  /// aware check instead of silently skipping it.
+  RawLocationSample? _image1Baseline() {
+    final sessionEvidence = _locationSession.imageEvidence(0)?.trusted;
+    if (sessionEvidence != null) return sessionEvidence;
+    if (images[0].imagePath == null) return null;
+    return RawLocationSample.referencePoint(
+      latitude: images[0].lat,
+      longitude: images[0].long,
+      sessionId: _locationSession.sessionId,
+    );
+  }
+
+  /// Physically corrects a freshly captured photo's orientation. The
+  /// device's camera (via image_picker) can return a JPEG whose pixels are
+  /// stored sideways with an EXIF "rotate" instruction — Flutter's Image
+  /// widget ignores that tag, so without this every landscape photo would
+  /// display portrait (or upside down) everywhere in the app.
+  Future<String> _normalizeOrientation(String sourcePath) async {
+    try {
+      final Uint8List rawBytes = await File(sourcePath).readAsBytes();
+      // Decode/bake/encode is CPU-heavy enough to freeze the UI thread if run
+      // inline, which is what made the captured photo feel slow to appear in
+      // the thumbnail box — run it on a background isolate instead.
+      final Uint8List? uprightBytes = await compute(bakeJpegOrientation, rawBytes);
+      if (uprightBytes == null) return sourcePath;
+
+      final int dot = sourcePath.lastIndexOf('.');
+      final String normalizedPath =
+          '${dot == -1 ? sourcePath : sourcePath.substring(0, dot)}_upright.jpg';
+      await File(normalizedPath).writeAsBytes(uprightBytes);
+      return normalizedPath;
+    } catch (_) {
+      return sourcePath;
+    }
   }
 
   /// Raw "deviceUid|userId" content of this device's UID.txt, for tagging
@@ -377,7 +435,7 @@ class _ReworkUploadSeePlansState extends State<ReworkUploadSeePlans> with Widget
       Directory? externalDir = await getExternalStorageDirectory();
       if (externalDir == null) return null;
       File uidFile = File('${externalDir.path}/CIMTDWP/Appfiles/UID.txt');
-      return await UidFileHelper.readRawUidContent(uidFile);
+      return UidFileHelper.canonicalize(await UidFileHelper.readRawUidContent(uidFile));
     } catch (e) {
       return null;
     }
@@ -396,14 +454,11 @@ class _ReworkUploadSeePlansState extends State<ReworkUploadSeePlans> with Widget
         _currentImageIndex = index;
       });
 
-      // Get current location first
-      Position? currentPosition;
-      try {
-        currentPosition = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.best,
-          timeLimit: Duration(seconds: 10),
-        );
-      } catch (e) {
+      // Best evidence already collected in the background; only waits on a
+      // fresh GPS fix if the continuous stream hasn't produced one yet.
+      final RawLocationSample? gateSample =
+          await _locationSession.acquireGateSample();
+      if (gateSample == null) {
         Fluttertoast.showToast(
           msg: S.of(context).unablePleaseEnableGPS,
           toastLength: Toast.LENGTH_LONG,
@@ -418,16 +473,26 @@ class _ReworkUploadSeePlansState extends State<ReworkUploadSeePlans> with Widget
         return;
       }
 
-      // ========== DISTANCE VALIDATION FOR INDEX 0 ==========
+      // ========== DISTANCE VALIDATIONS ==========
+      // Raw distance alone is not trusted: each check is backed by the
+      // rolling evidence buffer's quality/outlier/trajectory analysis, so a
+      // vendor standing still is not blocked by ordinary GPS drift, while
+      // genuine sustained movement past the threshold still is.
       if (index == 0 && widget.latitude != null && widget.longitude != null) {
-        double distance = _calculateDistance(
-          currentPosition.latitude,
-          currentPosition.longitude,
-          widget.latitude!,
-          widget.longitude!,
+        final planBaseline = RawLocationSample.referencePoint(
+          latitude: widget.latitude!,
+          longitude: widget.longitude!,
+          sessionId: _locationSession.sessionId,
+        );
+        final evalResult = _locationSession.evaluateAgainstSample(
+          baseline: planBaseline,
+          target: gateSample,
+          thresholdMeters: LocationConfig.image1PlanThresholdMeters,
+          fromLabel: 'PLAN_LOCATION',
+          toLabel: 'IMAGE_1_GATE',
         );
 
-        if (distance > 50) {
+        if (evalResult.shouldBlock) {
           setState(() {
             isPickingImage = false;
             _isPickerActiveList[index] = false;
@@ -435,62 +500,69 @@ class _ReworkUploadSeePlansState extends State<ReworkUploadSeePlans> with Widget
 
           await _showDistanceDialog(
             context,
-            distance,
+            evalResult.trustedDistanceMeters,
             "Image 1",
-            "The first image must be captured within 50 meters of the selected location.",
+            "Distance is greater than ${LocationConfig.image1PlanThresholdMeters.toInt()} meters. The first image must be captured within ${LocationConfig.image1PlanThresholdMeters.toInt()} meters of the selected location.",
             showRefreshOption: true,
+            thresholdMeters: LocationConfig.image1PlanThresholdMeters.toInt(),
           );
           return;
         }
       }
 
-      // ========== DISTANCE VALIDATION FOR INDEX 2 (Image 3) ==========
       if (index == 2 && images[0].imagePath != null) {
-        double distanceFromIndex0 = _calculateDistance(
-          currentPosition.latitude,
-          currentPosition.longitude,
-          images[0].lat,
-          images[0].long,
-        );
-
-        if (distanceFromIndex0 > 50) {
-          setState(() {
-            isPickingImage = false;
-            _isPickerActiveList[index] = false;
-          });
-
-          await _showDistanceDialog(
-            context,
-            distanceFromIndex0,
-            "Image 3",
-            "Image 3 must be captured within 50 meters of Image 1 location.",
+        final baseline = _image1Baseline();
+        if (baseline != null) {
+          final evalResult = _locationSession.evaluateAgainstSample(
+            baseline: baseline,
+            target: gateSample,
+            thresholdMeters: LocationConfig.image1To37ThresholdMeters,
+            fromLabel: 'IMAGE_1',
+            toLabel: 'IMAGE_3_GATE',
           );
-          return;
+
+          if (evalResult.shouldBlock) {
+            setState(() {
+              isPickingImage = false;
+              _isPickerActiveList[index] = false;
+            });
+
+            await _showDistanceDialog(
+              context,
+              evalResult.trustedDistanceMeters,
+              "Image 3",
+              "Image 3 must be captured within ${LocationConfig.image1To37ThresholdMeters.toInt()} meters of Image 1 location.",
+            );
+            return;
+          }
         }
       }
 
-      // ========== DISTANCE VALIDATION FOR INDEX 6 (Image 7) ==========
       if (index == 6 && images[0].imagePath != null) {
-        double distanceFromIndex0 = _calculateDistance(
-          currentPosition.latitude,
-          currentPosition.longitude,
-          images[0].lat,
-          images[0].long,
-        );
-
-        if (distanceFromIndex0 > 50) {
-          setState(() {
-            isPickingImage = false;
-            _isPickerActiveList[index] = false;
-          });
-
-          await _showDistanceDialog(
-            context,
-            distanceFromIndex0,
-            "Image 7",
-            "Image 7 must be captured within 50 meters of Image 1 location.",
+        final baseline = _image1Baseline();
+        if (baseline != null) {
+          final evalResult = _locationSession.evaluateAgainstSample(
+            baseline: baseline,
+            target: gateSample,
+            thresholdMeters: LocationConfig.image1To37ThresholdMeters,
+            fromLabel: 'IMAGE_1',
+            toLabel: 'IMAGE_7_GATE',
           );
-          return;
+
+          if (evalResult.shouldBlock) {
+            setState(() {
+              isPickingImage = false;
+              _isPickerActiveList[index] = false;
+            });
+
+            await _showDistanceDialog(
+              context,
+              evalResult.trustedDistanceMeters,
+              "Image 7",
+              "Image 7 must be captured within ${LocationConfig.image1To37ThresholdMeters.toInt()} meters of Image 1 location.",
+            );
+            return;
+          }
         }
       }
 
@@ -514,16 +586,39 @@ class _ReworkUploadSeePlansState extends State<ReworkUploadSeePlans> with Widget
 
       await _saveCurrentState();
 
-      // ========== OPEN IN-APP CAMERA WITH TIMEOUT ==========
-      String? capturedImagePath;
+      // ========== OPEN CAMERA (image_picker) WITH TIMEOUT ==========
+      XFile? pickedFile;
 
       try {
-        capturedImagePath = await CameraCaptureScreen.capture(context).timeout(
+        pickedFile = await _picker.pickImage(
+          source: ImageSource.camera,
+          imageQuality: 90,
+          maxWidth: 1920,
+          maxHeight: 1920,
+          preferredCameraDevice: CameraDevice.rear,
+        ).timeout(
           Duration(seconds: 120),
           onTimeout: () {
             throw TimeoutException('Camera operation timed out');
           },
         );
+      } on PlatformException catch (e) {
+        await _clearSavedState();
+
+        String errorMessage = 'Camera error occurred';
+        if (e.code == 'camera_access_denied') {
+          errorMessage = 'Camera access was denied';
+        } else if (e.code == 'camera_access_denied_permanently') {
+          errorMessage = 'Camera access permanently denied. Please enable in settings.';
+        }
+
+        await CrashReportManager.storeCrashReport(
+          error: "Camera PlatformException: ${e.code} - ${e.message}",
+          stackTrace: StackTrace.current.toString(),
+        );
+
+        await _showErrorDialogWithRetry(context, 'Camera Error', errorMessage, index);
+        return;
       } on TimeoutException catch (e) {
         await _clearSavedState();
 
@@ -559,10 +654,10 @@ class _ReworkUploadSeePlansState extends State<ReworkUploadSeePlans> with Widget
       }
 
       // Process the captured image
-      if (capturedImagePath != null) {
+      if (pickedFile != null) {
         try {
           // Verify file exists
-          final file = File(capturedImagePath);
+          final file = File(pickedFile.path);
           if (!await file.exists()) {
             throw Exception('Captured image file not found');
           }
@@ -570,16 +665,59 @@ class _ReworkUploadSeePlansState extends State<ReworkUploadSeePlans> with Widget
           // Verify file is readable
           await file.length();
 
+          // image_picker's native camera can hand back a JPEG whose pixels
+          // are stored sideways with an EXIF "rotate" instruction — Flutter's
+          // Image widget ignores that tag, so bake the rotation into the
+          // pixel data itself before the file is ever displayed or stored.
+          final String normalizedImagePath =
+              await _normalizeOrientation(pickedFile.path);
+
+          // Move out of image_picker's own cache dir into permanent storage
+          // immediately — leaving it in cache until Submit risks the OS
+          // reclaiming it (and crashing the app) under low memory before the
+          // user ever gets there.
+          final String capturedImagePath = await PersistentCaptureStore.persist(
+            normalizedImagePath,
+            subfolder: 'Rework',
+          );
+
           await CrashReportManager.logDWPTrace(
             'returneduri uri = $capturedImagePath',
+          );
+
+          // Snapshot evidence now — right after the shutter actually fired,
+          // not when the button was tapped — using whatever the rolling
+          // buffer collected in the meantime; falls back to the gate sample
+          // only if nothing better arrived.
+          final evidence = _locationSession.recordImageCapture(
+            index,
+            gateSample: gateSample,
+            imageLabel: 'IMAGE_${index + 1}',
           );
 
           if (mounted) {
             setState(() {
               images[index].imagePath = capturedImagePath;
-              images[index].lat = currentPosition!.latitude;
-              images[index].long = currentPosition.longitude;
+              if (evidence.isValid) {
+                images[index].lat = evidence.latitude;
+                images[index].long = evidence.longitude;
+              }
             });
+          }
+
+          // Post-capture re-evaluation for the forensic log only — the
+          // vendor-facing gate already ran above; this does not block.
+          if (index == 2 || index == 6) {
+            final baseline = _image1Baseline();
+            if (baseline != null) {
+              _locationSession.evaluateAgainstSample(
+                baseline: baseline,
+                target: evidence.trusted ?? evidence.raw ?? gateSample,
+                thresholdMeters: LocationConfig.image1To37ThresholdMeters,
+                fromLabel: 'IMAGE_1',
+                toLabel: index == 2 ? 'IMAGE_3' : 'IMAGE_7',
+              );
+            }
           }
 
           await _clearSavedState();
@@ -725,11 +863,11 @@ class _ReworkUploadSeePlansState extends State<ReworkUploadSeePlans> with Widget
                 onPressed: () {
                   Navigator.of(context).pop(false);
                 },
-                child: Text('Go Back', style: TextStyle(fontFamily: "Roboto")),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Font.primaryColor,
                   foregroundColor: Colors.white,
                 ),
+                child: Text('Go Back', style: TextStyle(fontFamily: "Roboto")),
               ),
             ] else ...[
               TextButton(
@@ -973,10 +1111,10 @@ class _ReworkUploadSeePlansState extends State<ReworkUploadSeePlans> with Widget
       double distance,
       String imageLabel,
       String requirement,
-      {bool showRefreshOption = false}
+      {bool showRefreshOption = false, int thresholdMeters = 50}
       ) async {
     Fluttertoast.showToast(
-      msg: "You are ${distance.toStringAsFixed(0)}m away. Please move closer (within 50m).",
+      msg: "You are ${distance.toStringAsFixed(0)}m away. Please move closer (within ${thresholdMeters}m).",
       toastLength: Toast.LENGTH_LONG,
       gravity: ToastGravity.CENTER,
       backgroundColor: Colors.orange,
@@ -1050,13 +1188,13 @@ class _ReworkUploadSeePlansState extends State<ReworkUploadSeePlans> with Widget
             ] else ...[
               ElevatedButton(
                 onPressed: () => Navigator.of(context).pop(false),
-                child: Text(
-                  'Understood',
-                  style: TextStyle(fontFamily: "Roboto"),
-                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Font.primaryColor,
                   foregroundColor: Colors.white,
+                ),
+                child: Text(
+                  'Understood',
+                  style: TextStyle(fontFamily: "Roboto"),
                 ),
               ),
             ],
@@ -1105,16 +1243,6 @@ class _ReworkUploadSeePlansState extends State<ReworkUploadSeePlans> with Widget
   }
 
   // Process image from file path
-
-  void _removeImage(int index) {
-    if (_isPickerActiveList[index]) return;
-    setState(() {
-      images[index].imagePath = null;
-      images[index].lat = 0.0;
-      images[index].long = 0.0;
-    });
-    _saveDraftToHive();
-  }
 
   Future<String> _storeImageInInternalDocuments(String imagePath) async {
     try {
@@ -1566,17 +1694,18 @@ class _ReworkUploadSeePlansState extends State<ReworkUploadSeePlans> with Widget
           child: Container(
             width: double.infinity,
             height: double.infinity,
+            color: Colors.black12,
             child: FutureBuilder<bool>(
               future: File(images[index].imagePath!).exists(),
               builder: (context, snapshot) {
                 if (snapshot.data == true) {
                   return Image.file(
                     File(images[index].imagePath!),
-                    fit: BoxFit.cover,
+                    // Show the full photo without cropping; the card lets
+                    // the image letterbox instead of filling every pixel.
+                    fit: BoxFit.contain,
                     width: double.infinity,
                     height: double.infinity,
-                    // cacheWidth: 200,
-                    // cacheHeight: 200,
                     errorBuilder: (context, error, stackTrace) {
                       // print("Image display error: $error");
                       return Container(
@@ -1591,22 +1720,6 @@ class _ReworkUploadSeePlansState extends State<ReworkUploadSeePlans> with Widget
                   child: Center(child: CircularProgressIndicator()),
                 );
               },
-            ),
-          ),
-        ),
-        // Remove button
-        Positioned(
-          top: 4,
-          right: 4,
-          child: GestureDetector(
-            onTap: isThisCardActive ? null : () => _removeImage(index),
-            child: Container(
-              padding: EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: isThisCardActive ? Colors.grey : Colors.red,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(Icons.close, color: Colors.white, size: 14),
             ),
           ),
         ),
@@ -1727,13 +1840,8 @@ class _ReworkUploadSeePlansState extends State<ReworkUploadSeePlans> with Widget
       return;
     }
 
-    Position? submitPosition;
-    try {
-      submitPosition = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.best,
-        timeLimit: Duration(seconds: 10),
-      );
-    } catch (e) {
+    final submitEvidence = await _locationSession.recordSubmitCapture();
+    if (!submitEvidence.isValid) {
       setState(() {
         isRefreshing = false;
       });
@@ -1747,55 +1855,61 @@ class _ReworkUploadSeePlansState extends State<ReworkUploadSeePlans> with Widget
       return;
     }
 
-    // Validate submit location is within 100m of Image 1
+    // Validate submit location is within 100m of Image 1 (evidence-aware:
+    // ordinary GPS drift at submit time no longer blocks a stationary
+    // vendor from finishing a print they physically completed).
     if (images[0].imagePath != null) {
-      double distanceFromFirstImage = _calculateDistance(
-        submitPosition.latitude,
-        submitPosition.longitude,
-        images[0].lat,
-        images[0].long,
-      );
+      final baseline = _image1Baseline();
+      if (baseline != null) {
+        final evalResult = _locationSession.evaluateAgainstSample(
+          baseline: baseline,
+          target: submitEvidence.trusted!,
+          thresholdMeters: LocationConfig.submitThresholdMeters,
+          fromLabel: 'IMAGE_1',
+          toLabel: 'SUBMIT',
+        );
 
-      if (distanceFromFirstImage > 100) {
-        setState(() {
-          isRefreshing = false;
-        });
+        if (evalResult.shouldBlock) {
+          setState(() {
+            isRefreshing = false;
+          });
 
-        await showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (BuildContext context) {
-            return AlertDialog(
-              title: Row(
-                children: [
-                  Icon(Icons.warning_amber_rounded, color: Colors.red),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      S.of(context).cannotSubmit,
-                      style: TextStyle(fontSize: 16, fontFamily: "Roboto", color: Colors.red),
+          await showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (BuildContext context) {
+              return AlertDialog(
+                title: Row(
+                  children: [
+                    Icon(Icons.warning_amber_rounded, color: Colors.red),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        S.of(context).cannotSubmit,
+                        style: TextStyle(fontSize: 16, fontFamily: "Roboto", color: Colors.red),
+                      ),
                     ),
+                  ],
+                ),
+                content: Text(
+                  'You are ${evalResult.trustedDistanceMeters.toStringAsFixed(0)} meters away from Image 1. You must be within ${LocationConfig.submitThresholdMeters.toInt()} meters to submit.',
+                  style: TextStyle(fontSize: 14, fontFamily: "Roboto"),
+                ),
+                actions: [
+                  ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Font.primaryColor,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: Text('Understood', style: TextStyle(fontFamily: "Roboto")),
                   ),
                 ],
-              ),
-              content: Text(
-                'You are ${distanceFromFirstImage.toStringAsFixed(0)} meters away from Image 1. You must be within 100 meters to submit.',
-                style: TextStyle(fontSize: 14, fontFamily: "Roboto"),
-              ),
-              actions: [
-                ElevatedButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text('Understood', style: TextStyle(fontFamily: "Roboto")),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Font.primaryColor,
-                    foregroundColor: Colors.white,
-                  ),
-                ),
-              ],
-            );
-          },
-        );
-        return;
+              );
+            },
+          );
+          return;
+        }
       }
     }
 
@@ -1807,7 +1921,8 @@ class _ReworkUploadSeePlansState extends State<ReworkUploadSeePlans> with Widget
       // Store images
       for (var i = 0; i < images.length; i++) {
         if (images[i].imagePath != null) {
-          final compressedImagePath = await _storeImageInInternalDocuments(images[i].imagePath!);
+          final compressedImagePath =
+              await _storeImageInInternalDocuments(images[i].imagePath!);
           images[i].imagePath = compressedImagePath;
         }
       }
@@ -1854,6 +1969,12 @@ class _ReworkUploadSeePlansState extends State<ReworkUploadSeePlans> with Widget
 
       // Submission succeeded, so the in-progress draft is no longer needed.
       await _draftRepository.deleteDraft(_draftKey);
+
+      // Force any buffered GPS evidence lines to disk now, so
+      // gps_tracking_log_<date>.jsonl always has this session's samples on
+      // disk at the same moment the print submission record is written —
+      // never missing, never waiting on the debounce timer.
+      await _locationSession.flushLogs();
 
       // ========== ACTIVITY LOG: record what was submitted ==========
       final rawUid = await _getRawUidForLog();

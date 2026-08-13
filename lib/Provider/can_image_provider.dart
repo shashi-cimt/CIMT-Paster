@@ -141,8 +141,8 @@ Future<List<PlanItem>> fetchPlansFromApi() async {
     final token = await getAuthToken();
     final String userId = (await getUserID()).toString();
     final String uId = (await getFirstUID()).toString();
-    // final String userId = '20427';
-    // final String uId = 'RP1A.200720.011|20427';
+    // final String userId = '20481';
+    // final String uId = 'TP1A.220624.014|20481';
 
     final url = "${APIURLs.URL}${APIURLs.seePlanURL}";
     print("===== BEFORE REQUEST =====");

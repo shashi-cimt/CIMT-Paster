@@ -1847,6 +1847,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../utils/image_compression_helper.dart';
+import '../../utils/persistent_capture_store.dart';
 import '../../APIService/auth_service.dart';
 import '../../Hive_Database/post_recca_image_upload_db.dart';
 import '../../Hive_Database/execution_image_upload_db.dart';
@@ -1938,10 +1939,14 @@ class _SUUploadSeePlanScreenState extends State<SUUploadSeePlanScreen> with Widg
   }
 
   Future<void> _recoverAfterRestart() async {
-    // Order matters: recover the one photo that was mid-flight when the
-    // process died, THEN layer the already-saved draft on top.
-    await _checkForLostCameraData();
+    // Order matters: restore the already-saved draft FIRST, then layer the
+    // one photo that was mid-flight when the process died on top. Doing it
+    // the other way round made _checkForLostCameraData's own
+    // _saveDraftToHive() overwrite the Hive draft while `images` still only
+    // held that one recovered slot — wiping every other already-captured
+    // image from the draft before _restoreDraftIfNeeded ever got to load them.
     await _restoreDraftIfNeeded();
+    await _checkForLostCameraData();
   }
 
   /// Recovers a photo that was captured right before Android (commonly MIUI,
@@ -1972,6 +1977,14 @@ class _SUUploadSeePlanScreenState extends State<SUUploadSeePlanScreen> with Widg
       final file = File(response.file!.path);
       if (!await file.exists()) return;
 
+      // Move it out of the picker's cache into permanent storage right away
+      // — otherwise this just-recovered photo is still sitting in a
+      // cache dir the OS can reclaim before the user gets to Submit.
+      final String permanentPath = await PersistentCaptureStore.persist(
+        file.path,
+        subfolder: 'PostRecca',
+      );
+
       Position? currentPosition;
       try {
         currentPosition = await Geolocator.getCurrentPosition(
@@ -1984,7 +1997,7 @@ class _SUUploadSeePlanScreenState extends State<SUUploadSeePlanScreen> with Widg
 
       if (mounted) {
         setState(() {
-          images[savedIndex].imagePath = file.path;
+          images[savedIndex].imagePath = permanentPath;
           if (currentPosition != null) {
             images[savedIndex].lat = currentPosition.latitude;
             images[savedIndex].long = currentPosition.longitude;
@@ -2160,7 +2173,7 @@ class _SUUploadSeePlanScreenState extends State<SUUploadSeePlanScreen> with Widg
       Directory? externalDir = await getExternalStorageDirectory();
       if (externalDir == null) return null;
       File uidFile = File('${externalDir.path}/CIMTDWP/Appfiles/UID.txt');
-      return await UidFileHelper.readRawUidContent(uidFile);
+      return UidFileHelper.canonicalize(await UidFileHelper.readRawUidContent(uidFile));
     } catch (e) {
       return null;
     }
@@ -2283,9 +2296,18 @@ class _SUUploadSeePlanScreenState extends State<SUUploadSeePlanScreen> with Widg
 
           await file.length();
 
+          // Move out of the camera screen's temp dir into permanent storage
+          // immediately — leaving it in temp until Submit risks the OS
+          // reclaiming it (and crashing the app) under low memory before the
+          // user ever gets there.
+          final String permanentPath = await PersistentCaptureStore.persist(
+            capturedImagePath,
+            subfolder: 'PostRecca',
+          );
+
           if (mounted) {
             setState(() {
-              images[index].imagePath = capturedImagePath;
+              images[index].imagePath = permanentPath;
               images[index].lat = currentPosition!.latitude;
               images[index].long = currentPosition.longitude;
             });

@@ -97,11 +97,15 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
       }
     } catch (e) {
       // print('Error fetching remarks: $e');
-      Fluttertoast.showToast(msg: S.of(context).failedFetchRemarks);
+      if (mounted) {
+        Fluttertoast.showToast(msg: S.of(context).failedFetchRemarks);
+      }
     } finally {
-      setState(() {
-        loader = false;
-      });
+      if (mounted) {
+        setState(() {
+          loader = false;
+        });
+      }
     }
   }
 

@@ -995,7 +995,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
 
       File uidFile = File('${externalDir.path}/$folderName/Appfiles/UID.txt');
 
-      String? uid = await UidFileHelper.readRawUidContent(uidFile);
+      String? uid = UidFileHelper.canonicalize(await UidFileHelper.readRawUidContent(uidFile));
       if (uid != null) {
         // print(' Retrieved $roleName UID: $uid from $folderName');
         return uid;
@@ -1064,8 +1064,14 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
         await roleDir.create(recursive: true);
       }
 
+      // androidId may already be in "androidId|userId" form if it was read
+      // back from a UID.txt written by a previous registration/login — keep
+      // only the bare android-id portion so re-saving doesn't stack another
+      // "|userId" onto it (e.g. "androidId|20493|20493").
+      final bareAndroidId = androidId.contains('|') ? androidId.split('|').first.trim() : androidId;
+
       File uidFile = File('${roleDir.path}/UID.txt');
-      await uidFile.writeAsString('$androidId|$userId');
+      await uidFile.writeAsString('$bareAndroidId|$userId');
     } catch (e) {
       debugPrint('Failed to save UID mapping: $e');
     }

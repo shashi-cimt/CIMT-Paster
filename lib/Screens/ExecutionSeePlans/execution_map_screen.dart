@@ -305,6 +305,7 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
 
     } catch (e) {
       // print("Error getting location: $e");
+      if (!mounted) return;
       setState(() {
         _isGettingAccurateLocation = false;
       });

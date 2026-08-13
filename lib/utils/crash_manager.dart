@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:ui';
 import 'dart:isolate';
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -843,6 +842,33 @@ ADDITIONAL INFO: ${additionalInfo?.toString() ?? 'None'}
       return filePath;
     } catch (e) {
       return 'Failed to store print submission log: $e';
+    }
+  }
+
+  /// Appends pre-formatted GPS evidence lines (one per sample/check/result,
+  /// see location_evidence/gps_session_logger.dart) to
+  /// gps_tracking_log_<date>.jsonl. Append-only — unlike logUserEvent/
+  /// storePrintSubmissionLog this never reads the file back before writing,
+  /// since GPS evidence is generated far more often than those events and a
+  /// read-modify-write per line would not scale.
+  static Future<void> appendGpsTrackingLines(List<String> lines) async {
+    if (lines.isEmpty) return;
+    try {
+      final logDir = await _resolveAppLogsDir();
+      final dateString = DateTime.now().toIso8601String().substring(0, 10);
+      final file = File('${logDir.path}/gps_tracking_log_$dateString.jsonl');
+
+      final buffer = StringBuffer();
+      for (final line in lines) {
+        buffer.writeln('${_legacyTimestamp(DateTime.now())} -- $line');
+      }
+      await file.writeAsString(
+        buffer.toString(),
+        mode: FileMode.append,
+        encoding: utf8,
+      );
+    } catch (e) {
+      // Best-effort logging only; never let GPS logging break the capture flow.
     }
   }
 
