@@ -14,10 +14,10 @@ class ImageCompressionHelper {
 
   static Future<Uint8List> compressToTargetSize(
     Uint8List imageBytes, {
-    int targetMinKB = 100,
-    int targetMaxKB = 150,
-    int startQuality = 92,
-    int startDimension = 1600,
+    int targetMinKB = 300,
+    int targetMaxKB = 500,
+    int startQuality = 95,
+    int startDimension = 2000,
     int maxAttempts = 15,
   }) async {
     final int targetMinBytes = targetMinKB * 1024;

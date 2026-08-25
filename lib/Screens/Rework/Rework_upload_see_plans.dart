@@ -592,9 +592,9 @@ class _ReworkUploadSeePlansState extends State<ReworkUploadSeePlans> with Widget
       try {
         pickedFile = await _picker.pickImage(
           source: ImageSource.camera,
-          imageQuality: 90,
-          maxWidth: 1920,
-          maxHeight: 1920,
+          imageQuality: 100,
+          maxWidth: 2048,
+          maxHeight: 1024,
           preferredCameraDevice: CameraDevice.rear,
         ).timeout(
           Duration(seconds: 120),
@@ -1273,8 +1273,8 @@ class _ReworkUploadSeePlansState extends State<ReworkUploadSeePlans> with Widget
 
       final result = await ImageCompressionHelper.compressToTargetSize(
         imageBytes,
-        targetMinKB: 100,
-        targetMaxKB: 150,
+        targetMinKB: 300,
+        targetMaxKB: 400,
       );
 
       String imageName = 'Img_${DateTime.now().toIso8601String().replaceAll(RegExp('[^0-9]'), '')}.jpg';

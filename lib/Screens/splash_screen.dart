@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:android_id/android_id.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
@@ -294,30 +295,26 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     }
   }
   Future<String> _getAndroidId() async {
-    final deviceInfo = DeviceInfoPlugin();
-
     if (Platform.isAndroid) {
-      final androidInfo = await deviceInfo.androidInfo;
-      return androidInfo.id; // Android ID
+      try {
+        const androidIdPlugin = AndroidId();
+        final id = await androidIdPlugin.getId();
+        return id ?? "UNKNOWN_DEVICE";
+      } catch (e) {
+        print('Error getting Android ID: $e');
+        return "UNKNOWN_DEVICE";
+      }
     }
 
     return "UNKNOWN_DEVICE";
   }
 
-
-
   Future<String> _getDeviceInfo() async {
-    DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
-    String deviceInfoValue = '';
-
     if (Platform.isAndroid) {
-      AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
-      deviceInfoValue = androidInfo.id ?? 'Unknown Device Info';
-    } else {
-      deviceInfoValue = 'Unknown Device';
+      return await _getAndroidId();
     }
 
-    return deviceInfoValue;
+    return "UNKNOWN_DEVICE";
   }
 
   @override

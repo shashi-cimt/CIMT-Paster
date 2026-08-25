@@ -570,12 +570,8 @@ class _UploadSeePlanScreenState extends State<UploadSeePlanScreen> with WidgetsB
       XFile? pickedFile;
 
       try {
-        pickedFile = await _picker
-            .pickImage(
+        pickedFile = await _picker.pickImage(
           source: ImageSource.camera,
-          imageQuality: 70,
-          maxWidth: 1024,
-          maxHeight: 1024,
           preferredCameraDevice: CameraDevice.rear,
         )
             .timeout(
@@ -1226,14 +1222,14 @@ class _UploadSeePlanScreenState extends State<UploadSeePlanScreen> with WidgetsB
         final img.Image? decoded = img.decodeImage(imageBytes);
         if (decoded != null) {
           final rotated = img.copyRotate(decoded, angle: turns * 90);
-          imageBytes = Uint8List.fromList(img.encodeJpg(rotated, quality: 95));
+          imageBytes = Uint8List.fromList(img.encodeJpg(rotated, quality: 98));
         }
       }
 
       final result = await ImageCompressionHelper.compressToTargetSize(
         imageBytes,
-        targetMinKB: 100,
-        targetMaxKB: 150,
+        targetMinKB: 300,
+        targetMaxKB: 400,
       );
 
       String imageName =
