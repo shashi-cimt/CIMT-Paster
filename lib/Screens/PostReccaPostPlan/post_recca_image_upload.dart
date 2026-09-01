@@ -2244,10 +2244,13 @@ class _SUUploadSeePlanScreenState extends State<SUUploadSeePlanScreen> with Widg
       await _saveCurrentState();
 
       // ========== OPEN IN-APP CAMERA WITH TIMEOUT ==========
-      String? capturedImagePath;
+      XFile? pickedFile;
 
       try {
-        capturedImagePath = await CameraCaptureScreen.capture(context).timeout(
+        pickedFile = await _picker.pickImage(
+          source: ImageSource.camera,
+          preferredCameraDevice: CameraDevice.rear,
+        ).timeout(
           Duration(seconds: 120),
           onTimeout: () {
             throw TimeoutException('Camera operation timed out');
@@ -2287,9 +2290,9 @@ class _SUUploadSeePlanScreenState extends State<SUUploadSeePlanScreen> with Widg
       }
 
       // Process the captured image
-      if (capturedImagePath != null) {
+      if (pickedFile  != null) {
         try {
-          final file = File(capturedImagePath);
+          final file = File(pickedFile.path);
           if (!await file.exists()) {
             throw Exception('Captured image file not found');
           }
@@ -2301,7 +2304,7 @@ class _SUUploadSeePlanScreenState extends State<SUUploadSeePlanScreen> with Widg
           // reclaiming it (and crashing the app) under low memory before the
           // user ever gets there.
           final String permanentPath = await PersistentCaptureStore.persist(
-            capturedImagePath,
+            pickedFile.path,
             subfolder: 'PostRecca',
           );
 
