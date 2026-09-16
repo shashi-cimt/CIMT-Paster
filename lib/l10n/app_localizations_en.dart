@@ -1156,4 +1156,144 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get longitude => 'Longitude';
+
+  @override
+  String get tutorialTab => 'Tutorial';
+
+  @override
+  String get contactUsTab => 'Contact Us';
+
+  @override
+  String get welcomeCanImage => 'Welcome to Can Image!';
+
+  @override
+  String get learnUseApp => 'Learn how to use the app effectively';
+
+  @override
+  String get watchTutorialVideo => 'Watch Tutorial Video';
+
+  @override
+  String get keyFeatures => 'Key Features';
+
+  @override
+  String get seePlansMaps => 'See Plans & Maps';
+
+  @override
+  String get seePlansMapsDesc =>
+      'View all your assigned plans and navigate to locations easily with integrated maps.';
+
+  @override
+  String get captureImagesTitle => 'Capture Images';
+
+  @override
+  String get captureImagesDesc =>
+      'Take high-quality photos with GPS coordinates and timestamps for accurate documentation.';
+
+  @override
+  String get syncDataTitle => 'Sync Data';
+
+  @override
+  String get syncDataDesc =>
+      'Upload your captured images and data seamlessly when connected to the internet.';
+
+  @override
+  String get trackProgressTitle => 'Track Progress';
+
+  @override
+  String get trackProgressDesc =>
+      'Monitor your work progress and view detailed statistics on the dashboard.';
+
+  @override
+  String get printSyncTitle => 'Print Sync';
+
+  @override
+  String get printSyncDesc =>
+      'Synchronize print data and manage your printing workflow efficiently.';
+
+  @override
+  String get proTipsTitle => 'Pro Tips';
+
+  @override
+  String get tipGps => 'Keep your GPS enabled for accurate location tracking';
+
+  @override
+  String get tipSync => 'Sync your data regularly to avoid data loss';
+
+  @override
+  String get tipPendingSync =>
+      'Check pending sync count before starting new work';
+
+  @override
+  String get tipDashboard => 'Use the dashboard to track your daily progress';
+
+  @override
+  String get haveQuestions => 'Have Questions?';
+
+  @override
+  String get getInTouchTeam => 'Get in touch with our team directly';
+
+  @override
+  String get getInTouch => 'Get in Touch';
+
+  @override
+  String get fillOutForm =>
+      'Fill out the form below and we\'ll get back to you shortly';
+
+  @override
+  String get nameLabel => 'Name *';
+
+  @override
+  String get nameVal => 'Please enter your name';
+
+  @override
+  String get emailLabel => 'Email *';
+
+  @override
+  String get emailVal => 'Please enter your email';
+
+  @override
+  String get emailValidVal => 'Please enter a valid email';
+
+  @override
+  String get whatsappLabel => 'WhatsApp Number *';
+
+  @override
+  String get whatsappVal => 'Please enter your WhatsApp number';
+
+  @override
+  String get whatsappValidVal => 'Please enter a valid phone number';
+
+  @override
+  String get messageLabel => 'Message *';
+
+  @override
+  String get messageVal => 'Please enter your message';
+
+  @override
+  String get messageLenVal => 'Message should be at least 10 characters';
+
+  @override
+  String get submitEnquiry => 'Submit Enquiry';
+
+  @override
+  String get otherWaysToReach => 'Other Ways to Reach Us';
+
+  @override
+  String get emailSupport => 'Email Support';
+
+  @override
+  String get supportNumber => 'Support Number';
+
+  @override
+  String get workingHours => 'Working Hours';
+
+  @override
+  String get workingHoursTime => 'Mon-Fri: 9:00 AM - 6:00 PM';
+
+  @override
+  String get thankYou => 'Thank You!';
+
+  @override
+  String get enquirySubmitted =>
+      'Your enquiry has been submitted successfully. We will get back to you shortly.';
 }

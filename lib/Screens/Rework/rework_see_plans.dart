@@ -510,7 +510,7 @@ class _ReworkScreenState extends ConsumerState<ReworkScreen> {
       child: Scaffold(
         backgroundColor: const Color(0xFFF8FAFC),
         appBar: CommonAppBar(
-          title: "Rework",
+          title: S.of(context).rework,
           onBackPressed: () {
             if (Navigator.canPop(context)) {
               Navigator.pop(context);

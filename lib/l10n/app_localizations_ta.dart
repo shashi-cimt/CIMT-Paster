@@ -1192,4 +1192,148 @@ class AppLocalizationsTa extends AppLocalizations {
 
   @override
   String get longitude => 'தீர்க்கரேகை';
+
+  @override
+  String get tutorialTab => 'பயிற்சி';
+
+  @override
+  String get contactUsTab => 'தொடர்பு கொள்ள';
+
+  @override
+  String get welcomeCanImage => 'Can Image க்கு வரவேற்கிறோம்!';
+
+  @override
+  String get learnUseApp =>
+      'பயன்பாட்டை எவ்வாறு திறம்பட பயன்படுத்துவது என்பதைக் கற்றுக்கொள்ளுங்கள்';
+
+  @override
+  String get watchTutorialVideo => 'பயிற்சி வீடியோவைப் பாருங்கள்';
+
+  @override
+  String get keyFeatures => 'முக்கிய அம்சங்கள்';
+
+  @override
+  String get seePlansMaps => 'திட்டங்கள் & வரைபடங்களைப் பார்க்கவும்';
+
+  @override
+  String get seePlansMapsDesc =>
+      'உங்களுக்கு ஒதுக்கப்பட்ட அனைத்து திட்டங்களையும் பார்த்து ஒருங்கிணைந்த வரைபடங்களுடன் எளிதாக இடங்களுக்குச் செல்லுங்கள்.';
+
+  @override
+  String get captureImagesTitle => 'படங்களை எடுக்கவும்';
+
+  @override
+  String get captureImagesDesc =>
+      'துல்லியமான ஆவணப்படுத்தலுக்காக ஜிபிஎஸ் ஆயத்தொலைவுகள் மற்றும் நேர முத்திரைகளுடன் உயர்தர புகைப்படங்களை எடுக்கவும்.';
+
+  @override
+  String get syncDataTitle => 'தரவை ஒத்திசைக்கவும்';
+
+  @override
+  String get syncDataDesc =>
+      'இணையத்துடன் இணைக்கப்பட்டிருக்கும் போது நீங்கள் எடுத்த படங்கள் மற்றும் தரவை எளிதாக பதிவேற்றவும்.';
+
+  @override
+  String get trackProgressTitle => 'முன்னேற்றத்தைக் கண்காணிக்கவும்';
+
+  @override
+  String get trackProgressDesc =>
+      'உங்கள் பணி முன்னேற்றத்தைக் கண்காணித்து டாஷ்போர்டில் விரிவான புள்ளிவிவரங்களைப் பார்க்கவும்.';
+
+  @override
+  String get printSyncTitle => 'அச்சு ஒத்திசைவு';
+
+  @override
+  String get printSyncDesc =>
+      'அச்சுத் தரவை ஒத்திசைத்து அச்சிடும் பணிப்பாய்வுகளை திறம்பட நிர்வகிக்கவும்.';
+
+  @override
+  String get proTipsTitle => 'முக்கிய குறிப்புகள்';
+
+  @override
+  String get tipGps =>
+      'துல்லியமான இருப்பிடத்தைக் கண்காணிக்க உங்கள் ஜிபிஎஸ்-ஐ இயக்கத்தில் வைக்கவும்';
+
+  @override
+  String get tipSync =>
+      'தரவு இழப்பைத் தவிர்க்க உங்கள் தரவை தவறாமல் ஒத்திசைக்கவும்';
+
+  @override
+  String get tipPendingSync =>
+      'புதிய வேலையைத் தொடங்குவதற்கு முன் நிலுவையில் உள்ள ஒத்திசைவு எண்ணிக்கையைச் சரிபார்க்கவும்';
+
+  @override
+  String get tipDashboard =>
+      'உங்கள் தினசரி முன்னேற்றத்தைக் கண்காணிக்க டாஷ்போர்டைப் பயன்படுத்தவும்';
+
+  @override
+  String get haveQuestions => 'கேள்விகள் உள்ளதா?';
+
+  @override
+  String get getInTouchTeam => 'எங்கள் குழுவை நேரடியாகத் தொடர்பு கொள்ளவும்';
+
+  @override
+  String get getInTouch => 'தொடர்பில் இருங்கள்';
+
+  @override
+  String get fillOutForm =>
+      'கீழே உள்ள படிவத்தை நிரப்பவும், நாங்கள் விரைவில் உங்களைத் தொடர்புகொள்வோம்';
+
+  @override
+  String get nameLabel => 'பெயர் *';
+
+  @override
+  String get nameVal => 'தயவுசெய்து உங்கள் பெயரை உள்ளிடவும்';
+
+  @override
+  String get emailLabel => 'மின்னஞ்சல் *';
+
+  @override
+  String get emailVal => 'தயவுசெய்து உங்கள் மின்னஞ்சலை உள்ளிடவும்';
+
+  @override
+  String get emailValidVal => 'தயவுசெய்து சரியான மின்னஞ்சலை உள்ளிடவும்';
+
+  @override
+  String get whatsappLabel => 'வாட்ஸ்அப் எண் *';
+
+  @override
+  String get whatsappVal => 'தயவுசெய்து உங்கள் வாட்ஸ்அப் எண்ணை உள்ளிடவும்';
+
+  @override
+  String get whatsappValidVal => 'தயவுசெய்து சரியான தொலைபேசி எண்ணை உள்ளிடவும்';
+
+  @override
+  String get messageLabel => 'செய்தி *';
+
+  @override
+  String get messageVal => 'தயவுசெய்து உங்கள் செய்தியை உள்ளிடவும்';
+
+  @override
+  String get messageLenVal => 'செய்தி குறைந்தது 10 எழுத்துகள் இருக்க வேண்டும்';
+
+  @override
+  String get submitEnquiry => 'விசாரணையைச் சமர்ப்பிக்கவும்';
+
+  @override
+  String get otherWaysToReach => 'எங்களை அணுக பிற வழிகள்';
+
+  @override
+  String get emailSupport => 'மின்னஞ்சல் ஆதரவு';
+
+  @override
+  String get supportNumber => 'ஆதரவு எண்';
+
+  @override
+  String get workingHours => 'வேலை நேரம்';
+
+  @override
+  String get workingHoursTime => 'திங்கள்-வெள்ளி: காலை 9:00 - மாலை 6:00';
+
+  @override
+  String get thankYou => 'நன்றி!';
+
+  @override
+  String get enquirySubmitted =>
+      'உங்கள் விசாரணை வெற்றிகரமாக சமர்ப்பிக்கப்பட்டது. நாங்கள் விரைவில் உங்களைத் தொடர்புகொள்வோம்.';
 }

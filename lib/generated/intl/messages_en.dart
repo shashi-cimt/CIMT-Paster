@@ -214,6 +214,7 @@ class MessageLookup extends MessageLookupByLibrary {
         "lat": MessageLookupByLibrary.simpleMessage("Lat"),
         "latest": MessageLookupByLibrary.simpleMessage("Latest"),
         "latestMessage": MessageLookupByLibrary.simpleMessage("You have"),
+        "latitude": MessageLookupByLibrary.simpleMessage("Latitude"),
         "letsSignIn": MessageLookupByLibrary.simpleMessage("Sign In"),
         "lng": MessageLookupByLibrary.simpleMessage("Lng"),
         "loading": MessageLookupByLibrary.simpleMessage("Loading..."),
@@ -257,6 +258,7 @@ class MessageLookup extends MessageLookupByLibrary {
             MessageLookupByLibrary.simpleMessage("Logs exported on"),
         "logsSharedSuccessfully":
             MessageLookupByLibrary.simpleMessage("Logs shared successfully"),
+        "longitude": MessageLookupByLibrary.simpleMessage("Longitude"),
         "lookAutoRotateOrientation": MessageLookupByLibrary.simpleMessage(
             "Look for the Auto-rotate or rotation lock icon or lock orientation"),
         "lowAccuracy":
@@ -276,6 +278,8 @@ class MessageLookup extends MessageLookupByLibrary {
             MessageLookupByLibrary.simpleMessage("Move closer to the location"),
         "moveWindows":
             MessageLookupByLibrary.simpleMessage("Move closer to windows"),
+        "moveWithin100mToUnlockNext": MessageLookupByLibrary.simpleMessage(
+            "Move within 100m to unlock Next"),
         "nearView": MessageLookupByLibrary.simpleMessage("Near View"),
         "networkerror": MessageLookupByLibrary.simpleMessage(
             "Network error: Please check your internet connection and try again."),
@@ -366,6 +370,8 @@ class MessageLookup extends MessageLookupByLibrary {
             "Please sync all pending plans before reloading."),
         "pleaseUploadAllImages":
             MessageLookupByLibrary.simpleMessage("Please upload all 2 images"),
+        "pointerCoordinates":
+            MessageLookupByLibrary.simpleMessage("Pointer Coordinates"),
         "print": MessageLookupByLibrary.simpleMessage("Print"),
         "printDetails": MessageLookupByLibrary.simpleMessage("Print Details"),
         "printID": MessageLookupByLibrary.simpleMessage("Print ID."),
@@ -505,6 +511,8 @@ class MessageLookup extends MessageLookupByLibrary {
             MessageLookupByLibrary.simpleMessage("Tap on map to set location"),
         "tapOpenSettings":
             MessageLookupByLibrary.simpleMessage("Tap Open Settings below"),
+        "tapToViewLocationDetails": MessageLookupByLibrary.simpleMessage(
+            "Tap to view location details"),
         "tehsil": MessageLookupByLibrary.simpleMessage("Tehsil"),
         "time": MessageLookupByLibrary.simpleMessage("Time"),
         "total": MessageLookupByLibrary.simpleMessage("Total"),
@@ -579,10 +587,14 @@ class MessageLookup extends MessageLookupByLibrary {
         "width": MessageLookupByLibrary.simpleMessage("Width"),
         "willRefreshAllPlans": MessageLookupByLibrary.simpleMessage(
             "This will refresh all plans and fetch remarks data."),
+        "withinAllowedRange": MessageLookupByLibrary.simpleMessage(
+            "You are within allowed range"),
         "yesDashboard": MessageLookupByLibrary.simpleMessage("Yes"),
         "youMetersImageCapturesubmit": MessageLookupByLibrary.simpleMessage(
             "You must be within 100 meters of the image capture location to submit."),
         "youhave": MessageLookupByLibrary.simpleMessage("You have"),
+        "yourCoordinates":
+            MessageLookupByLibrary.simpleMessage("Your Coordinates"),
         "zip": MessageLookupByLibrary.simpleMessage("ZIP")
       };
 }

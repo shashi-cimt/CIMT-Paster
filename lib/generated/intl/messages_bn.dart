@@ -84,7 +84,7 @@ class MessageLookup extends MessageLookupByLibrary {
         "continueAnyway": MessageLookupByLibrary.simpleMessage(
             "এটা সত্ত্বেও চালিয়ে যান অথবা অবস্থান উন্নত করুন?"),
         "continueBtn": MessageLookupByLibrary.simpleMessage("চালিয়ে যান"),
-        "coordinates": MessageLookupByLibrary.simpleMessage("সহনির্দেশ"),
+        "coordinates": MessageLookupByLibrary.simpleMessage("স্থানাঙ্ক"),
         "copyRights": MessageLookupByLibrary.simpleMessage(
             "@সর্বস্বত্ব সংরক্ষিত CanMediaTech 2017"),
         "creatingZIPFile":
@@ -217,6 +217,7 @@ class MessageLookup extends MessageLookupByLibrary {
         "lat": MessageLookupByLibrary.simpleMessage("অক্ষাংশ"),
         "latest": MessageLookupByLibrary.simpleMessage("সর্বশেষ"),
         "latestMessage": MessageLookupByLibrary.simpleMessage("আপনার কাছে"),
+        "latitude": MessageLookupByLibrary.simpleMessage("অক্ষাংশ"),
         "letsSignIn": MessageLookupByLibrary.simpleMessage("সাইন ইন করুন"),
         "lng": MessageLookupByLibrary.simpleMessage("দ্রাঘিমাংশ"),
         "loading": MessageLookupByLibrary.simpleMessage("লোড হচ্ছে..."),
@@ -260,6 +261,7 @@ class MessageLookup extends MessageLookupByLibrary {
             MessageLookupByLibrary.simpleMessage("লগগুলি এক্সপোর্ট হয়েছে"),
         "logsSharedSuccessfully": MessageLookupByLibrary.simpleMessage(
             "লগগুলি সফলভাবে শেয়ার করা হয়েছে"),
+        "longitude": MessageLookupByLibrary.simpleMessage("দ্রাঘিমাংশ"),
         "lookAutoRotateOrientation": MessageLookupByLibrary.simpleMessage(
             "অটো-রোটেট বা রোটেশন লক আইকন বা লক অরিয়েন্টেশন অনুসন্ধান করুন"),
         "lowAccuracy":
@@ -278,6 +280,8 @@ class MessageLookup extends MessageLookupByLibrary {
         "moveCloser":
             MessageLookupByLibrary.simpleMessage("অবস্থানের কাছে যান"),
         "moveWindows": MessageLookupByLibrary.simpleMessage("জানালার কাছে যান"),
+        "moveWithin100mToUnlockNext": MessageLookupByLibrary.simpleMessage(
+            "পরবর্তী ধাপ চালু করতে ১০০ মিটারের মধ্যে যান"),
         "nearView": MessageLookupByLibrary.simpleMessage("নিকট দৃশ্য"),
         "networkerror": MessageLookupByLibrary.simpleMessage(
             "নেটওয়ার্ক ত্রুটি: দয়া করে আপনার ইন্টারনেট সংযোগটি চেক করুন এবং আবার চেষ্টা করুন।"),
@@ -367,6 +371,8 @@ class MessageLookup extends MessageLookupByLibrary {
             "অনুগ্রহ করে সমস্ত মুলতুবি পরিকল্পনা সিঙ্ক করুন পুনরায় লোড করার আগে।"),
         "pleaseUploadAllImages": MessageLookupByLibrary.simpleMessage(
             "অনুগ্রহ করে সব 2 ছবি আপলোড করুন"),
+        "pointerCoordinates":
+            MessageLookupByLibrary.simpleMessage("পয়েন্টার স্থানাঙ্ক"),
         "print": MessageLookupByLibrary.simpleMessage("প্রিন্ট"),
         "printDetails":
             MessageLookupByLibrary.simpleMessage("প্রিন্ট বিস্তারিত"),
@@ -514,6 +520,8 @@ class MessageLookup extends MessageLookupByLibrary {
             "অবস্থান সেট করতে মানচিত্রে ট্যাপ করুন"),
         "tapOpenSettings": MessageLookupByLibrary.simpleMessage(
             "নিচে \'সেটিংস খুলুন\' ট্যাপ করুন"),
+        "tapToViewLocationDetails": MessageLookupByLibrary.simpleMessage(
+            "অবস্থানের বিস্তারিত দেখতে ট্যাপ করুন"),
         "tehsil": MessageLookupByLibrary.simpleMessage("তহসিল"),
         "time": MessageLookupByLibrary.simpleMessage("সময়"),
         "total": MessageLookupByLibrary.simpleMessage("মোট"),
@@ -589,10 +597,14 @@ class MessageLookup extends MessageLookupByLibrary {
         "width": MessageLookupByLibrary.simpleMessage("প্রস্থ"),
         "willRefreshAllPlans": MessageLookupByLibrary.simpleMessage(
             "এটি সমস্ত পরিকল্পনা রিফ্রেশ করবে এবং মন্তব্য ডেটা আনবে।"),
+        "withinAllowedRange": MessageLookupByLibrary.simpleMessage(
+            "আপনি অনুমোদিত সীমার মধ্যে আছেন"),
         "yesDashboard": MessageLookupByLibrary.simpleMessage("হ্যাঁ"),
         "youMetersImageCapturesubmit": MessageLookupByLibrary.simpleMessage(
             "আপনাকে ছবি ধারণের অবস্থান থেকে 100 মিটারের মধ্যে থাকতে হবে জমা দেওয়ার জন্য।"),
         "youhave": MessageLookupByLibrary.simpleMessage("আপনার কাছে রয়েছে"),
+        "yourCoordinates":
+            MessageLookupByLibrary.simpleMessage("আপনার স্থানাঙ্ক"),
         "zip": MessageLookupByLibrary.simpleMessage("ZIP")
       };
 }

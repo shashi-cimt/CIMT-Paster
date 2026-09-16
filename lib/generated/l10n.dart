@@ -573,8 +573,8 @@ class S {
   /// `Pastor`
   String get pastor {
     return Intl.message(
-      'Paster',
-      name: 'paster',
+      'Pastor',
+      name: 'pastor',
       desc: '',
       args: [],
     );
@@ -3590,17 +3590,6 @@ class S {
     );
   }
 
-  String get withinAllowedRange {
-    return Intl.message(
-      'You are within allowed range',
-      name: 'withinAllowedRange',
-      desc: '',
-      args: [],
-    );
-  }
-
-
-
   /// `Rework`
   String get rework {
     return Intl.message(
@@ -3611,53 +3600,17 @@ class S {
     );
   }
 
-
-  String get tapToViewLocationDetails {
+  /// `You are within allowed range`
+  String get withinAllowedRange {
     return Intl.message(
-      'Tap to view location details',
-      name: 'tapToViewLocationDetails',
+      'You are within allowed range',
+      name: 'withinAllowedRange',
       desc: '',
       args: [],
     );
   }
 
-  String get pointerCoordinates {
-    return Intl.message(
-      'Pointer Coordinates',
-      name: 'pointerCoordinates',
-      desc: '',
-      args: [],
-    );
-  }
-
-  String get yourCoordinates {
-    return Intl.message(
-      'Your Coordinates',
-      name: 'yourCoordinates',
-      desc: '',
-      args: [],
-    );
-  }
-
-  String get latitude {
-    return Intl.message(
-      'Latitude',
-      name: 'latitude',
-      desc: '',
-      args: [],
-    );
-  }
-
-  String get longitude {
-    return Intl.message(
-      'Longitude',
-      name: 'longitude',
-      desc: '',
-      args: [],
-    );
-  }
-
-
+  /// `Move within 100m to unlock Next`
   String get moveWithin100mToUnlockNext {
     return Intl.message(
       'Move within 100m to unlock Next',
@@ -3682,6 +3635,56 @@ class S {
     return Intl.message(
       '360 View',
       name: 'view360',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Tap to view location details`
+  String get tapToViewLocationDetails {
+    return Intl.message(
+      'Tap to view location details',
+      name: 'tapToViewLocationDetails',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Pointer Coordinates`
+  String get pointerCoordinates {
+    return Intl.message(
+      'Pointer Coordinates',
+      name: 'pointerCoordinates',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Your Coordinates`
+  String get yourCoordinates {
+    return Intl.message(
+      'Your Coordinates',
+      name: 'yourCoordinates',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Latitude`
+  String get latitude {
+    return Intl.message(
+      'Latitude',
+      name: 'latitude',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Longitude`
+  String get longitude {
+    return Intl.message(
+      'Longitude',
+      name: 'longitude',
       desc: '',
       args: [],
     );

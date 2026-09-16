@@ -82,7 +82,7 @@ class MessageLookup extends MessageLookupByLibrary {
         "continueAnyway": MessageLookupByLibrary.simpleMessage(
             "कृपया तसेच पुढे जाऊन स्थान सुधारावे?"),
         "continueBtn": MessageLookupByLibrary.simpleMessage("सुरू ठेवा"),
-        "coordinates": MessageLookupByLibrary.simpleMessage("सहनिर्देश"),
+        "coordinates": MessageLookupByLibrary.simpleMessage("निर्देशांक"),
         "copyRights": MessageLookupByLibrary.simpleMessage(
             "@सर्व हक्क राखीव CanMediaTech 2017"),
         "creatingZIPFile":
@@ -214,6 +214,7 @@ class MessageLookup extends MessageLookupByLibrary {
         "lat": MessageLookupByLibrary.simpleMessage("अक्षांश"),
         "latest": MessageLookupByLibrary.simpleMessage("नवीनतम"),
         "latestMessage": MessageLookupByLibrary.simpleMessage("आपल्याकडे"),
+        "latitude": MessageLookupByLibrary.simpleMessage("अक्षांश"),
         "letsSignIn": MessageLookupByLibrary.simpleMessage("साइन इन करा"),
         "lng": MessageLookupByLibrary.simpleMessage("देशांतर"),
         "loading": MessageLookupByLibrary.simpleMessage("लोड होत आहे..."),
@@ -257,6 +258,7 @@ class MessageLookup extends MessageLookupByLibrary {
             MessageLookupByLibrary.simpleMessage("लॉग्स निर्यात केले"),
         "logsSharedSuccessfully": MessageLookupByLibrary.simpleMessage(
             "लॉग्स यशस्वीरित्या शेअर केले"),
+        "longitude": MessageLookupByLibrary.simpleMessage("रेखांश"),
         "lookAutoRotateOrientation": MessageLookupByLibrary.simpleMessage(
             "\"Auto-rotate\" किंवा रोटेशन लॉक चिन्ह शोधा"),
         "lowAccuracy":
@@ -274,6 +276,8 @@ class MessageLookup extends MessageLookupByLibrary {
             MessageLookupByLibrary.simpleMessage("चयनित स्थानापासून मीटर दूर"),
         "moveCloser": MessageLookupByLibrary.simpleMessage("स्थानाजवळ जा"),
         "moveWindows": MessageLookupByLibrary.simpleMessage("विंडोजजवळ जा"),
+        "moveWithin100mToUnlockNext": MessageLookupByLibrary.simpleMessage(
+            "पुढील पर्याय सुरू करण्यासाठी 100 मीटरच्या आत या"),
         "nearView": MessageLookupByLibrary.simpleMessage("निकट दृश्य"),
         "networkerror": MessageLookupByLibrary.simpleMessage(
             "नेटवर्क त्रुटी: कृपया तुमचे इंटरनेट कनेक्शन तपासा आणि पुन्हा प्रयत्न करा."),
@@ -363,6 +367,8 @@ class MessageLookup extends MessageLookupByLibrary {
             "कृपया रीलोड करण्यापूर्वी सर्व लंबित योजनांना सिंक करा."),
         "pleaseUploadAllImages": MessageLookupByLibrary.simpleMessage(
             "कृपया सर्व 2 छब्या अपलोड करा"),
+        "pointerCoordinates":
+            MessageLookupByLibrary.simpleMessage("पॉइंटर निर्देशांक"),
         "print": MessageLookupByLibrary.simpleMessage("प्रिंट"),
         "printDetails": MessageLookupByLibrary.simpleMessage("प्रिंट तपशील"),
         "printID": MessageLookupByLibrary.simpleMessage("प्रिंट आयडी."),
@@ -502,6 +508,8 @@ class MessageLookup extends MessageLookupByLibrary {
             "स्थान सेट करण्यासाठी नकाशावर टॅप करा"),
         "tapOpenSettings": MessageLookupByLibrary.simpleMessage(
             "खाली \'Open Settings\' वर टॅप करा"),
+        "tapToViewLocationDetails": MessageLookupByLibrary.simpleMessage(
+            "स्थानाचे तपशील पाहण्यासाठी टॅप करा"),
         "tehsil": MessageLookupByLibrary.simpleMessage("तहसील"),
         "time": MessageLookupByLibrary.simpleMessage("वेळ"),
         "total": MessageLookupByLibrary.simpleMessage("एकूण"),
@@ -578,10 +586,14 @@ class MessageLookup extends MessageLookupByLibrary {
         "width": MessageLookupByLibrary.simpleMessage("रुंदी"),
         "willRefreshAllPlans": MessageLookupByLibrary.simpleMessage(
             "हे सर्व योजनांना ताजं करेल आणि टिप्पण्या डेटा आणेल."),
+        "withinAllowedRange": MessageLookupByLibrary.simpleMessage(
+            "तुम्ही परवानगी असलेल्या मर्यादेत आहात"),
         "yesDashboard": MessageLookupByLibrary.simpleMessage("होय"),
         "youMetersImageCapturesubmit": MessageLookupByLibrary.simpleMessage(
             "तुम्हाला छबी घेतलेल्या स्थानापासून 100 मीटरच्या आत असावे लागेल."),
         "youhave": MessageLookupByLibrary.simpleMessage("तुमच्याकडे"),
+        "yourCoordinates":
+            MessageLookupByLibrary.simpleMessage("तुमचे निर्देशांक"),
         "zip": MessageLookupByLibrary.simpleMessage("ZIP")
       };
 }

@@ -2289,6 +2289,270 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Longitude'**
   String get longitude;
+
+  /// No description provided for @tutorialTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Tutorial'**
+  String get tutorialTab;
+
+  /// No description provided for @contactUsTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Contact Us'**
+  String get contactUsTab;
+
+  /// No description provided for @welcomeCanImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Welcome to Can Image!'**
+  String get welcomeCanImage;
+
+  /// No description provided for @learnUseApp.
+  ///
+  /// In en, this message translates to:
+  /// **'Learn how to use the app effectively'**
+  String get learnUseApp;
+
+  /// No description provided for @watchTutorialVideo.
+  ///
+  /// In en, this message translates to:
+  /// **'Watch Tutorial Video'**
+  String get watchTutorialVideo;
+
+  /// No description provided for @keyFeatures.
+  ///
+  /// In en, this message translates to:
+  /// **'Key Features'**
+  String get keyFeatures;
+
+  /// No description provided for @seePlansMaps.
+  ///
+  /// In en, this message translates to:
+  /// **'See Plans & Maps'**
+  String get seePlansMaps;
+
+  /// No description provided for @seePlansMapsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'View all your assigned plans and navigate to locations easily with integrated maps.'**
+  String get seePlansMapsDesc;
+
+  /// No description provided for @captureImagesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Capture Images'**
+  String get captureImagesTitle;
+
+  /// No description provided for @captureImagesDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Take high-quality photos with GPS coordinates and timestamps for accurate documentation.'**
+  String get captureImagesDesc;
+
+  /// No description provided for @syncDataTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync Data'**
+  String get syncDataTitle;
+
+  /// No description provided for @syncDataDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload your captured images and data seamlessly when connected to the internet.'**
+  String get syncDataDesc;
+
+  /// No description provided for @trackProgressTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Track Progress'**
+  String get trackProgressTitle;
+
+  /// No description provided for @trackProgressDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Monitor your work progress and view detailed statistics on the dashboard.'**
+  String get trackProgressDesc;
+
+  /// No description provided for @printSyncTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Print Sync'**
+  String get printSyncTitle;
+
+  /// No description provided for @printSyncDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Synchronize print data and manage your printing workflow efficiently.'**
+  String get printSyncDesc;
+
+  /// No description provided for @proTipsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pro Tips'**
+  String get proTipsTitle;
+
+  /// No description provided for @tipGps.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep your GPS enabled for accurate location tracking'**
+  String get tipGps;
+
+  /// No description provided for @tipSync.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync your data regularly to avoid data loss'**
+  String get tipSync;
+
+  /// No description provided for @tipPendingSync.
+  ///
+  /// In en, this message translates to:
+  /// **'Check pending sync count before starting new work'**
+  String get tipPendingSync;
+
+  /// No description provided for @tipDashboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Use the dashboard to track your daily progress'**
+  String get tipDashboard;
+
+  /// No description provided for @haveQuestions.
+  ///
+  /// In en, this message translates to:
+  /// **'Have Questions?'**
+  String get haveQuestions;
+
+  /// No description provided for @getInTouchTeam.
+  ///
+  /// In en, this message translates to:
+  /// **'Get in touch with our team directly'**
+  String get getInTouchTeam;
+
+  /// No description provided for @getInTouch.
+  ///
+  /// In en, this message translates to:
+  /// **'Get in Touch'**
+  String get getInTouch;
+
+  /// No description provided for @fillOutForm.
+  ///
+  /// In en, this message translates to:
+  /// **'Fill out the form below and we\'ll get back to you shortly'**
+  String get fillOutForm;
+
+  /// No description provided for @nameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Name *'**
+  String get nameLabel;
+
+  /// No description provided for @nameVal.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter your name'**
+  String get nameVal;
+
+  /// No description provided for @emailLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Email *'**
+  String get emailLabel;
+
+  /// No description provided for @emailVal.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter your email'**
+  String get emailVal;
+
+  /// No description provided for @emailValidVal.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter a valid email'**
+  String get emailValidVal;
+
+  /// No description provided for @whatsappLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'WhatsApp Number *'**
+  String get whatsappLabel;
+
+  /// No description provided for @whatsappVal.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter your WhatsApp number'**
+  String get whatsappVal;
+
+  /// No description provided for @whatsappValidVal.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter a valid phone number'**
+  String get whatsappValidVal;
+
+  /// No description provided for @messageLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Message *'**
+  String get messageLabel;
+
+  /// No description provided for @messageVal.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter your message'**
+  String get messageVal;
+
+  /// No description provided for @messageLenVal.
+  ///
+  /// In en, this message translates to:
+  /// **'Message should be at least 10 characters'**
+  String get messageLenVal;
+
+  /// No description provided for @submitEnquiry.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit Enquiry'**
+  String get submitEnquiry;
+
+  /// No description provided for @otherWaysToReach.
+  ///
+  /// In en, this message translates to:
+  /// **'Other Ways to Reach Us'**
+  String get otherWaysToReach;
+
+  /// No description provided for @emailSupport.
+  ///
+  /// In en, this message translates to:
+  /// **'Email Support'**
+  String get emailSupport;
+
+  /// No description provided for @supportNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Support Number'**
+  String get supportNumber;
+
+  /// No description provided for @workingHours.
+  ///
+  /// In en, this message translates to:
+  /// **'Working Hours'**
+  String get workingHours;
+
+  /// No description provided for @workingHoursTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Mon-Fri: 9:00 AM - 6:00 PM'**
+  String get workingHoursTime;
+
+  /// No description provided for @thankYou.
+  ///
+  /// In en, this message translates to:
+  /// **'Thank You!'**
+  String get thankYou;
+
+  /// No description provided for @enquirySubmitted.
+  ///
+  /// In en, this message translates to:
+  /// **'Your enquiry has been submitted successfully. We will get back to you shortly.'**
+  String get enquirySubmitted;
 }
 
 class _AppLocalizationsDelegate

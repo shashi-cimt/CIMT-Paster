@@ -1165,4 +1165,145 @@ class AppLocalizationsMr extends AppLocalizations {
 
   @override
   String get longitude => 'रेखांश';
+
+  @override
+  String get tutorialTab => 'ट्यूटोरियल';
+
+  @override
+  String get contactUsTab => 'संपर्क साधा';
+
+  @override
+  String get welcomeCanImage => 'Can Image मध्ये आपले स्वागत आहे!';
+
+  @override
+  String get learnUseApp => 'अॅप प्रभावीपणे कसे वापरावे ते शिका';
+
+  @override
+  String get watchTutorialVideo => 'ट्यूटोरियल व्हिडिओ पहा';
+
+  @override
+  String get keyFeatures => 'महत्त्वाची वैशिष्ट्ये';
+
+  @override
+  String get seePlansMaps => 'योजना आणि नकाशे पहा';
+
+  @override
+  String get seePlansMapsDesc =>
+      'आपल्या सर्व नियुक्त योजना पहा आणि एकात्मिक नकाशांसह सहजपणे ठिकाणी नेव्हिगेट करा.';
+
+  @override
+  String get captureImagesTitle => 'फोटो काढा';
+
+  @override
+  String get captureImagesDesc =>
+      'अचूक दस्तऐवजीकरणासाठी GPS निर्देशक आणि टाइमस्टॅम्पसह उच्च दर्जाचे फोटो घ्या.';
+
+  @override
+  String get syncDataTitle => 'डेटा सिंक करा';
+
+  @override
+  String get syncDataDesc =>
+      'इंटरनेट कनेक्ट झाल्यावर तुमचे काढलेले फोटो आणि डेटा सहज अपलोड करा.';
+
+  @override
+  String get trackProgressTitle => 'प्रगती ट्रॅक करा';
+
+  @override
+  String get trackProgressDesc =>
+      'आपल्या कामाच्या प्रगतीचे निरीक्षण करा आणि डॅशबोर्डवर तपशीलवार आकडेवारी पहा.';
+
+  @override
+  String get printSyncTitle => 'प्रिंट सिंक';
+
+  @override
+  String get printSyncDesc =>
+      'प्रिंट डेटा सिंक करा आणि तुमचा प्रिंटिंग वर्कफ्लो कार्यक्षमतेने व्यवस्थापित करा.';
+
+  @override
+  String get proTipsTitle => 'महत्त्वाच्या टिप्स';
+
+  @override
+  String get tipGps => 'अचूक स्थान ट्रॅकिंगसाठी तुमचे GPS सुरू ठेवा';
+
+  @override
+  String get tipSync => 'डेटा गमावणे टाळण्यासाठी तुमचा डेटा नियमितपणे सिंक करा';
+
+  @override
+  String get tipPendingSync =>
+      'नवीन काम सुरू करण्यापूर्वी प्रलंबित सिंक संख्या तपासा';
+
+  @override
+  String get tipDashboard =>
+      'तुमच्या दैनंदिन प्रगतीचा मागोवा घेण्यासाठी डॅशबोर्ड वापरा';
+
+  @override
+  String get haveQuestions => 'काही प्रश्न आहेत?';
+
+  @override
+  String get getInTouchTeam => 'थेट आमच्या टीमशी संपर्क साधा';
+
+  @override
+  String get getInTouch => 'संपर्कात रहा';
+
+  @override
+  String get fillOutForm =>
+      'खालील फॉर्म भरा आणि आम्ही लवकरच आपल्याशी संपर्क साधू';
+
+  @override
+  String get nameLabel => 'नाव *';
+
+  @override
+  String get nameVal => 'कृपया आपले नाव प्रविष्ट करा';
+
+  @override
+  String get emailLabel => 'ईमेल *';
+
+  @override
+  String get emailVal => 'कृपया आपला ईमेल प्रविष्ट करा';
+
+  @override
+  String get emailValidVal => 'कृपया वैध ईमेल प्रविष्ट करा';
+
+  @override
+  String get whatsappLabel => 'व्हॉट्सअॅप नंबर *';
+
+  @override
+  String get whatsappVal => 'कृपया आपला व्हॉट्सअॅप नंबर प्रविष्ट करा';
+
+  @override
+  String get whatsappValidVal => 'कृपया वैध फोन नंबर प्रविष्ट करा';
+
+  @override
+  String get messageLabel => 'संदेश *';
+
+  @override
+  String get messageVal => 'कृपया आपला संदेश प्रविष्ट करा';
+
+  @override
+  String get messageLenVal => 'संदेश किमान 10 वर्णांचा असावा';
+
+  @override
+  String get submitEnquiry => 'चौकशी सबमिट करा';
+
+  @override
+  String get otherWaysToReach => 'आमच्याशी संपर्क साधण्याचे इतर मार्ग';
+
+  @override
+  String get emailSupport => 'ईमेल सपोर्ट';
+
+  @override
+  String get supportNumber => 'सपोर्ट नंबर';
+
+  @override
+  String get workingHours => 'कामाचे तास';
+
+  @override
+  String get workingHoursTime => 'सोम-शुक्र: सकाळी 9:00 - संध्याकाळी 6:00';
+
+  @override
+  String get thankYou => 'धन्यवाद!';
+
+  @override
+  String get enquirySubmitted =>
+      'तुमची चौकशी यशस्वीरित्या सबमिट झाली आहे. आम्ही लवकरच तुमच्याशी संपर्क साधू.';
 }

@@ -114,12 +114,15 @@ class _LandingScreenState extends ConsumerState<LandingScreen>
   }
 
   Future<void> _loadAppInfo() async {
-    final packageInfo = await PackageInfo.fromPlatform();
-
-    setState(() {
-      appVersion = packageInfo.version;
-      buildNumber = packageInfo.buildNumber;
-    });
+    try {
+      final packageInfo = await PackageInfo.fromPlatform();
+      if (mounted) {
+        setState(() {
+          appVersion = packageInfo.version;
+          buildNumber = packageInfo.buildNumber;
+        });
+      }
+    } catch (_) {}
   }
 
   @override
@@ -612,7 +615,7 @@ class _LandingScreenState extends ConsumerState<LandingScreen>
                         icon: Icons.info_outline_rounded,
                         iconColor: const Color(0xFF2563EB),
                         title: S.of(context).appVersion,
-                        value: "$appVersion ($buildNumber)",
+                        value: appVersion.isNotEmpty ? appVersion : '...',
                       ),
                       const SizedBox(height: 12),
                       _buildInfoCard(
@@ -1416,9 +1419,7 @@ Note: Keep the password secure and do not share publicly.
                     future: _getLogFiles(),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(
-                          child: CanImageSpinner(size: 28),
-                        );
+                        return const Center(child: CanImageSpinner(size: 28));
                       }
                       if (snapshot.hasError ||
                           !snapshot.hasData ||
@@ -2243,8 +2244,10 @@ Note: Keep the password secure and do not share publicly.
           ),
           SizedBox(height: 8),
           Text(
-            S.of(context).version,
-            style: TextStyle(
+            appVersion.isNotEmpty
+                ? '${S.of(context).appVersion} $appVersion'
+                : S.of(context).appVersion,
+            style: const TextStyle(
               color: Colors.black,
               fontSize: 10,
               fontWeight: FontWeight.w500,

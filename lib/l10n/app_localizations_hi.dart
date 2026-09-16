@@ -1167,4 +1167,146 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get longitude => 'देशांतर';
+
+  @override
+  String get tutorialTab => 'ट्यूटोरियल';
+
+  @override
+  String get contactUsTab => 'संपर्क करें';
+
+  @override
+  String get welcomeCanImage => 'Can Image में आपका स्वागत है!';
+
+  @override
+  String get learnUseApp => 'ऐप का प्रभावी ढंग से उपयोग करना सीखें';
+
+  @override
+  String get watchTutorialVideo => 'ट्यूटोरियल वीडियो देखें';
+
+  @override
+  String get keyFeatures => 'मुख्य विशेषताएं';
+
+  @override
+  String get seePlansMaps => 'योजनाएं और मानचित्र देखें';
+
+  @override
+  String get seePlansMapsDesc =>
+      'अपनी सभी सौंपी गई योजनाएं देखें और एकीकृत मानचित्रों के साथ आसानी से स्थानों पर नेविगेट करें।';
+
+  @override
+  String get captureImagesTitle => 'तस्वीरें लें';
+
+  @override
+  String get captureImagesDesc =>
+      'सटीक दस्तावेजीकरण के लिए जीपीएस निर्देशांक और टाइमस्टैम्प के साथ उच्च गुणवत्ता वाले फोटो लें।';
+
+  @override
+  String get syncDataTitle => 'डेटा सिंक करें';
+
+  @override
+  String get syncDataDesc =>
+      'इंटरनेट से कनेक्ट होने पर अपनी ली गई तस्वीरों और डेटा को निर्बाध रूप से अपलोड करें।';
+
+  @override
+  String get trackProgressTitle => 'प्रगति ट्रैक करें';
+
+  @override
+  String get trackProgressDesc =>
+      'अपने कार्य की प्रगति पर नज़र रखें और डैशबोर्ड पर विस्तृत आंकड़े देखें।';
+
+  @override
+  String get printSyncTitle => 'प्रिंट सिंक';
+
+  @override
+  String get printSyncDesc =>
+      'प्रिंट डेटा सिंक करें और अपने प्रिंटिंग वर्कफ़्लो को कुशलतापूर्वक प्रबंधित करें।';
+
+  @override
+  String get proTipsTitle => 'महत्वपूर्ण सुझाव';
+
+  @override
+  String get tipGps => 'सटीक स्थान ट्रैकिंग के लिए अपना जीपीएस सक्षम रखें';
+
+  @override
+  String get tipSync =>
+      'डेटा हानि से बचने के लिए नियमित रूप से अपना डेटा सिंक करें';
+
+  @override
+  String get tipPendingSync =>
+      'नया काम शुरू करने से पहले लंबित सिंक संख्या की जांच करें';
+
+  @override
+  String get tipDashboard =>
+      'अपनी दैनिक प्रगति को ट्रैक करने के लिए डैशबोर्ड का उपयोग करें';
+
+  @override
+  String get haveQuestions => 'कोई प्रश्न हैं?';
+
+  @override
+  String get getInTouchTeam => 'सीधे हमारी टीम से संपर्क करें';
+
+  @override
+  String get getInTouch => 'संपर्क में रहें';
+
+  @override
+  String get fillOutForm =>
+      'नीचे दिया गया फॉर्म भरें और हम शीघ्र ही आपसे संपर्क करेंगे';
+
+  @override
+  String get nameLabel => 'नाम *';
+
+  @override
+  String get nameVal => 'कृपया अपना नाम दर्ज करें';
+
+  @override
+  String get emailLabel => 'ईमेल *';
+
+  @override
+  String get emailVal => 'कृपया अपना ईमेल दर्ज करें';
+
+  @override
+  String get emailValidVal => 'कृपया एक मान्य ईमेल दर्ज करें';
+
+  @override
+  String get whatsappLabel => 'व्हाट्सएप नंबर *';
+
+  @override
+  String get whatsappVal => 'कृपया अपना व्हाट्सएप नंबर दर्ज करें';
+
+  @override
+  String get whatsappValidVal => 'कृपया एक मान्य फोन नंबर दर्ज करें';
+
+  @override
+  String get messageLabel => 'संदेश *';
+
+  @override
+  String get messageVal => 'कृपया अपना संदेश दर्ज करें';
+
+  @override
+  String get messageLenVal => 'संदेश कम से कम 10 अक्षरों का होना चाहिए';
+
+  @override
+  String get submitEnquiry => 'पूछताछ सबमिट करें';
+
+  @override
+  String get otherWaysToReach => 'हमसे संपर्क करने के अन्य तरीके';
+
+  @override
+  String get emailSupport => 'ईमेल सहायता';
+
+  @override
+  String get supportNumber => 'सपोर्ट नंबर';
+
+  @override
+  String get workingHours => 'काम के घंटे';
+
+  @override
+  String get workingHoursTime => 'सोम-शुक्र: सुबह 9:00 - शाम 6:00';
+
+  @override
+  String get thankYou => 'धन्यवाद!';
+
+  @override
+  String get enquirySubmitted =>
+      'आपकी पूछताछ सफलतापूर्वक सबमिट हो गई है। हम शीघ्र ही आपसे संपर्क करेंगे।';
 }

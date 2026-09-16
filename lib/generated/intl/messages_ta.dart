@@ -86,7 +86,8 @@ class MessageLookup extends MessageLookupByLibrary {
         "continueAnyway": MessageLookupByLibrary.simpleMessage(
             "தயவுசெய்து தொடரவும் அல்லது இடத்தை மேம்படுத்தவும்?"),
         "continueBtn": MessageLookupByLibrary.simpleMessage("தொடருங்கள்"),
-        "coordinates": MessageLookupByLibrary.simpleMessage("கோஆர்டினேட்டுகள்"),
+        "coordinates":
+            MessageLookupByLibrary.simpleMessage("இருப்பிட ஒருங்கிணைப்புகள்"),
         "copyRights": MessageLookupByLibrary.simpleMessage(
             "@எல்லா உரிமைகளும் பாதுகாக்கப்பட்டவை CanMediaTech 2017"),
         "creatingZIPFile":
@@ -220,6 +221,7 @@ class MessageLookup extends MessageLookupByLibrary {
         "lat": MessageLookupByLibrary.simpleMessage("பரப்பு"),
         "latest": MessageLookupByLibrary.simpleMessage("புதிய"),
         "latestMessage": MessageLookupByLibrary.simpleMessage("உங்களிடம்"),
+        "latitude": MessageLookupByLibrary.simpleMessage("அட்சரேகை"),
         "letsSignIn": MessageLookupByLibrary.simpleMessage("சைன் இன்"),
         "lng": MessageLookupByLibrary.simpleMessage("நெளிவு"),
         "loading":
@@ -265,6 +267,7 @@ class MessageLookup extends MessageLookupByLibrary {
             MessageLookupByLibrary.simpleMessage("பதிவுகள் ஏற்றிய தேதி"),
         "logsSharedSuccessfully": MessageLookupByLibrary.simpleMessage(
             "பதிவுகள் வெற்றிகரமாக பகிரப்பட்டன"),
+        "longitude": MessageLookupByLibrary.simpleMessage("தீர்க்கரேகை"),
         "lookAutoRotateOrientation": MessageLookupByLibrary.simpleMessage(
             "\"Auto-rotate\" அல்லது உருளை பூட்டு ஐகான் காணவும்"),
         "lowAccuracy":
@@ -284,6 +287,8 @@ class MessageLookup extends MessageLookupByLibrary {
             "இடத்திற்கு அருகில் செல்லவும்"),
         "moveWindows": MessageLookupByLibrary.simpleMessage(
             "ஜன்னல்களுக்கு அருகில் செல்லவும்"),
+        "moveWithin100mToUnlockNext": MessageLookupByLibrary.simpleMessage(
+            "அடுத்ததைத் திறக்க 100 மீட்டருக்குள் செல்லுங்கள்"),
         "nearView": MessageLookupByLibrary.simpleMessage("சமீபக் காட்சி"),
         "networkerror": MessageLookupByLibrary.simpleMessage(
             "பிணைய பிழை: தயவுசெய்து உங்கள் இணைய இணைப்பை சரிபார்க்கவும் மற்றும் மீண்டும் முயற்சிக்கவும்."),
@@ -374,6 +379,8 @@ class MessageLookup extends MessageLookupByLibrary {
             "மீண்டும் ஏற்றுவதற்கு முன் அனைத்து நிலுவை திட்டங்களையும் சிங்க் செய்யவும்."),
         "pleaseUploadAllImages": MessageLookupByLibrary.simpleMessage(
             "எல்லா 2 படங்களையும் ஏற்றவும்"),
+        "pointerCoordinates":
+            MessageLookupByLibrary.simpleMessage("சுட்டி ஒருங்கிணைப்புகள்"),
         "print": MessageLookupByLibrary.simpleMessage("அச்சிடுக"),
         "printDetails":
             MessageLookupByLibrary.simpleMessage("பிரின்ட் விவரங்கள்"),
@@ -530,6 +537,8 @@ class MessageLookup extends MessageLookupByLibrary {
             "இடத்தை அமைக்க வரைபடத்தில் தொடவும்"),
         "tapOpenSettings": MessageLookupByLibrary.simpleMessage(
             "கீழே \'Open Settings\' ஐத் தொடவும்"),
+        "tapToViewLocationDetails": MessageLookupByLibrary.simpleMessage(
+            "இருப்பிட விவரங்களை காண தட்டவும்"),
         "tehsil": MessageLookupByLibrary.simpleMessage("தஹ்சில்"),
         "time": MessageLookupByLibrary.simpleMessage("நேரம்"),
         "total": MessageLookupByLibrary.simpleMessage("மொத்தம்"),
@@ -611,10 +620,14 @@ class MessageLookup extends MessageLookupByLibrary {
         "width": MessageLookupByLibrary.simpleMessage("அகலம்"),
         "willRefreshAllPlans": MessageLookupByLibrary.simpleMessage(
             "இது அனைத்து திட்டங்களையும் புதுப்பிக்கும் மற்றும் குறிப்புகள் தரவை கொண்டுவரும்."),
+        "withinAllowedRange": MessageLookupByLibrary.simpleMessage(
+            "நீங்கள் அனுமதிக்கப்பட்ட வரம்பிற்குள் உள்ளீர்கள்"),
         "yesDashboard": MessageLookupByLibrary.simpleMessage("ஆம்"),
         "youMetersImageCapturesubmit": MessageLookupByLibrary.simpleMessage(
             "நீங்கள் படம் எடுத்த இடத்திலிருந்து 100 மீட்டர் உள்ளே இருக்க வேண்டும்."),
         "youhave": MessageLookupByLibrary.simpleMessage("நீங்கள்"),
+        "yourCoordinates":
+            MessageLookupByLibrary.simpleMessage("உங்கள் ஒருங்கிணைப்புகள்"),
         "zip": MessageLookupByLibrary.simpleMessage("ZIP")
       };
 }

@@ -1172,4 +1172,146 @@ class AppLocalizationsBn extends AppLocalizations {
 
   @override
   String get longitude => 'দ্রাঘিমাংশ';
+
+  @override
+  String get tutorialTab => 'টিউটোরিয়াল';
+
+  @override
+  String get contactUsTab => 'যোগাযোগ করুন';
+
+  @override
+  String get welcomeCanImage => 'Can Image-এ স্বাগতম!';
+
+  @override
+  String get learnUseApp => 'অ্যাপটি কার্যকরভাবে কীভাবে ব্যবহার করবেন তা জানুন';
+
+  @override
+  String get watchTutorialVideo => 'টিউটোরিয়াল ভিডিও দেখুন';
+
+  @override
+  String get keyFeatures => 'প্রধান বৈশিষ্ট্যসমূহ';
+
+  @override
+  String get seePlansMaps => 'পরিকল্পনা ও মানচিত্র দেখুন';
+
+  @override
+  String get seePlansMapsDesc =>
+      'আপনার নির্ধারিত সমস্ত পরিকল্পনা দেখুন এবং সমন্বিত মানচিত্রের সাথে সহজেই অবস্থানে যান।';
+
+  @override
+  String get captureImagesTitle => 'ছবি তুলুন';
+
+  @override
+  String get captureImagesDesc =>
+      'সঠিক তথ্যের জন্য জিপিএস স্থানাঙ্ক এবং সময়সীমা সহ উচ্চমানের ছবি তুলুন।';
+
+  @override
+  String get syncDataTitle => 'ডেটা সিঙ্ক করুন';
+
+  @override
+  String get syncDataDesc =>
+      'ইন্টারনেটের সাথে সংযুক্ত থাকলে আপনার তোলা ছবি এবং ডেটা নির্বিঘ্নে আপলোড করুন।';
+
+  @override
+  String get trackProgressTitle => 'অগ্রগতি ট্র্যাক করুন';
+
+  @override
+  String get trackProgressDesc =>
+      'আপনার কাজের অগ্রগতি পর্যবেক্ষণ করুন এবং ড্যাশবোর্ডে বিস্তারিত পরিসংখ্যান দেখুন।';
+
+  @override
+  String get printSyncTitle => 'প্রিন্ট সিঙ্ক';
+
+  @override
+  String get printSyncDesc =>
+      'প্রিন্ট ডেটা সিঙ্ক করুন এবং আপনার মুদ্রণ কর্মপ্রবাহ দক্ষতার সাথে পরিচালনা করুন।';
+
+  @override
+  String get proTipsTitle => 'জরুরি টিপস';
+
+  @override
+  String get tipGps =>
+      'সঠিক অবস্থান ট্র্যাকিংয়ের জন্য আপনার জিপিএস চালু রাখুন';
+
+  @override
+  String get tipSync => 'ডেটা ক্ষতি এড়াতে নিয়মিত আপনার ডেটা সিঙ্ক করুন';
+
+  @override
+  String get tipPendingSync =>
+      'নতুন কাজ শুরু করার আগে মুলতুবি সিঙ্ক সংখ্যা পরীক্ষা করুন';
+
+  @override
+  String get tipDashboard =>
+      'আপনার প্রতিদিনের অগ্রগতি ট্র্যাক করতে ড্যাশবোর্ড ব্যবহার করুন';
+
+  @override
+  String get haveQuestions => 'কোন প্রশ্ন আছে?';
+
+  @override
+  String get getInTouchTeam => 'সরাসরি আমাদের দলের সাথে যোগাযোগ করুন';
+
+  @override
+  String get getInTouch => 'যোগাযোগে থাকুন';
+
+  @override
+  String get fillOutForm =>
+      'নিচের ফর্মটি পূরণ করুন এবং আমরা শীঘ্রই আপনার সাথে যোগাযোগ করব';
+
+  @override
+  String get nameLabel => 'নাম *';
+
+  @override
+  String get nameVal => 'অনুগ্রহ করে আপনার নাম লিখুন';
+
+  @override
+  String get emailLabel => 'ইমেল *';
+
+  @override
+  String get emailVal => 'অনুগ্রহ করে আপনার ইমেল লিখুন';
+
+  @override
+  String get emailValidVal => 'অনুগ্রহ করে একটি বৈধ ইমেল লিখুন';
+
+  @override
+  String get whatsappLabel => 'হোয়াটসঅ্যাপ নম্বর *';
+
+  @override
+  String get whatsappVal => 'অনুগ্রহ করে আপনার হোয়াটসঅ্যাপ নম্বর লিখুন';
+
+  @override
+  String get whatsappValidVal => 'অনুগ্রহ করে একটি বৈধ ফোন নম্বর লিখুন';
+
+  @override
+  String get messageLabel => 'বার্তা *';
+
+  @override
+  String get messageVal => 'অনুগ্রহ করে আপনার বার্তা লিখুন';
+
+  @override
+  String get messageLenVal => 'বার্তাটি কমপক্ষে ১০ অক্ষরের হতে হবে';
+
+  @override
+  String get submitEnquiry => 'অনুসন্ধান জমা দিন';
+
+  @override
+  String get otherWaysToReach => 'আমাদের সাথে যোগাযোগ করার অন্যান্য উপায়';
+
+  @override
+  String get emailSupport => 'ইমেল সমর্থন';
+
+  @override
+  String get supportNumber => 'সাপোর্ট নম্বর';
+
+  @override
+  String get workingHours => 'কাজের সময়';
+
+  @override
+  String get workingHoursTime => 'সোম-শুক্র: সকাল ৯:০০ - সন্ধ্যা ৬:০০';
+
+  @override
+  String get thankYou => 'ধন্যবাদ!';
+
+  @override
+  String get enquirySubmitted =>
+      'আপনার অনুসন্ধান সফলভাবে জমা দেওয়া হয়েছে। আমরা শীঘ্রই আপনার সাথে যোগাযোগ করব।';
 }
