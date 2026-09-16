@@ -15,6 +15,8 @@ import '../../generated/l10n.dart';
 import '../../utils/fonts.dart';
 import '../../Hive_Database/execution_seeplan_db.dart';
 import '../../Repository/execution_balance_count_change_repository.dart';
+import '../../widgets/common_app_bar.dart';
+import '../../widgets/can_image_loader.dart';
 
 class SubMapScreen extends StatefulWidget {
   String? planCode;
@@ -26,6 +28,7 @@ class SubMapScreen extends StatefulWidget {
   var brand;
   var tensil;
   var artworkId;
+  String? projectId;
   final Function(String) changeLanguage;
 
   SubMapScreen({
@@ -39,7 +42,8 @@ class SubMapScreen extends StatefulWidget {
     required this.villageName,
     required this.brand,
     required this.tensil,
-    required this.artworkId
+    required this.artworkId,
+    this.projectId,
   });
 
   @override
@@ -199,14 +203,7 @@ class _SubMapScreenState extends State<SubMapScreen> {
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => LandingScreen(
-                      changeLanguage: widget.changeLanguage,
-                    ),
-                  ),
-                );
+                Navigator.popUntil(context, (route) => route.isFirst);
               },
               child: Text(
                 'Go Back',
@@ -1351,39 +1348,34 @@ class _SubMapScreenState extends State<SubMapScreen> {
   }
 
   Future<bool> _onWillPop() async {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => LandingScreen(changeLanguage: widget.changeLanguage)),
-    );
-    return false;
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+      return false;
+    }
+    return true;
   }
 
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: _onWillPop,
-      child: SafeArea(
-        child: Scaffold(
-          appBar: AppBar(
-            elevation: 0,
-            backgroundColor: Font.primaryColor,
+      child: Scaffold(
+          appBar: CommonAppBar(
             title: Row(
               children: [
                 Text(
                   S.of(context).geoLoc,
-                  style: TextStyle(
+                  style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w600,
                       fontSize: 18,
-                      letterSpacing: 1,
+                      letterSpacing: 0.5,
                       fontFamily: "Roboto"
                   ),
                 ),
-
-                SizedBox(width: 8),
-                // Online/Offline indicator
+                const SizedBox(width: 8),
                 Container(
-                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: _isOnline ? Colors.green : Colors.red,
                     borderRadius: BorderRadius.circular(12),
@@ -1396,10 +1388,10 @@ class _SubMapScreenState extends State<SubMapScreen> {
                         color: Colors.white,
                         size: 12,
                       ),
-                      SizedBox(width: 4),
+                      const SizedBox(width: 4),
                       Text(
                         _isOnline ? 'Online' : 'Offline',
-                        style: TextStyle(
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 10,
                           fontWeight: FontWeight.bold,
@@ -1408,33 +1400,14 @@ class _SubMapScreenState extends State<SubMapScreen> {
                     ],
                   ),
                 ),
-
               ],
             ),
-
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
-              onPressed: () {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => LandingScreen(changeLanguage: widget.changeLanguage)),
-                );
-              },
-            ),
-            actions: [
-              IconButton(
-                icon: Icon(Icons.home, color: Colors.white),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => LandingScreen(changeLanguage: widget.changeLanguage)),
-                  );
-                },
-              ),
-            ],
+            actions: const [CommonHomeButton()],
           ),
-          body: _isLocationFetched
-              ? Stack(
+          body: SafeArea(
+            top: false,
+            child: _isLocationFetched
+                ? Stack(
             children: [
               if (!_isOnline)
                 Positioned.fill(
@@ -1511,43 +1484,59 @@ class _SubMapScreenState extends State<SubMapScreen> {
 
               // Search Bar
               Positioned(
-                top: 10,
-                left: 10,
-                right: 70,
+                top: 12,
+                left: 12,
+                right: 74,
                 child: Container(
+                  height: 50,
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFCBD5E1), width: 1.2),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black26,
+                        color: Colors.black.withOpacity(0.14),
                         blurRadius: 10,
-                        offset: Offset(0, 2),
+                        offset: const Offset(0, 3),
                       ),
                     ],
                   ),
-                  child: TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      hintText: S.of(context).searchVillageCode,
-                      hintStyle: TextStyle(fontSize: 14),
-                      prefixIcon: Icon(Icons.search, color: Font.primaryColor),
-                      suffixIcon: _searchController.text.isNotEmpty
-                          ? IconButton(
-                        icon: Icon(Icons.clear, size: 20),
-                        onPressed: () {
-                          setState(() {
-                            _searchController.clear();
-                            _searchResults = [];
-                            _showSearchResults = false;
-                          });
-                        },
-                      )
-                          : null,
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  child: Center(
+                    child: TextField(
+                      controller: _searchController,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontFamily: "Roboto",
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF0F172A),
+                      ),
+                      decoration: InputDecoration(
+                        isDense: true,
+                        hintText: S.of(context).searchVillageCode,
+                        hintStyle: TextStyle(
+                          fontSize: 14.5,
+                          fontFamily: "Roboto",
+                          color: Colors.grey[500],
+                          fontWeight: FontWeight.w500,
+                        ),
+                        prefixIcon: Icon(Icons.search_rounded, color: Font.primaryColor, size: 24),
+                        suffixIcon: _searchController.text.isNotEmpty
+                            ? IconButton(
+                          icon: const Icon(Icons.clear_rounded, size: 20, color: Colors.grey),
+                          onPressed: () {
+                            setState(() {
+                              _searchController.clear();
+                              _searchResults = [];
+                              _showSearchResults = false;
+                            });
+                          },
+                        )
+                            : null,
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      ),
+                      onChanged: _searchVillages,
                     ),
-                    onChanged: _searchVillages,
                   ),
                 ),
               ),
@@ -1555,41 +1544,57 @@ class _SubMapScreenState extends State<SubMapScreen> {
               // Search Results Dropdown
               if (_showSearchResults && _searchResults.isNotEmpty)
                 Positioned(
-                  top: 65,
-                  left: 10,
-                  right: 70,
+                  top: 68,
+                  left: 12,
+                  right: 74,
                   child: Container(
-                    constraints: BoxConstraints(maxHeight: 300),
+                    constraints: const BoxConstraints(maxHeight: 300),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFFCBD5E1), width: 1.2),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black26,
-                          blurRadius: 10,
-                          offset: Offset(0, 2),
+                          color: Colors.black.withOpacity(0.18),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
                         ),
                       ],
                     ),
                     child: ListView.builder(
                       shrinkWrap: true,
+                      padding: const EdgeInsets.symmetric(vertical: 6),
                       itemCount: _searchResults.length,
                       itemBuilder: (context, index) {
                         final plan = _searchResults[index];
                         return ListTile(
-                          leading: Icon(Icons.location_on, color: Font.primaryColor),
+                          leading: Container(
+                            padding: const EdgeInsets.all(7),
+                            decoration: BoxDecoration(
+                              color: Font.primaryColor.withOpacity(0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(Icons.location_on_rounded, color: Font.primaryColor, size: 20),
+                          ),
                           title: Text(
                             plan.villageName,
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14.5,
+                              color: Color(0xFF0F172A),
+                              fontFamily: "Roboto",
                             ),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
                           subtitle: Text(
                             '${plan.villageCode} • ${plan.stateName}',
-                            style: TextStyle(fontSize: 12),
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.grey[600],
+                              fontFamily: "Roboto",
+                            ),
                           ),
                           onTap: () => _navigateToVillage(plan),
                         );
@@ -1601,39 +1606,44 @@ class _SubMapScreenState extends State<SubMapScreen> {
               // No Results Found
               if (_showSearchResults && _searchResults.isEmpty && _searchController.text.isNotEmpty)
                 Positioned(
-                  top: 65,
-                  left: 10,
-                  right: 70,
+                  top: 68,
+                  left: 12,
+                  right: 74,
                   child: Container(
-                    padding: EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFFCBD5E1), width: 1.2),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black26,
-                          blurRadius: 10,
-                          offset: Offset(0, 2),
+                          color: Colors.black.withOpacity(0.18),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
                         ),
                       ],
                     ),
                     child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.search_off, size: 40, color: Colors.grey),
-                        SizedBox(height: 8),
+                        Icon(Icons.search_off_rounded, size: 36, color: Colors.grey[400]),
+                        const SizedBox(height: 8),
                         Text(
                           S.of(context).noBalanceFound,
                           style: TextStyle(
                             fontSize: 14,
-                            color: Colors.grey[700],
-                            fontWeight: FontWeight.w500,
+                            color: Colors.grey[800],
+                            fontWeight: FontWeight.w600,
+                            fontFamily: "Roboto",
                           ),
                         ),
+                        const SizedBox(height: 3),
                         Text(
                           S.of(context).tryDifferentSearch,
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.grey[500],
+                            fontFamily: "Roboto",
                           ),
                         ),
                       ],
@@ -1643,35 +1653,65 @@ class _SubMapScreenState extends State<SubMapScreen> {
 
               // Current Location Button
               Positioned(
-                top: 10,
-                right: 10,
+                top: 12,
+                right: 12,
                 child: Column(
                   children: [
-                    FloatingActionButton(
-                      heroTag: "location",
-                      onPressed: _onCurrentLocationPressed,
-                      child: Icon(
-                        _isUserSelectedLocation ? Icons.location_searching : Icons.my_location,
-                        color: Colors.white,
+                    Container(
+                      width: 50,
+                      height: 50,
+                      decoration: BoxDecoration(
+                        color: _isUserSelectedLocation ? const Color(0xFFEA580C) : Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: _isUserSelectedLocation ? const Color(0xFFC2410C) : const Color(0xFFCBD5E1),
+                          width: 1.2,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.16),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
                       ),
-                      backgroundColor: _isUserSelectedLocation
-                          ? Colors.orange.withOpacity(0.8)
-                          : Colors.black54.withOpacity(0.4),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: _onCurrentLocationPressed,
+                          borderRadius: BorderRadius.circular(14),
+                          child: Center(
+                            child: Icon(
+                              _isUserSelectedLocation ? Icons.location_searching_rounded : Icons.my_location_rounded,
+                              color: _isUserSelectedLocation ? Colors.white : Font.primaryColor,
+                              size: 26,
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                     if (_isUserSelectedLocation)
                       Container(
-                        margin: EdgeInsets.only(top: 8),
-                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        margin: const EdgeInsets.only(top: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                          color: Colors.orange,
-                          borderRadius: BorderRadius.circular(12),
+                          color: const Color(0xFFEA580C),
+                          borderRadius: BorderRadius.circular(8),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.15),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
-                        child: Text(
+                        child: const Text(
                           'Reset',
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            fontFamily: "Roboto",
                           ),
                         ),
                       ),
@@ -1681,16 +1721,12 @@ class _SubMapScreenState extends State<SubMapScreen> {
             ],
           )
               : Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(height: 16),
-                Text(S.of(context).getingLocation),
-              ],
-            ),
-          ),
-
+                  child: CanImageLoader(
+                    spinnerSize: 52,
+                    showBrand: true,
+                    message: S.of(context).getingLocation,
+                  ),
+                ),
         ),
       ),
     );
@@ -1714,6 +1750,7 @@ class _SubMapScreenState extends State<SubMapScreen> {
             brand: widget.brand,
             tensil: widget.tensil,
             artworkId: widget.artworkId,
+            projectId: widget.projectId,
           )
       ),
     );

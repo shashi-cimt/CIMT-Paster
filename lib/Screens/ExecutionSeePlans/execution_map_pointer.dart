@@ -17,10 +17,13 @@ import '../../Hive_Database/execution_seeplan_location_db.dart';
 import '../../Repository/Map_pointer_locate_repository.dart';
 import '../../generated/l10n.dart';
 import '../../utils/fonts.dart';
+import '../../widgets/can_image_loader.dart';
+import '../../widgets/app_snack_bar.dart';
 import '../Rework/Rework_upload_see_plans.dart' as ColorsConst;
 import '../Rework/Rework_upload_see_plans.dart' as font;
 import '../landing/landing_screen.dart';
 import 'execution_display_page.dart';
+import '../../widgets/common_app_bar.dart';
 
 class MapPointerData {
   final String planServerId;
@@ -50,6 +53,7 @@ class MapScreenpointer extends StatefulWidget {
   var artworkId;
   final Function(String) changeLanguage;
   final List<MapPointerData>? pointers; // Only use passed pointers
+  final String? projectId;
 
   MapScreenpointer({
     super.key,
@@ -64,9 +68,9 @@ class MapScreenpointer extends StatefulWidget {
     required this.tensil,
     required this.artworkId,
     this.pointers, // Pointers passed from previous screen
+    this.projectId,
   });
-
-  @override
+  
   _MapScreenState createState() => _MapScreenState();
 }
 
@@ -157,12 +161,9 @@ class _MapScreenState extends State<MapScreenpointer> with WidgetsBindingObserve
             _showNextButton = true;
           });
 
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(" All locations for this artwork have been captured!"),
-              backgroundColor: Colors.green,
-              duration: Duration(seconds: 3),
-            ),
+          AppSnackBar.showSuccess(
+            context,
+            "All locations for this artwork have been captured!",
           );
         }
       }
@@ -170,12 +171,9 @@ class _MapScreenState extends State<MapScreenpointer> with WidgetsBindingObserve
       print(" No pointers passed to MapScreenpointer");
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("No location data available for this plan"),
-            backgroundColor: Colors.orange,
-            duration: Duration(seconds: 3),
-          ),
+        AppSnackBar.showError(
+          context,
+          "No location data available for this plan",
         );
       }
     }
@@ -623,7 +621,6 @@ class _MapScreenState extends State<MapScreenpointer> with WidgetsBindingObserve
                           child: ElevatedButton.icon(
                             onPressed: () {
                               Navigator.pop(context);
-                              print("🔍 Passing locateId to MapScreen: $pointerId");
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
@@ -639,6 +636,7 @@ class _MapScreenState extends State<MapScreenpointer> with WidgetsBindingObserve
                                     tensil: widget.tensil,
                                     artworkId: widget.artworkId,
                                     locateId: pointerId,
+                                    projectId: widget.projectId,
                                   ),
                                 ),
                               );
@@ -821,7 +819,14 @@ class _MapScreenState extends State<MapScreenpointer> with WidgetsBindingObserve
             "timestamp=$timestamp"
     );
 
-    if (state == AppLifecycleState.resumed) {
+    if (state == AppLifecycleState.paused) {
+      // Pause GPS refresh in background to prevent OS killing app for background location violations
+      _periodicRefreshTimer?.cancel();
+      _periodicRefreshTimer = null;
+    } else if (state == AppLifecycleState.resumed) {
+      if (_periodicRefreshTimer == null) {
+        _startPeriodicLocationRefresh();
+      }
       CrashReportManager.storeLogMessage(
           "event=app_resumed | "
               "screen=MapScreen | "
@@ -1775,17 +1780,17 @@ class _MapScreenState extends State<MapScreenpointer> with WidgetsBindingObserve
 
     CrashReportManager.storeLogMessage(
         "event=back_button_pressed | "
-            "screen=MapScreen | "
+            "screen=MapScreenpointer | "
             "planCode=${widget.planCode} | "
             "villageCode=${widget.VillageCode} | "
             "timestamp=$timestamp"
     );
 
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => SeePlanScreen(changeLanguage: widget.changeLanguage)),
-    );
-    return false;
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+      return false;
+    }
+    return true;
   }
 
   Future<void> _proceedToNextScreen() async {
@@ -1822,7 +1827,7 @@ class _MapScreenState extends State<MapScreenpointer> with WidgetsBindingObserve
           brand: widget.brand,
           tensil: widget.tensil,
           artworkId: widget.artworkId,
-
+          projectId: widget.projectId,
         ),
       ),
     );
@@ -1843,52 +1848,38 @@ class _MapScreenState extends State<MapScreenpointer> with WidgetsBindingObserve
     return WillPopScope(
       onWillPop: _onWillPop,
       child: SafeArea(
+        top: false,
         child: Scaffold(
-          appBar: AppBar(
-            elevation: 0,
-            backgroundColor: Font.primaryColor,
-            title: Text(
-              S.of(context).geoLoc,
-              style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 18,
-                  letterSpacing: 1,
-                  fontFamily: "Roboto"
-              ),
-            ),
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
-              onPressed: () {
-                final timestamp = DateTime.now().toIso8601String();
-                CrashReportManager.storeLogMessage(
-                    "event=back_arrow_clicked | "
-                        "screen=MapScreen | "
-                        "planCode=${widget.planCode} | "
-                        "timestamp=$timestamp"
-                );
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => SeePlanScreen(changeLanguage: widget.changeLanguage)),
-                );
-              },
-            ),
+          appBar: CommonAppBar(
+            title: S.of(context).geoLoc,
+            onBackPressed: () {
+              final timestamp = DateTime.now().toIso8601String();
+              CrashReportManager.storeLogMessage(
+                  "event=back_arrow_clicked | "
+                      "screen=MapScreenpointer | "
+                      "planCode=${widget.planCode} | "
+                      "timestamp=$timestamp"
+              );
+              if (Navigator.canPop(context)) {
+                Navigator.pop(context);
+              } else {
+                Navigator.popUntil(context, (route) => route.isFirst);
+              }
+            },
             actions: [
               IconButton(
-                icon: Icon(Icons.home, color: Colors.white),
+                icon: const Icon(Icons.home_rounded, color: Colors.white, size: 22),
                 onPressed: () {
                   final timestamp = DateTime.now().toIso8601String();
                   CrashReportManager.storeLogMessage(
                       "event=home_button_clicked | "
-                          "screen=MapScreen | "
+                          "screen=MapScreenpointer | "
                           "planCode=${widget.planCode} | "
                           "timestamp=$timestamp"
                   );
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => LandingScreen(changeLanguage: widget.changeLanguage)),
-                  );
+                  Navigator.popUntil(context, (route) => route.isFirst);
                 },
+                tooltip: 'Home',
               ),
             ],
           ),
@@ -2072,13 +2063,10 @@ class _MapScreenState extends State<MapScreenpointer> with WidgetsBindingObserve
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(ColorsConst.primaryColor),
-                ),
-                SizedBox(height: 16),
-                Text(
-                  'Getting your location...',
-                  style: TextStyle(fontSize: 16),
+                const CanImageLoader(
+                  spinnerSize: 52,
+                  showBrand: true,
+                  message: 'Getting your location...',
                 ),
                 if (_isGettingAccurateLocation)
                   Padding(

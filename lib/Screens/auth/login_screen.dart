@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:canimage/Screens/auth/registration_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -7,15 +9,16 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import '../../APIService/auth_service.dart';
 import '../../generated/l10n.dart';
+import '../../utils/DeviceIdManager.dart';
 import '../../utils/crash_manager.dart';
 import '../../utils/fonts.dart';
 import '../../utils/inactivity_detector.dart';
 import '../../utils/shared_preference.dart';
-import '../../utils/textStyle.dart';
 import '../../utils/token_manager.dart';
 import '../../utils/uid_file_helper.dart';
 import '../landing/landing_screen.dart';
-import 'forgot_password.dart';
+import '../../widgets/can_image_loader.dart';
+import '../../widgets/app_snack_bar.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   final Function(String) changeLanguage;
@@ -40,6 +43,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   // NEW: Role selection variables
   String selectedRole = '';
   int selectedRoleId = 0;
+  DateTime? _lastBackPressTime;
 
   @override
   void initState() {
@@ -84,50 +88,53 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
-  _showToast(String message, Color color) {
-    Fluttertoast.showToast(
-      msg: message,
-      toastLength: Toast.LENGTH_SHORT,
-      gravity: ToastGravity.BOTTOM,
-      timeInSecForIosWeb: 1,
-      backgroundColor: color,
-      textColor: Colors.white,
-      fontSize: 16.0,
+  void _showTopSnackBar(String message, {bool isError = true}) {
+    if (!mounted) return;
+    AppSnackBar.showTopSnackBar(
+      context,
+      message,
+      isError: isError,
+      duration: const Duration(seconds: 3),
     );
   }
 
   void userDetails() async {
     userID = await getUserID();
+    if (userID != null && userID!.isEmpty) {
+      userID = null;
+    }
   }
 
   // NEW: Get UID from role-specific folder based on selected role
   Future<String?> _getRoleSpecificUID(int roleId) async {
     try {
       Directory? externalDir = await getExternalStorageDirectory();
-      if (externalDir == null) {
-        // print(' Unable to access external storage');
-        return null;
-      }
-
-      // Determine folder based on role
-      // roleId 6 = Pastor -> CIMTDWP
-      // roleId 7 = Supervisor -> CIMTDWPSUP
-      String folderName = (roleId == 6) ? 'CIMTDWP' : 'CIMTDWPSUP';
+      if (externalDir != null) {
+        String folderName = (roleId == 6) ? 'CIMTDWP' : 'CIMTDWPSUP';
       String roleName = (roleId == 6) ? 'Pastor' : 'Supervisor';
 
-      File uidFile = File('${externalDir.path}/$folderName/Appfiles/UID.txt');
+        File uidFile = File('${externalDir.path}/$folderName/Appfiles/UID.txt');
 
-      String? uid = UidFileHelper.canonicalize(await UidFileHelper.readRawUidContent(uidFile));
-      if (uid != null) {
-        // print(' Retrieved $roleName UID: $uid from $folderName');
-        return uid;
-      } else {
-        // print(' UID file missing or invalid in $folderName');
+        String? uid = UidFileHelper.canonicalize(
+          await UidFileHelper.readRawUidContent(uidFile),
+        );
+        if (uid != null && uid.isNotEmpty) {
+          return uid;
+        }
+      }
+
+      // Fallback: check firstUID or DeviceIdManager
+      String fallbackUid = await getFirstUID();
+      if (fallbackUid.isNotEmpty) {
+        return fallbackUid;
+      }
+      String deviceId = await DeviceIdManager.getDeviceId();
+      if (deviceId.isNotEmpty) {
+        return deviceId;
       }
 
       return null;
     } catch (e) {
-      // print(' Error getting role-specific UID: $e');
       return null;
     }
   }
@@ -138,7 +145,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   /// a device-generated UID from before this account was linked, or a stale
   /// value left over from a reinstall).
   Future<void> _updateUidFileFromLoginResponse(
-      int roleId, String uid, String userId) async {
+    int roleId,
+    String uid,
+    String userId,
+  ) async {
     if (uid.isEmpty) return;
 
     try {
@@ -157,15 +167,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   // Login logic with role-based UID
   login(String phoneNo, String password) async {
     if (phoneNo.isEmpty) {
-      _showToast(S.of(context).loginNewValidVal, Colors.red);
+      _showTopSnackBar(S.of(context).loginNewValidVal);
       return;
     }
     if (password.length < 6) {
-      _showToast(S.of(context).loginPassVal, Colors.red);
+      _showTopSnackBar(S.of(context).loginPassVal);
       return;
     }
     if (selectedRoleId == 0) {
-      _showToast(S.of(context).selectRole, Colors.red);
+      _showTopSnackBar(S.of(context).selectRole);
       return;
     }
 
@@ -176,11 +186,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final maskedPhone = phoneNo.length >= 4
         ? 'xxxxxx${phoneNo.substring(phoneNo.length - 4)}'
         : phoneNo;
-    await CrashReportManager.logUserEvent('login_attempt', details: {
-      'phone': maskedPhone,
-      'role': selectedRole,
-      'roleId': selectedRoleId,
-    });
+    unawaited(CrashReportManager.logUserEvent(
+      'login_attempt',
+      details: {
+        'phone': maskedPhone,
+        'role': selectedRole,
+        'roleId': selectedRoleId,
+      },
+    ));
 
     // Get role-specific UID before login
     String? roleSpecificUID = await _getRoleSpecificUID(selectedRoleId);
@@ -189,413 +202,676 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       setState(() {
         isLoading = false;
       });
-      await CrashReportManager.logUserEvent('login_failed', details: {
-        'phone': maskedPhone,
-        'reason': 'unable_to_get_uid',
-      });
+      await clearUserSession();
+      unawaited(CrashReportManager.logUserEvent(
+        'login_failed',
+        details: {'phone': maskedPhone, 'reason': 'unable_to_get_uid'},
+      ));
       _showErrorDialog('${S.of(context).unableUID}');
       return;
     }
 
-    Auth().login(phoneNo, password, userID.toString(), roleSpecificUID).then((value) async {
-      setState(() {
-        isLoading = false;
-      });
-
-      if (value != null) {
-        if (value.isSuccess == true) {
-          // Verify the role from API matches selected role
-          int? apiRoleFlag = int.parse(value.data!.roleFlag.toString());
-
-          if (apiRoleFlag != null && apiRoleFlag == selectedRoleId) {
-            // Save all login data
-            _saveRememberedData(phoneNo, password);
-            String token = value.data?.accessToken?.toString() ?? '';
-            setAuthToken(value.data?.accessToken?.toString() ?? '');
-            setLoginUID(value.data?.uId?.toString() ?? '');
-            setUserIdLogin(value.data?.userId?.toString() ?? '');
-            // Landing screen's "User ID" card reads the 'userID' key (set at
-            // registration time), not 'userIDLogin' — keep it in sync here so
-            // it always reflects the most recent login response, for both
-            // Pastor and CanImage User (Supervisor) roles.
-            setUserId(value.data?.userId?.toString() ?? '');
-            setroleFlag(apiRoleFlag.toString());
-
-            // The login response's uId is the source of truth for the
-            // account's UID — it wins over the UID read from the file
-            // before login, both for the landing screen's UID card and for
-            // what's persisted to UID.txt.
-            final String responseUid = (value.data?.uId != null && value.data!.uId!.isNotEmpty)
-                ? value.data!.uId!
-                : roleSpecificUID;
-            setFirstUID(responseUid);
-
-            await _updateUidFileFromLoginResponse(
-              selectedRoleId,
-              responseUid,
-              value.data?.userId?.toString() ?? '',
-            );
-
-            await CrashReportManager.logUserEvent('login_success', details: {
-              'phone': maskedPhone,
-              'role': selectedRole,
-              'roleId': apiRoleFlag,
-              'userId': value.data?.userId?.toString() ?? '',
-              'UID': responseUid,
-            });
-
-            await TokenManager().initializeTokenMonitoring(token);
-
-            //  Start inactivity timer
-            // TokenManager().startInactivityTimer();
-
-            String folderName = (selectedRoleId == 6) ? 'CIMTDWP' : 'CIMTDWPSUP';
-
-            showDialog(
-              context: context,
-              builder: (context) => AlertDialog(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                title: Text(S.of(context).success, style: TextStyle(
-                  fontFamily: "Roboto",
-                  fontWeight: FontWeight.w600,
-                )),
-                content: Text(
-                    '${S.of(context).loggedIn}\n'
-                        '${S.of(context).role}: $selectedRole\n'
-                        '${S.of(context).uid}: $responseUid\n',
-                    style: TextStyle(
-                      fontFamily: "Roboto",
-                      color: Colors.grey[600],
-                    )
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(builder: (context) => InactivityDetector(child: LandingScreen(changeLanguage: widget.changeLanguage))),
-                      );
-                    },
-                    child: Text(S.of(context).ok, style: TextStyle(
-                      fontFamily: "Roboto",
-                      color: Font.primaryColor,
-                    )),
-                  ),
-                ],
-              ),
-            );
-          } else if (apiRoleFlag != null && apiRoleFlag != selectedRoleId) {
-            // Role mismatch
-            String correctRole = (apiRoleFlag == 6) ? 'Pastor' : 'Supervisor';
-            CrashReportManager.logUserEvent('login_failed', details: {
-              'phone': maskedPhone,
-              'reason': 'role_mismatch',
-              'selectedRole': selectedRole,
-              'accountRole': correctRole,
-            });
-            _showErrorDialog('${S.of(context).accountRegistered} $correctRole. ${S.of(context).pleaseCorrectRole}');
-          } else {
-            CrashReportManager.logUserEvent('login_failed', details: {
-              'phone': maskedPhone,
-              'reason': 'missing_role_info',
-            });
-            _showErrorDialog('${S.of(context).roleInformation}');
-          }
-        } else {
-          String errorMessage = value.message ?? "${S.of(context).phoneNumberIncorrect}";
-          CrashReportManager.logUserEvent('login_failed', details: {
-            'phone': maskedPhone,
-            'reason': 'server_rejected',
-            'message': errorMessage,
+    Auth()
+        .login(phoneNo, password, (userID ?? '').toString(), roleSpecificUID)
+        .then((value) async {
+          setState(() {
+            isLoading = false;
           });
-          _showErrorDialog(errorMessage);
-        }
-      } else {
-        CrashReportManager.logUserEvent('login_failed', details: {
-          'phone': maskedPhone,
-          'reason': 'no_server_response',
+
+          if (value != null) {
+            if (value.isSuccess == true) {
+              // Verify the role from API matches selected role
+              int? apiRoleFlag = int.tryParse(value.data?.roleFlag?.toString() ?? '');
+
+              if (apiRoleFlag != null && apiRoleFlag == selectedRoleId) {
+                // Save all login data ONLY upon verified success
+                _saveRememberedData(phoneNo, password);
+                String token = value.data?.accessToken?.toString() ?? '';
+                await setAuthToken(token);
+                await setLoginUID(value.data?.uId?.toString() ?? '');
+                await setUserIdLogin(value.data?.userId?.toString() ?? '');
+                await setUserId(value.data?.userId?.toString() ?? '');
+                await setroleFlag(apiRoleFlag.toString());
+                await saveRoleName(value.data?.roleName?.toString() ?? selectedRole);
+                await saveUserName(value.data?.fname?.toString() ?? '');
+
+                final String responseUid =
+                    (value.data?.uId != null && value.data!.uId!.isNotEmpty)
+                    ? value.data!.uId!
+                    : roleSpecificUID;
+                await setFirstUID(responseUid);
+
+                await _updateUidFileFromLoginResponse(
+                  selectedRoleId,
+                  responseUid,
+                  value.data?.userId?.toString() ?? '',
+                );
+
+                unawaited(CrashReportManager.logUserEvent(
+                  'login_success',
+                  details: {
+                    'phone': maskedPhone,
+                    'role': selectedRole,
+                    'roleId': apiRoleFlag,
+                    'userId': value.data?.userId?.toString() ?? '',
+                    'UID': responseUid,
+                  },
+                ));
+
+                await TokenManager().initializeTokenMonitoring(token);
+
+                _showTopSnackBar(
+                  '${S.of(context).loggedIn} • ${S.of(context).role}: $selectedRole',
+                  isError: false,
+                );
+                await Future.delayed(const Duration(milliseconds: 600));
+                if (mounted) {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => InactivityDetector(
+                        child: LandingScreen(
+                          changeLanguage: widget.changeLanguage,
+                        ),
+                      ),
+                    ),
+                  );
+                }
+              } else if (apiRoleFlag != null && apiRoleFlag != selectedRoleId) {
+                // Role mismatch - Ensure NO session is stored
+                await clearUserSession();
+                String correctRole = (apiRoleFlag == 6)
+                    ? 'Pastor'
+                    : 'Supervisor';
+                unawaited(CrashReportManager.logUserEvent(
+                  'login_failed',
+                  details: {
+                    'phone': maskedPhone,
+                    'reason': 'role_mismatch',
+                    'selectedRole': selectedRole,
+                    'accountRole': correctRole,
+                  },
+                ));
+                _showErrorDialog(
+                  '${S.of(context).accountRegistered} $correctRole. ${S.of(context).pleaseCorrectRole}',
+                );
+              } else {
+                await clearUserSession();
+                unawaited(CrashReportManager.logUserEvent(
+                  'login_failed',
+                  details: {
+                    'phone': maskedPhone,
+                    'reason': 'missing_role_info',
+                  },
+                ));
+                _showErrorDialog('${S.of(context).roleInformation}');
+              }
+            } else {
+              // Server rejected - Clear any partial session
+              await clearUserSession();
+              String errorMessage = (value.data?.message != null &&
+                      value.data!.message!.trim().isNotEmpty)
+                  ? value.data!.message!.trim()
+                  : (value.displayMessage.isNotEmpty
+                      ? value.displayMessage
+                      : (value.message ?? S.of(context).phoneNumberIncorrect));
+              unawaited(CrashReportManager.logUserEvent(
+                'login_failed',
+                details: {
+                  'phone': maskedPhone,
+                  'reason': 'server_rejected',
+                  'message': errorMessage,
+                },
+              ));
+              _showErrorDialog(errorMessage);
+            }
+          } else {
+            // No server response - Clear session
+            await clearUserSession();
+            unawaited(CrashReportManager.logUserEvent(
+              'login_failed',
+              details: {'phone': maskedPhone, 'reason': 'no_server_response'},
+            ));
+            _showErrorDialog("${S.of(context).unableServer}");
+          }
+        })
+        .catchError((e) async {
+          await clearUserSession();
+          if (mounted) {
+            setState(() {
+              isLoading = false;
+            });
+          }
+          unawaited(CrashReportManager.logUserEvent(
+            'login_failed',
+            details: {
+              'phone': maskedPhone,
+              'reason': 'exception',
+              'error': e.toString(),
+            },
+          ));
+          _showErrorDialog("${S.of(context).errorOccurredLogin}");
         });
-        _showErrorDialog("${S.of(context).unableServer}");
-      }
-    }).catchError((e) {
-      setState(() {
-        isLoading = false;
-      });
-      CrashReportManager.logUserEvent('login_failed', details: {
-        'phone': maskedPhone,
-        'reason': 'exception',
-        'error': e.toString(),
-      });
-      _showErrorDialog("${S.of(context).errorOccurredLogin}");
-    });
   }
 
   void _showErrorDialog(String message) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(S.of(context).failure, style: TextStyle(
-          fontFamily: "Roboto",
-          fontWeight: FontWeight.w600,
-        )),
-        content: Text(message, style: TextStyle(
-          fontFamily: "Roboto",
-          color: Colors.grey[600],
-        )),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-            child: Text(S.of(context).ok, style: TextStyle(
-              fontFamily: "Roboto",
-              color: Font.primaryColor,
-            )),
-          ),
-        ],
-      ),
-    );
+    _showTopSnackBar(message);
   }
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Scaffold(
-        backgroundColor: Colors.white,
-        body: SingleChildScrollView(
-          child: Container(
-            decoration: BoxDecoration(color: Colors.white),
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(top: 50),
-                  child: Container(
-                    width: 250,
-                    height: 100,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, dynamic result) {
+        if (didPop) return;
+        final now = DateTime.now();
+        if (_lastBackPressTime == null ||
+            now.difference(_lastBackPressTime!) > const Duration(seconds: 2)) {
+          _lastBackPressTime = now;
+          Fluttertoast.showToast(
+            msg: "Press back again to exit",
+            toastLength: Toast.LENGTH_SHORT,
+            gravity: ToastGravity.BOTTOM,
+            backgroundColor: Colors.black87,
+            textColor: Colors.white,
+          );
+        } else {
+          SystemNavigator.pop();
+        }
+      },
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: const SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.dark,
+          statusBarBrightness: Brightness.light,
+          systemNavigationBarColor: Colors.white,
+          systemNavigationBarIconBrightness: Brightness.dark,
+          systemNavigationBarDividerColor: Colors.transparent,
+        ),
+        child: Scaffold(
+          backgroundColor: Colors.white,
+          body: SafeArea(
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 40),
+                  // App Brand Logo
+                  Center(
                     child: Image.asset(
                       'assets/logo.png',
+                      height: 64,
                       fit: BoxFit.contain,
                     ),
                   ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 20),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(S.of(context).letsSignIn, style: TextstyleGlobal.headerTextStyle),
-                        SizedBox(height: 10),
-                        Text(S.of(context).welcomeBack, style: TextstyleGlobal.bodyTextStyle),
-                        SizedBox(height: 20),
+                  const SizedBox(height: 36),
 
-                        // NEW: Role Selection
+                  // Header & Greeting
+                  Text(
+                    S.of(context).letsSignIn,
+                    style: const TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF0F172A),
+                      letterSpacing: -0.4,
+                      fontFamily: 'Roboto',
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    S.of(context).welcomeBack,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF64748B),
+                      fontWeight: FontWeight.w400,
+                      letterSpacing: 0.1,
+                      fontFamily: 'Roboto',
+                    ),
+                  ),
+                  const SizedBox(height: 28),
 
-
-                        Text(S.of(context).phoneNo, style: TextstyleGlobal.labelTextStyle.copyWith(fontWeight: FontWeight.w600)),
-                        SizedBox(height: 5),
-                        TextField(
-                          controller: phoneNumberController,
-                          keyboardType: TextInputType.phone,
-                          maxLength: 10,
-                          style: TextStyle(fontSize: 14, color: Font.neutralDarkColor, fontFamily: 'Roboto'),
-                          decoration: InputDecoration(
-                            hintText: S.of(context).enterPhoneNo,
-                            hintStyle: TextStyle(color: Font.neutralDarkColor, fontFamily: "Roboto"),
-                            suffixIcon: Icon(Icons.account_circle_outlined, color: Font.primaryColor),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            fillColor: Colors.white,
-                            filled: true,
-                          ),
+                  // Field 1: Phone Number / User ID
+                  Text(
+                    S.of(context).phoneNo,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF334155),
+                      fontFamily: 'Roboto',
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: phoneNumberController,
+                    keyboardType: TextInputType.phone,
+                    maxLength: 10,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF0F172A),
+                      fontFamily: 'Roboto',
+                    ),
+                    decoration: InputDecoration(
+                      counterText: '', // Clean UX: removes distracting counter
+                      hintText: S.of(context).enterPhoneNo,
+                      hintStyle: const TextStyle(
+                        color: Color(0xFF94A3B8),
+                        fontSize: 14,
+                        fontFamily: 'Roboto',
+                      ),
+                      prefixIcon: const Icon(
+                        Icons.phone_iphone_rounded,
+                        size: 20,
+                        color: Color(0xFF64748B),
+                      ),
+                      filled: true,
+                      fillColor: const Color(0xFFF8FAFC),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 15,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(
+                          color: Color(0xFFE2E8F0),
+                          width: 1.2,
                         ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: Font.primaryColor,
+                          width: 1.6,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
 
-                        Text(S.of(context).password, style: TextstyleGlobal.labelTextStyle.copyWith(fontWeight: FontWeight.w600)),
-                        SizedBox(height: 5),
-                        TextField(
-                          controller: passwordController,
-                          obscureText: !isPasswordVisible,
-                          style: TextstyleGlobal.bodyTextStyle,
-                          decoration: InputDecoration(
-                            hintText: S.of(context).enterPass,
-                            hintStyle: TextstyleGlobal.bodyTextStyle,
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                isPasswordVisible ? Icons.lock_open : Icons.lock,
-                                color: Font.primaryColor,
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  isPasswordVisible = !isPasswordVisible;
-                                });
-                              },
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            fillColor: Colors.white,
-                            filled: true,
-                          ),
+                  // Field 2: Password
+                  Text(
+                    S.of(context).password,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF334155),
+                      fontFamily: 'Roboto',
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: passwordController,
+                    obscureText: !isPasswordVisible,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF0F172A),
+                      fontFamily: 'Roboto',
+                    ),
+                    decoration: InputDecoration(
+                      hintText: S.of(context).enterPass,
+                      hintStyle: const TextStyle(
+                        color: Color(0xFF94A3B8),
+                        fontSize: 14,
+                        fontFamily: 'Roboto',
+                      ),
+                      prefixIcon: const Icon(
+                        Icons.lock_outline_rounded,
+                        size: 20,
+                        color: Color(0xFF64748B),
+                      ),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          isPasswordVisible
+                              ? Icons.visibility_rounded
+                              : Icons.visibility_off_rounded,
+                          size: 20,
+                          color: const Color(0xFF64748B),
                         ),
-                        SizedBox(height: 10),
-                        Text(S.of(context).role, style: TextstyleGlobal.labelTextStyle.copyWith(fontWeight: FontWeight.w600)),
-                        SizedBox(height: 5),
-                        Container(
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey.shade300),
-                            borderRadius: BorderRadius.circular(12),
-                            color: Colors.white,
-                          ),
-                          child: Row(
-                            children: [
-                              // Pastor Radio Button (roleId = 6, folder = CIMTDWP)
-                              Expanded(
-                                child: RadioListTile<String>(
-                                  title: Text(S.of(context).pastor, style: TextstyleGlobal.bodyTextStyle1),
-                                  value: '${S.of(context).pastor}',
-                                  groupValue: selectedRole,
-                                  activeColor: Font.primaryColor,
-                                  onChanged: (String? value) {
-                                    setState(() {
-                                      selectedRole = value!;
-                                      selectedRoleId = 6; // Pastor ID is 6 -> CIMTDWP folder
-                                      // print(' Selected: $selectedRole (ID: $selectedRoleId) -> CIMTDWP');
-                                    });
-                                  },
-                                  contentPadding: EdgeInsets.zero,
-                                  dense: true,
-                                ),
-                              ),
-                              // Supervisor Radio Button (roleId = 7, folder = CIMTDWPSUP)
-                              Expanded(
-                                child: RadioListTile<String>(
-                                  title: Text(S.of(context).supervisor, style: TextstyleGlobal.bodyTextStyle1),
-                                  contentPadding: EdgeInsets.zero,
-                                  value: '${S.of(context).supervisor}',
-                                  groupValue: selectedRole,
-                                  activeColor: Font.primaryColor,
-                                  onChanged: (String? value) {
-                                    setState(() {
-                                      selectedRole = value!;
-                                      selectedRoleId = 7; // Supervisor ID is 7 -> CIMTDWPSUP folder
-                                      // print(' Selected: $selectedRole (ID: $selectedRoleId) -> CIMTDWPSUP');
-                                    });
-                                  },
-                                  dense: false,
-                                ),
-                              ),
-                            ],
-                          ),
+                        onPressed: () {
+                          setState(() {
+                            isPasswordVisible = !isPasswordVisible;
+                          });
+                        },
+                      ),
+                      filled: true,
+                      fillColor: const Color(0xFFF8FAFC),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 15,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(
+                          color: Color(0xFFE2E8F0),
+                          width: 1.2,
                         ),
-                        SizedBox(height: 10),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.start,
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: Font.primaryColor,
+                          width: 1.6,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+
+                  // Field 3: Role Selector (Tactile Segmented Pills)
+                  Text(
+                    S.of(context).role,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF334155),
+                      fontFamily: 'Roboto',
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Builder(
+                    builder: (context) {
+                      final bool isPastorSelected = selectedRoleId == 6 ||
+                          (selectedRole.isNotEmpty &&
+                              selectedRole == S.of(context).pastor);
+                      final bool isSupervisorSelected = selectedRoleId == 7 ||
+                          (selectedRole.isNotEmpty &&
+                              selectedRole == S.of(context).supervisor);
+
+                      return Container(
+                        height: 48,
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: Row(
                           children: [
-                            Checkbox(
-                              value: isRememberMeChecked,
-                              onChanged: (value) {
-                                setState(() {
-                                  isRememberMeChecked = value!;
-                                });
-                              },
-                              activeColor: Font.primaryColor,
-                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                            ),
-                            Container(
-                              width: 120,
-                              child: Text(
-                                S.of(context).rememberMe,
-                                style: TextStyle(
-                                  color: Font.primaryColor,
-                                  fontFamily: "Roboto",
-                                  fontSize: 13,
+                            // Pastor (roleId = 6 -> CIMTDWP)
+                            Expanded(
+                              child: Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(9),
+                                  onTap: () {
+                                    setState(() {
+                                      selectedRole = S.of(context).pastor;
+                                      selectedRoleId = 6;
+                                    });
+                                  },
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 180),
+                                    curve: Curves.easeInOut,
+                                    alignment: Alignment.center,
+                                    decoration: BoxDecoration(
+                                      color: isPastorSelected
+                                          ? Colors.white
+                                          : Colors.transparent,
+                                      borderRadius: BorderRadius.circular(9),
+                                      boxShadow: isPastorSelected
+                                          ? [
+                                              BoxShadow(
+                                                color: Colors.black
+                                                    .withValues(alpha: 0.06),
+                                                blurRadius: 4,
+                                                offset: const Offset(0, 1),
+                                              ),
+                                            ]
+                                          : null,
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          isPastorSelected
+                                              ? Icons.check_circle_rounded
+                                              : Icons.circle_outlined,
+                                          size: 16,
+                                          color: isPastorSelected
+                                              ? Font.primaryColor
+                                              : const Color(0xFF94A3B8),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Flexible(
+                                          child: Text(
+                                            S.of(context).pastor,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: isPastorSelected
+                                                  ? FontWeight.w600
+                                                  : FontWeight.w500,
+                                              color: isPastorSelected
+                                                  ? Font.primaryColor
+                                                  : const Color(0xFF64748B),
+                                              fontFamily: 'Roboto',
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
-                            // Spacer(),
-                            // GestureDetector(
-                            //   onTap: () {
-                            //     Navigator.pushReplacement(
-                            //       context,
-                            //       MaterialPageRoute(builder: (context) => ForgotPasswordScreen(changeLanguage: widget.changeLanguage,)),
-                            //     );
-                            //   },
-                            //   child: Container(
-                            //     width: 120,
-                            //     child: Text(
-                            //       S.of(context).forgotPassLogin,
-                            //       style: TextStyle(
-                            //         color: Font.primaryColor,
-                            //         fontSize: 13,
-                            //         fontFamily: "Roboto",
-                            //       ),
-                            //     ),
-                            //   ),
-                            // ),
+                            const SizedBox(width: 4),
+                            // CanImage User / Supervisor (roleId = 7 -> CIMTDWPSUP)
+                            Expanded(
+                              child: Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(9),
+                                  onTap: () {
+                                    setState(() {
+                                      selectedRole = S.of(context).supervisor;
+                                      selectedRoleId = 7;
+                                    });
+                                  },
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 180),
+                                    curve: Curves.easeInOut,
+                                    alignment: Alignment.center,
+                                    decoration: BoxDecoration(
+                                      color: isSupervisorSelected
+                                          ? Colors.white
+                                          : Colors.transparent,
+                                      borderRadius: BorderRadius.circular(9),
+                                      boxShadow: isSupervisorSelected
+                                          ? [
+                                              BoxShadow(
+                                                color: Colors.black
+                                                    .withValues(alpha: 0.06),
+                                                blurRadius: 4,
+                                                offset: const Offset(0, 1),
+                                              ),
+                                            ]
+                                          : null,
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          isSupervisorSelected
+                                              ? Icons.check_circle_rounded
+                                              : Icons.circle_outlined,
+                                          size: 16,
+                                          color: isSupervisorSelected
+                                              ? Font.primaryColor
+                                              : const Color(0xFF94A3B8),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Flexible(
+                                          child: Text(
+                                            S.of(context).supervisor,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: isSupervisorSelected
+                                                  ? FontWeight.w600
+                                                  : FontWeight.w500,
+                                              color: isSupervisorSelected
+                                                  ? Font.primaryColor
+                                                  : const Color(0xFF64748B),
+                                              fontFamily: 'Roboto',
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
                           ],
                         ),
-                        SizedBox(height: 20),
-                        ElevatedButton(
-                          onPressed: () {
-                            login(phoneNumberController.text, passwordController.text);
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 18),
+
+                  // Remember Me
+                  Row(
+                    children: [
+                      SizedBox(
+                        height: 22,
+                        width: 22,
+                        child: Checkbox(
+                          value: isRememberMeChecked,
+                          onChanged: (value) {
+                            setState(() {
+                              isRememberMeChecked = value ?? false;
+                            });
                           },
-                          style: ElevatedButton.styleFrom(
-                            padding: EdgeInsets.symmetric(vertical: 16),
-                            backgroundColor: Font.primaryColor,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            minimumSize: Size(double.infinity, 10),
+                          activeColor: Font.primaryColor,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(4),
                           ),
-                          child: isLoading
-                              ? CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                          )
-                              : Text(
-                            S.of(context).signIn,
-                            style: TextStyle(fontSize: 18, color: Colors.white, fontFamily: "Roboto"),
+                          side: const BorderSide(
+                            color: Color(0xFF94A3B8),
+                            width: 1.4,
                           ),
                         ),
-                        SizedBox(height: 20),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              S.of(context).dontHaveAcc,
-                              style: TextStyle(color: Font.neutralDarkColor, fontFamily: "Roboto", fontSize: 13),
-                            ),
-                            TextButton(
-                              onPressed: () {
-                                Navigator.pushReplacement(
-                                  context,
-                                  MaterialPageRoute(builder: (context) => RegistrationScreen(changeLanguage: widget.changeLanguage,)),
-                                );
-                              },
-                              child: Container(
-                                width: 80,
-                                child: Text(
-                                  S.of(context).registerBtn,
-                                  style: TextStyle(color: Font.primaryColor, fontFamily: "Roboto", fontSize: 13),
-                                ),
+                      ),
+                      const SizedBox(width: 10),
+                      GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            isRememberMeChecked = !isRememberMeChecked;
+                          });
+                        },
+                        child: Text(
+                          S.of(context).rememberMe,
+                          style: const TextStyle(
+                            color: Color(0xFF334155),
+                            fontWeight: FontWeight.w500,
+                            fontSize: 13.5,
+                            fontFamily: 'Roboto',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 26),
+
+                  // Sign In Action Button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: isLoading
+                          ? null
+                          : () {
+                              login(
+                                phoneNumberController.text,
+                                passwordController.text,
+                              );
+                            },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Font.primaryColor,
+                        disabledBackgroundColor:
+                            Font.primaryColor.withValues(alpha: 0.65),
+                        foregroundColor: Colors.white,
+                        elevation: 1,
+                        shadowColor: Font.primaryColor.withValues(alpha: 0.35),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: isLoading
+                          ? const CanImageSpinner(
+                              size: 22,
+                              primaryColor: Colors.white70,
+                              accentColor: Colors.white,
+                            )
+                          : Text(
+                              S.of(context).signIn,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                                letterSpacing: 0.3,
+                                fontFamily: 'Roboto',
                               ),
                             ),
-                          ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Register Link (Fixing text-wrap and layout bug)
+                  Center(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          S.of(context).dontHaveAcc,
+                          style: const TextStyle(
+                            fontSize: 13.5,
+                            color: Color(0xFF64748B),
+                            fontWeight: FontWeight.w400,
+                            fontFamily: 'Roboto',
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => RegistrationScreen(
+                                  changeLanguage: widget.changeLanguage,
+                                ),
+                              ),
+                            );
+                          },
+                          child: Text(
+                            S.of(context).registerBtn,
+                            style: TextStyle(
+                              color: Font.primaryColor,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13.5,
+                              fontFamily: 'Roboto',
+                            ),
+                          ),
                         ),
                       ],
                     ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 32),
+                ],
+              ),
             ),
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

@@ -13,6 +13,8 @@ import '../../Repository/completed_upload_repository.dart'; // ADD THIS IMPORT
 import '../../generated/l10n.dart';
 import '../../utils/fonts.dart';
 import '../../utils/textStyle.dart';
+import '../../widgets/common_app_bar.dart';
+import '../../widgets/can_image_loader.dart';
 import '../WCC/wcc_screen.dart' as TextStyleGlobal;
 import '../landing/landing_screen.dart';
 
@@ -932,11 +934,11 @@ class _SUMapScreenState extends State<SUMapScreen> {
   }
 
   Future<bool> _onWillPop() async {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => LandingScreen(changeLanguage: widget.changeLanguage)),
-    );
-    return false;
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+      return false;
+    }
+    return true;
   }
 
   @override
@@ -944,41 +946,12 @@ class _SUMapScreenState extends State<SUMapScreen> {
     return WillPopScope(
       onWillPop: _onWillPop,
       child: SafeArea(
+        top: false,
         child: Scaffold(
           backgroundColor: Font.pureWhiteColor,
-          appBar: AppBar(
-            elevation: 0,
-            backgroundColor: Font.primaryColor,
-            title: Text(
-              S.of(context).geoLoc,
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-                fontSize: 18,
-                letterSpacing: 1,
-                fontFamily: "Roboto",
-              ),
-            ),
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => LandingScreen(changeLanguage: widget.changeLanguage)),
-                );
-              },
-            ),
-            actions: [
-              IconButton(
-                icon: Icon(Icons.home, color: Colors.white),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => LandingScreen(changeLanguage: widget.changeLanguage)),
-                  );
-                },
-              ),
-            ],
+          appBar: CommonAppBar(
+            title: S.of(context).geoLoc,
+            actions: const [CommonHomeButton()],
           ),
           body: _isLocationFetched
               ? Stack(
@@ -996,71 +969,112 @@ class _SUMapScreenState extends State<SUMapScreen> {
                 mapType: MapType.hybrid,
               ),
               Positioned(
-                top: 16,
-                left: 16,
-                right: 100,
+                top: 12,
+                left: 12,
+                right: 74,
                 child: Container(
-                  height: 45,
+                  height: 50,
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFCBD5E1), width: 1.2),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
-                        blurRadius: 6,
-                        offset: Offset(0, 2),
+                        color: Colors.black.withOpacity(0.14),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
                       ),
                     ],
                   ),
-                  child: TextField(
-                    controller: searchController,
-                    onChanged: (value) {
-                      setState(() {
-                        searchQuery = value;
-                      });
-                    },
-                    decoration: InputDecoration(
-                      prefixIcon: Icon(Icons.search_sharp, color: Font.primaryLightColor),
-                      hintText: S.of(context).searchVillageCode,
-                      hintStyle: TextStyle(fontFamily: "Roboto", fontSize: 12),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide.none,
+                  child: Center(
+                    child: TextField(
+                      controller: searchController,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontFamily: "Roboto",
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF0F172A),
                       ),
-                      filled: true,
-                      fillColor: Colors.white,
-                      contentPadding: EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+                      onChanged: (value) {
+                        setState(() {
+                          searchQuery = value;
+                        });
+                      },
+                      onSubmitted: (_) => _searchMarkerByVillageCode(),
+                      decoration: InputDecoration(
+                        isDense: true,
+                        prefixIcon: IconButton(
+                          icon: Icon(Icons.search_rounded, color: Font.primaryColor, size: 24),
+                          onPressed: _searchMarkerByVillageCode,
+                        ),
+                        suffixIcon: searchQuery?.isNotEmpty == true
+                            ? IconButton(
+                          icon: const Icon(Icons.clear_rounded, size: 20, color: Colors.grey),
+                          onPressed: () {
+                            setState(() {
+                              searchController.clear();
+                              searchQuery = '';
+                            });
+                          },
+                        )
+                            : null,
+                        hintText: S.of(context).searchVillageCode,
+                        hintStyle: TextStyle(
+                          fontSize: 14.5,
+                          fontFamily: "Roboto",
+                          color: Colors.grey[500],
+                          fontWeight: FontWeight.w500,
+                        ),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      ),
                     ),
                   ),
                 ),
               ),
               Positioned(
-                top: 16,
-                right: 50,
-                child: FloatingActionButton(
-                  mini: true,
-                  backgroundColor: Font.primaryColor,
-                  onPressed: _searchMarkerByVillageCode,
-                  child: Icon(Icons.assistant_navigation, color: Colors.white),
-                ),
-              ),
-              Positioned(
-                top: 16,
-                right: 1,
-                child: FloatingActionButton(
-                  mini: true,
-                  backgroundColor: Font.primaryColor,
-                  onPressed: () {
-                    if (currentLocation != null && mapController != null) {
-                      mapController?.animateCamera(CameraUpdate.newLatLng(currentLocation!));
-                    }
-                  },
-                  child: Icon(Icons.my_location, color: Colors.white),
+                top: 12,
+                right: 12,
+                child: Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFCBD5E1), width: 1.2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.16),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () {
+                        if (currentLocation != null && mapController != null) {
+                          mapController?.animateCamera(CameraUpdate.newLatLng(currentLocation!));
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(14),
+                      child: Center(
+                        child: Icon(Icons.my_location_rounded, color: Font.primaryColor, size: 26),
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ],
           )
-              : Center(child: CircularProgressIndicator()),
+              : Center(
+                  child: CanImageLoader(
+                    spinnerSize: 52,
+                    showBrand: true,
+                    message: S.of(context).getingLocation,
+                  ),
+                ),
         ),
       ),
     );

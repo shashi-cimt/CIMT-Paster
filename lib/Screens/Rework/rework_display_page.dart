@@ -7,8 +7,9 @@ import 'package:photo_view/photo_view_gallery.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../generated/l10n.dart';
 import '../../utils/fonts.dart';
+import '../../widgets/common_app_bar.dart';
+import '../../widgets/can_image_loader.dart';
 import 'Rework_upload_see_plans.dart';
-
 
 class ReworkDisplayPage extends StatefulWidget {
   String? projectID;
@@ -49,7 +50,7 @@ class ReworkDisplayPage extends StatefulWidget {
     required this.address,
     required this.markerLatitude,
     required this.markerLongitude,
-    required this.changeLanguage
+    required this.changeLanguage,
   });
 
   @override
@@ -103,7 +104,7 @@ class _ReworkDisplayPageState extends State<ReworkDisplayPage> {
       }
 
       Position position = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.high
+        desiredAccuracy: LocationAccuracy.high,
       );
 
       setState(() {
@@ -137,11 +138,14 @@ class _ReworkDisplayPageState extends State<ReworkDisplayPage> {
                 child: Image.network(
                   URL,
                   fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) =>
-                  const Icon(Icons.broken_image, size: 50, color: Colors.grey),
+                  errorBuilder: (context, error, stackTrace) => const Icon(
+                    Icons.broken_image,
+                    size: 50,
+                    color: Colors.grey,
+                  ),
                   loadingBuilder: (context, child, progress) {
                     if (progress == null) return child;
-                    return const Center(child: CircularProgressIndicator());
+                    return const Center(child: CanImageSpinner(size: 36));
                   },
                 ),
               ),
@@ -201,37 +205,31 @@ class _ReworkDisplayPageState extends State<ReworkDisplayPage> {
           disabledBackgroundColor: Colors.grey,
         ),
         child: isLoadingLocation
-            ? const SizedBox(
-          width: 20,
-          height: 20,
-          child: CircularProgressIndicator(
-            color: Colors.white,
-            strokeWidth: 2,
-          ),
-        )
+            ? const CanImageSpinner(
+                size: 20,
+                primaryColor: Colors.white70,
+                accentColor: Colors.white,
+              )
             : Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.arrow_circle_right_sharp,
-              size: 20,
-            ),
-            const SizedBox(width: 6),
-            Flexible(
-              child: Text(
-                S.of(context).continueBtn,
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  fontFamily: "Roboto",
-                ),
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.arrow_circle_right_sharp, size: 20),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      S.of(context).continueBtn,
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        fontFamily: "Roboto",
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -240,16 +238,16 @@ class _ReworkDisplayPageState extends State<ReworkDisplayPage> {
     // Validate distance before continuing
     if (widget.markerLatitude == null || widget.markerLongitude == null) {
       _showErrorDialog(
-          title: S.of(context).locationError,
-          message: S.of(context).markerLocationNotAvailable
+        title: S.of(context).locationError,
+        message: S.of(context).markerLocationNotAvailable,
       );
       return;
     }
 
     if (currentPosition == null) {
       _showErrorDialog(
-          title: S.of(context).locationError,
-          message: S.of(context).unableYourCurrentLocation
+        title: S.of(context).locationError,
+        message: S.of(context).unableYourCurrentLocation,
       );
       return;
     }
@@ -273,16 +271,18 @@ class _ReworkDisplayPageState extends State<ReworkDisplayPage> {
         markerLng,
       );
 
-      print('Distance to marker: ${distanceInMeters.toStringAsFixed(2)} meters');
+      print(
+        'Distance to marker: ${distanceInMeters.toStringAsFixed(2)} meters',
+      );
 
       if (distanceInMeters > 50) {
         _showErrorDialog(
           title: S.of(context).distanceError,
-          message: "${S.of(context).youhave} ${distanceInMeters.toStringAsFixed(2)} ${S.of(context).metersAwayMarkerLocationContinue}",
+          message:
+              "${S.of(context).youhave} ${distanceInMeters.toStringAsFixed(2)} ${S.of(context).metersAwayMarkerLocationContinue}",
         );
         return;
       }
-
 
       //  Navigate and wait for result from upload screen
       final result = await Navigator.push<bool>(
@@ -309,7 +309,6 @@ class _ReworkDisplayPageState extends State<ReworkDisplayPage> {
           ),
         ),
       );
-
 
       //  CRITICAL FIX: Return result to map
       if (result == true) {
@@ -353,17 +352,9 @@ class _ReworkDisplayPageState extends State<ReworkDisplayPage> {
         return AlertDialog(
           title: Text(
             title,
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontFamily: "Roboto",
-            ),
+            style: TextStyle(fontWeight: FontWeight.bold, fontFamily: "Roboto"),
           ),
-          content: Text(
-            message,
-            style: TextStyle(
-              fontFamily: "Roboto",
-            ),
-          ),
+          content: Text(message, style: TextStyle(fontFamily: "Roboto")),
           actions: [
             TextButton(
               onPressed: () {
@@ -385,53 +376,25 @@ class _ReworkDisplayPageState extends State<ReworkDisplayPage> {
   }
 
   Future<bool> _onWillPop() async {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => ReworkScreen(changeLanguage: widget.changeLanguage,)),
-    );
-    return false;
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+      return false;
+    }
+    return true;
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return WillPopScope(onWillPop: _onWillPop,
+    return WillPopScope(
+      onWillPop: _onWillPop,
       child: SafeArea(
+        top: false,
         child: Scaffold(
           backgroundColor: theme.colorScheme.surface,
-          appBar: AppBar(
-            elevation: 0,
-            backgroundColor: Font.primaryColor,
-            title: Text(
-              '',
-              style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 18,
-                  letterSpacing: 1,
-                  fontFamily: "Roboto"
-              ),
-            ),
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => ReworkScreen(changeLanguage: widget.changeLanguage,)),
-                );
-              },
-            ),
-            actions: [
-              IconButton(
-                icon: Icon(Icons.home, color: Colors.white),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => LandingScreen(changeLanguage: widget.changeLanguage)),
-                  );
-                },
-              ),
-            ],
+          appBar: CommonAppBar(
+            title: widget.artworkName ?? "Rework Details",
+            actions: const [CommonHomeButton()],
           ),
           body: Column(
             children: [
@@ -440,9 +403,15 @@ class _ReworkDisplayPageState extends State<ReworkDisplayPage> {
                   child: Column(
                     children: [
                       SizedBox(height: 20),
-                      _buildPhotoSection(S.of(context).nearView, widget.frontView.toString()),
+                      _buildPhotoSection(
+                        S.of(context).nearView,
+                        widget.frontView.toString(),
+                      ),
                       SizedBox(height: 20),
-                      _buildPhotoSection(S.of(context).surroundingview, widget.surroundingView.toString()),
+                      _buildPhotoSection(
+                        S.of(context).surroundingview,
+                        widget.surroundingView.toString(),
+                      ),
                       SizedBox(height: 20),
                     ],
                   ),

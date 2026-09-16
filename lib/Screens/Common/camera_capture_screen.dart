@@ -10,6 +10,8 @@ import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../utils/image_orientation_utils.dart';
+import '../../widgets/can_image_loader.dart';
+import '../../widgets/app_snack_bar.dart';
 
 class CameraCaptureScreen extends StatefulWidget {
   const CameraCaptureScreen({super.key});
@@ -248,12 +250,8 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
       // thread if run inline, which is what made the shot feel slow to
       // appear after the shutter fired.
       final Uint8List rawBytes = await File(shot.path).readAsBytes();
-      final Uint8List? uprightBytes = await compute(bakeJpegOrientation, rawBytes);
-      if (uprightBytes != null) {
-        await File(destinationPath).writeAsBytes(uprightBytes);
-      } else {
-        await File(shot.path).copy(destinationPath);
-      }
+      final Uint8List uprightBytes = await compute(ensurePortraitJpeg, rawBytes);
+      await File(destinationPath).writeAsBytes(uprightBytes);
 
       if (!mounted) return;
 
@@ -261,16 +259,16 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
     } on CameraException catch (e) {
       if (!mounted) return;
       setState(() => _isCapturing = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to capture photo: ${e.description ?? e.code}'),
-        ),
+      AppSnackBar.showError(
+        context,
+        'Failed to capture photo: ${e.description ?? e.code}',
       );
     } catch (e) {
       if (!mounted) return;
       setState(() => _isCapturing = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to capture photo: $e')),
+      AppSnackBar.showError(
+        context,
+        'Failed to capture photo: $e',
       );
     }
   }
@@ -323,7 +321,12 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
               Positioned.fill(child: CameraPreview(controller))
             else
               const Center(
-                child: CircularProgressIndicator(color: Colors.white),
+                child: CanImageLoader(
+                  spinnerSize: 52,
+                  showBrand: true,
+                  primaryColor: Colors.white70,
+                  accentColor: Colors.orange,
+                ),
               ),
 
             // ==================== LANDSCAPE ====================
@@ -419,12 +422,8 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
               ),
               child: _isCapturing
                   ? const Center(
-                child: SizedBox(
-                  width: 30,
-                  height: 30,
-                  child: CircularProgressIndicator(strokeWidth: 3),
-                ),
-              )
+                      child: CanImageSpinner(size: 28),
+                    )
                   : null,
             ),
           ),
@@ -474,13 +473,13 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
             ),
           ),
           child: _isSwitchingCamera
-              ? const Padding(
-            padding: EdgeInsets.all(15),
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: Colors.white,
-            ),
-          )
+              ? const Center(
+                  child: CanImageSpinner(
+                    size: 22,
+                    primaryColor: Colors.white70,
+                    accentColor: Colors.white,
+                  ),
+                )
               : const Icon(
             Icons.flip_camera_ios,
             color: Colors.white,

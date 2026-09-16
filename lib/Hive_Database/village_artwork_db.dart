@@ -35,14 +35,21 @@ class VillageArtwork {
     required this.artworkUrl,
   });
 
+  static int? _parseInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value.toString());
+  }
+
   factory VillageArtwork.fromJson(Map<String, dynamic> json) {
     return VillageArtwork(
       projectId: json['projectId']?.toString(),
-      artworkId: json['artworkId'] as int?,
+      artworkId: _parseInt(json['artworkId']),
       artworkName: json['artworkName']?.toString(),
-      height: json['height'] as int?,
-      width: json['width'] as int?,
-      sqft: json['sqft'] as int?,
+      height: _parseInt(json['height']),
+      width: _parseInt(json['width']),
+      sqft: _parseInt(json['sqft']),
       artworkUrl: json['artworkUrl']?.toString(),
     );
   }

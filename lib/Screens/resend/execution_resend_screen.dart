@@ -16,7 +16,9 @@ import '../../generated/l10n.dart';
 import '../../utils/fonts.dart';
 import '../../utils/shared_preference.dart';
 import '../../utils/textStyle.dart';
-import '../landing/landing_screen.dart';
+import '../../widgets/common_app_bar.dart';
+import '../../widgets/can_image_loader.dart';
+import '../../widgets/app_snack_bar.dart';
 
 class ResendScreen extends ConsumerStatefulWidget {
   final Function(String) changeLanguage;
@@ -225,18 +227,16 @@ class _ResendScreenState extends ConsumerState<ResendScreen> with SingleTickerPr
 
       if (isSuccess) {
         print('🎉 [_resendItem] Resend SUCCESSFUL for planId: $planId');
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('${S.of(context).successfullyResentPlan} $planId!\n✅ Moved to Success tab'),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 3),
-        ));
+        AppSnackBar.showSuccess(
+          context,
+          '${S.of(context).successfullyResentPlan} $planId!\n✅ Moved to Success tab',
+        );
       } else {
         print(' [_resendItem] Resend FAILED for planId: $planId - $remarks');
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('${S.of(context).resendFailedPlan} $planId: $remarks'),
-          backgroundColor: Colors.red,
-          duration: Duration(seconds: 3),
-        ));
+        AppSnackBar.showError(
+          context,
+          '${S.of(context).resendFailedPlan} $planId: $remarks',
+        );
       }
     } catch (e) {
       print(' [_resendItem] Error during resend: $e');
@@ -250,11 +250,10 @@ class _ResendScreenState extends ConsumerState<ResendScreen> with SingleTickerPr
       );
       loadResponseData();
 
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Error during resend: $errorMessage'),
-        backgroundColor: Colors.red,
-        duration: Duration(seconds: 3),
-      ));
+      AppSnackBar.showError(
+        context,
+        'Error during resend: $errorMessage',
+      );
     } finally {
       setState(() {
         resendingItems.remove(planId);
@@ -265,133 +264,293 @@ class _ResendScreenState extends ConsumerState<ResendScreen> with SingleTickerPr
 
 
 
-  void _showImagePopup(ApiResponseData responseData) {
-    print(' [_showImagePopup] Showing image popup for plan: ${responseData.originalData.PlanCode}');
+  void _openFullScreenImage(String title, String imagePath) {
     showDialog(
       context: context,
-      builder: (BuildContext context) {
+      builder: (BuildContext fullScreenContext) {
         return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          child: Container(
-            width: MediaQuery.of(context).size.width * 0.8,
-            height: MediaQuery.of(context).size.height * 0.5,
-            padding: EdgeInsets.all(16),
-            child: Column(
-              children: [
-                Text(
-                  'Images for Plan: ${responseData.originalData.PlanCode}',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+          backgroundColor: Colors.black,
+          insetPadding: EdgeInsets.zero,
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: InteractiveViewer(
+                  minScale: 0.5,
+                  maxScale: 4.0,
+                  child: Center(
+                    child: Image.file(
+                      File(imagePath),
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => const Center(
+                        child: Text(
+                          "Failed to load image",
+                          style: TextStyle(color: Colors.white70),
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
-                SizedBox(height: 16),
-                Expanded(
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
+              ),
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: SafeArea(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    color: Colors.black54,
                     child: Row(
                       children: [
-                        if (responseData.originalData.CleanImage != null)
-                          Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: Image.file(
-                                File(responseData.originalData.CleanImage.toString()),
-                                width: 150,
-                                height: 150,
-                                fit: BoxFit.cover,
-                              ),
-                            ),
+                        Text(
+                          title,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
                           ),
-                        if (responseData.originalData.WBImage != null)
-                          Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: Image.file(
-                                File(responseData.originalData.WBImage.toString()),
-                                width: 150,
-                                height: 150,
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                          ),
-                        if (responseData.originalData.SprayImage != null)
-                          Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: Image.file(
-                                File(responseData.originalData.SprayImage.toString()),
-                                width: 150,
-                                height: 150,
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                          ),
-                        if (responseData.originalData.NearImage != null)
-                          Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: Image.file(
-                                File(responseData.originalData.NearImage.toString()),
-                                width: 150,
-                                height: 150,
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                          ),
-                        if (responseData.originalData.FarImage != null)
-                          Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: Image.file(
-                                File(responseData.originalData.FarImage.toString()),
-                                width: 150,
-                                height: 150,
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                          ),
-                        if (responseData.originalData.NewImage6 != null)
-                          Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: Image.file(
-                                File(responseData.originalData.NewImage6.toString()),
-                                width: 150,
-                                height: 150,
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                          ),
-                        if (responseData.originalData.NewImage7 != null)
-                          Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: Image.file(
-                                File(responseData.originalData.NewImage7.toString()),
-                                width: 150,
-                                height: 150,
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                          ),
+                        ),
+                        const Spacer(),
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded, color: Colors.white),
+                          onPressed: () => Navigator.pop(fullScreenContext),
+                        ),
                       ],
                     ),
                   ),
                 ),
-                SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () {
-                    print(' [_showImagePopup] Closing image popup');
-                    Navigator.pop(context);
-                  },
-                  child: Text(S.of(context).close),
-                ),
-              ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showImagePopup(ApiResponseData responseData) {
+    print(' [_showImagePopup] Showing image popup for plan: ${responseData.originalData.PlanCode}');
+    final original = responseData.originalData;
+    final List<Map<String, String>> images = [];
+
+    if (original.CleanImage != null && original.CleanImage.toString().trim().isNotEmpty) {
+      images.add({'title': 'Clean Wall', 'path': original.CleanImage.toString()});
+    }
+    if (original.WBImage != null && original.WBImage.toString().trim().isNotEmpty) {
+      images.add({'title': 'White Base', 'path': original.WBImage.toString()});
+    }
+    if (original.SprayImage != null && original.SprayImage.toString().trim().isNotEmpty) {
+      images.add({'title': 'Spray', 'path': original.SprayImage.toString()});
+    }
+    if (original.NearImage != null && original.NearImage.toString().trim().isNotEmpty) {
+      images.add({'title': 'Near View', 'path': original.NearImage.toString()});
+    }
+    if (original.FarImage != null && original.FarImage.toString().trim().isNotEmpty) {
+      images.add({'title': 'Far View', 'path': original.FarImage.toString()});
+    }
+    if (original.NewImage6 != null && original.NewImage6.toString().trim().isNotEmpty) {
+      images.add({'title': 'Extra Photo 1', 'path': original.NewImage6.toString()});
+    }
+    if (original.NewImage7 != null && original.NewImage7.toString().trim().isNotEmpty) {
+      images.add({'title': 'Extra Photo 2', 'path': original.NewImage7.toString()});
+    }
+
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return Dialog(
+          backgroundColor: Colors.white,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(dialogContext).size.height * 0.75,
+              maxWidth: 480,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(18.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEFF6FF),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          Icons.photo_library_outlined,
+                          color: Color(0xFF1D4ED8),
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Plan: ${original.PlanCode ?? responseData.planId}',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF0F172A),
+                                fontFamily: "Roboto",
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Print No: ${original.PrintNo ?? "N/A"} • ${images.length} Photos Captured',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF64748B),
+                                fontFamily: "Roboto",
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B)),
+                        onPressed: () => Navigator.pop(dialogContext),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        tooltip: 'Close',
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                  const SizedBox(height: 14),
+
+                  // Image content
+                  Expanded(
+                    child: images.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.image_not_supported_outlined, size: 48, color: Colors.grey[400]),
+                                const SizedBox(height: 10),
+                                Text(
+                                  'No images found for this record',
+                                  style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                                ),
+                              ],
+                            ),
+                          )
+                        : GridView.builder(
+                            itemCount: images.length,
+                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              crossAxisSpacing: 12,
+                              mainAxisSpacing: 12,
+                              childAspectRatio: 0.95,
+                            ),
+                            itemBuilder: (context, index) {
+                              final item = images[index];
+                              final file = File(item['path']!);
+                              final fileExists = file.existsSync();
+
+                              return GestureDetector(
+                                onTap: fileExists
+                                    ? () => _openFullScreenImage(item['title']!, item['path']!)
+                                    : null,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF8FAFC),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                                  ),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(11),
+                                    child: Stack(
+                                      children: [
+                                        Positioned.fill(
+                                          child: fileExists
+                                              ? Image.file(
+                                                  file,
+                                                  fit: BoxFit.cover,
+                                                  errorBuilder: (_, __, ___) => Center(
+                                                    child: Icon(Icons.broken_image_outlined, color: Colors.grey[400]),
+                                                  ),
+                                                )
+                                              : Center(
+                                                  child: Icon(Icons.broken_image_outlined, color: Colors.grey[400]),
+                                                ),
+                                        ),
+                                        Positioned(
+                                          top: 8,
+                                          left: 8,
+                                          right: 8,
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                            decoration: BoxDecoration(
+                                              color: Colors.black.withOpacity(0.65),
+                                              borderRadius: BorderRadius.circular(6),
+                                            ),
+                                            child: Text(
+                                              item['title']!,
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ),
+                                        if (fileExists)
+                                          Positioned(
+                                            bottom: 8,
+                                            right: 8,
+                                            child: Container(
+                                              padding: const EdgeInsets.all(4),
+                                              decoration: BoxDecoration(
+                                                color: Colors.black.withOpacity(0.6),
+                                                shape: BoxShape.circle,
+                                              ),
+                                              child: const Icon(
+                                                Icons.zoom_in_rounded,
+                                                color: Colors.white,
+                                                size: 14,
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+
+                  const SizedBox(height: 14),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 42,
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Color(0xFFCBD5E1)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      child: Text(
+                        S.of(context).close,
+                        style: const TextStyle(
+                          color: Color(0xFF334155),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         );
@@ -401,97 +560,325 @@ class _ResendScreenState extends ConsumerState<ResendScreen> with SingleTickerPr
 
   void _showRemarksDialog(String planId) {
     print(' [_showRemarksDialog] Showing remarks dialog for planId: $planId');
-    final responseItem = responseData.firstWhere((item) => item.planId == planId);
-    print(' [_showRemarksDialog] Found item: ${responseItem.originalData.PlanCode}, success: ${responseItem.isSuccess}');
+    final responseItem = responseData.firstWhere(
+      (item) => item.planId == planId,
+      orElse: () => filteredResponseData.firstWhere((item) => item.planId == planId),
+    );
+
+    final isSuccess = responseItem.isSuccess;
+    final planCode = responseItem.originalData.PlanCode ?? planId;
+    final printNo = responseItem.originalData.PrintNo ?? '';
 
     showDialog(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('${S.of(context).responseDetails} $planId',style: TextStyle(
-            color: Font.neutralDarkColor,
-            fontWeight: FontWeight.w600,
-            fontSize: 14,
-            fontFamily: "Roboto",
-          ),),
-          content: Container(
-            width: double.maxFinite,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text('${S.of(context).status}: ', style: TextStyle(
-                        color: Font.neutralDarkColor,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                        fontFamily: "Roboto",
-                      ),),
-                      Container(
-                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: responseItem.isSuccess ? Colors.green : Colors.red,
-                          borderRadius: BorderRadius.circular(12),
+      builder: (BuildContext dialogContext) {
+        return Dialog(
+          backgroundColor: Colors.white,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Top Header with Plan Info & Close
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: isSuccess ? const Color(0xFFF0FDF4) : const Color(0xFFFEF2F2),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(
+                            isSuccess ? Icons.check_circle_rounded : Icons.error_rounded,
+                            color: isSuccess ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
+                            size: 22,
+                          ),
                         ),
-                        child: Text(
-                          responseItem.isSuccess ? S.of(context).success : S.of(context).failed,
-                          style: TextStyle(color: Colors.white, fontSize: 12),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${S.of(context).responseDetails}',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF0F172A),
+                                  fontFamily: "Roboto",
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Plan: $planCode${printNo.isNotEmpty ? ' • Print: $printNo' : ''}',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF64748B),
+                                  fontFamily: "Roboto",
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B)),
+                          onPressed: () => Navigator.pop(dialogContext),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 16),
+                    const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                    const SizedBox(height: 16),
+
+                    // Metrics Grid (Status, HTTP Code, Retries)
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              // Status pill
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      S.of(context).status,
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        color: Color(0xFF64748B),
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: isSuccess ? const Color(0xFFDCFCE7) : const Color(0xFFFEE2E2),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        isSuccess ? S.of(context).success : S.of(context).failed,
+                                        style: TextStyle(
+                                          color: isSuccess ? const Color(0xFF15803D) : const Color(0xFFB91C1C),
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              // Status Code
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      S.of(context).statusCode,
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        color: Color(0xFF64748B),
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '${responseItem.statusCode}',
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF0F172A),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              // Retry Count
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Total Retries',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: Color(0xFF64748B),
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '${responseItem.retryCount}',
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF0F172A),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              const Icon(Icons.access_time_rounded, size: 14, color: Color(0xFF64748B)),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  'Time: ${responseItem.responseTime.toString()}',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: Color(0xFF64748B),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Server / Error Message section
+                    const Text(
+                      'Server Response Message',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF334155),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: isSuccess ? const Color(0xFFF0FDF4) : const Color(0xFFFEF2F2),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: isSuccess ? const Color(0xFFBBF7D0) : const Color(0xFFFECACA),
                         ),
                       ),
-                    ],
-                  ),
-                  SizedBox(height: 12),
-                  Text('${S.of(context).lastResponseTime}: ', style: TextStyle(fontWeight: FontWeight.w600)),
-                  Text('${responseItem.responseTime.toString()}'),
-                  SizedBox(height: 12),
-                  Text('${S.of(context).statusCode}: ', style: TextStyle(fontWeight: FontWeight.w600)),
-                  Text('${responseItem.statusCode}'),
-                  SizedBox(height: 12),
-                  Text('${S.of(context).totalRetryCount}:', style: TextStyle(fontWeight: FontWeight.w600)),
-                  Text('${responseItem.retryCount}'),
-                  SizedBox(height: 12),
-                  Text('${S.of(context).latestMessage}: ', style: TextStyle(fontWeight: FontWeight.w600)),
-                  Container(
-                    width: double.maxFinite,
-                    padding: EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[100],
-                      borderRadius: BorderRadius.circular(8),
+                      child: SelectableText(
+                        responseItem.responseMessage.trim().isEmpty
+                            ? 'No message provided by server'
+                            : responseItem.responseMessage,
+                        style: TextStyle(
+                          fontSize: 13,
+                          height: 1.4,
+                          color: isSuccess ? const Color(0xFF166534) : const Color(0xFF991B1B),
+                          fontFamily: "Roboto",
+                        ),
+                      ),
                     ),
-                    child: Text(
-                      responseItem.responseMessage,
-                      style: TextStyle(fontSize: 12),
+
+                    const SizedBox(height: 18),
+
+                    // Attempts History Button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 42,
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(dialogContext);
+                          _showFullHistory(planId);
+                        },
+                        icon: const Icon(Icons.history_rounded, size: 18, color: Color(0xFF1E40AF)),
+                        label: const Text(
+                          'View Attempt History',
+                          style: TextStyle(
+                            color: Color(0xFF1E40AF),
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Color(0xFF93C5FD)),
+                          backgroundColor: const Color(0xFFEFF6FF),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                      ),
                     ),
-                  ),
-                  SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () {
-                      print(' [_showRemarksDialog] Navigating to full history');
-                      _showFullHistory(planId);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
+
+                    const SizedBox(height: 12),
+
+                    // Action buttons (Resend if failed, Close)
+                    Row(
+                      children: [
+                        if (!isSuccess) ...[
+                          Expanded(
+                            child: SizedBox(
+                              height: 42,
+                              child: ElevatedButton.icon(
+                                onPressed: () {
+                                  Navigator.pop(dialogContext);
+                                  _resendItem(planId);
+                                },
+                                icon: const Icon(Icons.replay_rounded, size: 16, color: Colors.white),
+                                label: Text(
+                                  S.of(context).resend,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFFDC2626),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                        ],
+                        Expanded(
+                          child: SizedBox(
+                            height: 42,
+                            child: OutlinedButton(
+                              onPressed: () => Navigator.pop(dialogContext),
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: Color(0xFFCBD5E1)),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                              child: Text(
+                                S.of(context).close,
+                                style: const TextStyle(
+                                  color: Color(0xFF475569),
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    child: Text(
-                      S.of(context).viewAttemptsHistory,
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                print(' [_showRemarksDialog] Closing remarks dialog');
-                Navigator.of(context).pop();
-              },
-              child: Text('Close'),
-            ),
-          ],
         );
       },
     );
@@ -502,135 +889,188 @@ class _ResendScreenState extends ConsumerState<ResendScreen> with SingleTickerPr
 
     try {
       final allResponsesForPlan =
-      await _apiResponseRepo.getResponsesForPlan(planId);
-
-      print("======================================================");
-      print(" PLAN ID : $planId");
-      print(" TOTAL ATTEMPTS : ${allResponsesForPlan.length}");
-
-      for (int i = 0; i < allResponsesForPlan.length; i++) {
-        final response = allResponsesForPlan[i];
-
-        String printNo = "";
-        String serverPlanId = "";
-
-        if (response.originalData is ImageUploaddata) {
-          final data = response.originalData as ImageUploaddata;
-
-          printNo = data.PrintNo ?? "";
-          serverPlanId = data.ServerPlanId ?? "";
-        }
-
-        print("---------------------------------------------");
-        print("Attempt      : ${i + 1}");
-        print("PlanId       : ${response.planId}");
-        print("ServerPlanId : $serverPlanId");
-        print("Print No     : $printNo");
-        print("Success      : ${response.isSuccess}");
-        print("Status Code  : ${response.statusCode}");
-        print("Time         : ${response.responseTime}");
-        print("Message      : ${response.responseMessage}");
-      }
-
-      print("======================================================");
+          await _apiResponseRepo.getResponsesForPlan(planId);
 
       showDialog(
         context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            title: Text(
-              '${S.of(context).completeHistory} $planId',
-              style: TextStyle(
-                color: Font.neutralDarkColor,
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
-                fontFamily: "Roboto",
+        builder: (BuildContext historyContext) {
+          return Dialog(
+            backgroundColor: Colors.white,
+            insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(historyContext).size.height * 0.75,
+                maxWidth: 480,
               ),
-            ),
-            content: Container(
-              width: double.maxFinite,
-              height: MediaQuery.of(context).size.height * 0.6,
-              child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      '${S.of(context).totalAttempts}: ${allResponsesForPlan.length}',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16,
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEFF6FF),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(
+                            Icons.history_rounded,
+                            color: Color(0xFF1D4ED8),
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${S.of(context).completeHistory}',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF0F172A),
+                                  fontFamily: "Roboto",
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Plan: $planId • ${allResponsesForPlan.length} total attempt(s)',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF64748B),
+                                  fontFamily: "Roboto",
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B)),
+                          onPressed: () => Navigator.pop(historyContext),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                    const SizedBox(height: 14),
+                    Expanded(
+                      child: allResponsesForPlan.isEmpty
+                          ? Center(
+                              child: Text(
+                                'No attempt history found',
+                                style: TextStyle(color: Colors.grey[600]),
+                              ),
+                            )
+                          : ListView.builder(
+                              itemCount: allResponsesForPlan.length,
+                              itemBuilder: (context, index) {
+                                final response = allResponsesForPlan[index];
+                                String printNo = "";
+                                String serverPlanId = "";
+
+                                if (response.originalData is ImageUploaddata) {
+                                  final data = response.originalData as ImageUploaddata;
+                                  printNo = data.PrintNo ?? "";
+                                  serverPlanId = data.ServerPlanId ?? "";
+                                }
+
+                                final isSuccess = response.isSuccess;
+
+                                return Container(
+                                  margin: const EdgeInsets.only(bottom: 12),
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: isSuccess ? const Color(0xFFF0FDF4) : const Color(0xFFFEF2F2),
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                      color: isSuccess ? const Color(0xFFBBF7D0) : const Color(0xFFFECACA),
+                                    ),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text(
+                                            'Attempt ${index + 1}${index == 0 ? ' (Latest)' : ''}',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 13,
+                                              color: Color(0xFF0F172A),
+                                            ),
+                                          ),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: isSuccess ? const Color(0xFFDCFCE7) : const Color(0xFFFEE2E2),
+                                              borderRadius: BorderRadius.circular(4),
+                                            ),
+                                            child: Text(
+                                              isSuccess ? 'Success' : 'Failed (Code ${response.statusCode})',
+                                              style: TextStyle(
+                                                color: isSuccess ? const Color(0xFF15803D) : const Color(0xFFB91C1C),
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: 11,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 6),
+                                      if (printNo.isNotEmpty)
+                                        Text('Print No: $printNo', style: const TextStyle(fontSize: 12, color: Color(0xFF475569))),
+                                      if (serverPlanId.isNotEmpty)
+                                        Text('Server Plan: $serverPlanId', style: const TextStyle(fontSize: 12, color: Color(0xFF475569))),
+                                      Text('Time: ${response.responseTime}', style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        response.responseMessage.trim().isEmpty
+                                            ? 'No details'
+                                            : response.responseMessage,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: isSuccess ? const Color(0xFF166534) : const Color(0xFF991B1B),
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 42,
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(historyContext),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Color(0xFFCBD5E1)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        child: Text(
+                          S.of(context).close,
+                          style: const TextStyle(
+                            color: Color(0xFF475569),
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
                       ),
                     ),
-                    SizedBox(height: 16),
-
-                    ...allResponsesForPlan.asMap().entries.map((entry) {
-                      int index = entry.key;
-                      ApiResponseData response = entry.value;
-
-                      String printNo = "";
-                      String serverPlanId = "";
-
-                      if (response.originalData is ImageUploaddata) {
-                        final data = response.originalData as ImageUploaddata;
-                        printNo = data.PrintNo ?? "";
-                        serverPlanId = data.ServerPlanId ?? "";
-                      }
-
-                      print(
-                          " UI Attempt ${index + 1} -> "
-                              "Plan=${response.planId} "
-                              "ServerPlan=$serverPlanId "
-                              "Print=$printNo "
-                              "Success=${response.isSuccess}");
-
-                      return Container(
-                        margin: EdgeInsets.only(bottom: 12),
-                        padding: EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: response.isSuccess
-                              ? Colors.green[50]
-                              : Colors.red[50],
-                          border: Border.all(
-                            color: response.isSuccess
-                                ? Colors.green
-                                : Colors.red,
-                            width: 1,
-                          ),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '${S.of(context).attempt} ${index + 1} ${index == 0 ? '(${S.of(context).latest})' : ''}',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            SizedBox(height: 4),
-                            Text("Print No : $printNo"),
-                            Text("Server Plan : $serverPlanId"),
-                            Text('${S.of(context).time}: ${response.responseTime}'),
-                            Text('${S.of(context).status}: ${response.isSuccess ? 'Success' : 'Failed'}'),
-                            Text('${S.of(context).code}: ${response.statusCode}'),
-                            Text('${S.of(context).message}: ${response.responseMessage}'),
-                          ],
-                        ),
-                      );
-                    }).toList(),
                   ],
                 ),
               ),
             ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  print(' [_showFullHistory] Closing history dialog');
-                  Navigator.of(context).pop();
-                },
-                child: Text(S.of(context).close),
-              ),
-            ],
           );
         },
       );
@@ -641,13 +1081,11 @@ class _ResendScreenState extends ConsumerState<ResendScreen> with SingleTickerPr
   }
 
   Future<bool> _onWillPop() async {
-    print(' [_onWillPop] Back button pressed, navigating to LandingScreen');
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => LandingScreen(changeLanguage: widget.changeLanguage)),
-    );
-    print(' [_onWillPop] Navigation triggered');
-    return false;
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+      return false;
+    }
+    return true;
   }
 
   List<int> _encryptFileBytes(List<int> fileBytes) {
@@ -826,17 +1264,15 @@ class _ResendScreenState extends ConsumerState<ResendScreen> with SingleTickerPr
         builder: (BuildContext context) {
           return Center(
             child: Card(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               child: Padding(
-                padding: EdgeInsets.all(20),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CircularProgressIndicator(),
-                    SizedBox(height: 16),
-                    Text(withEncryption
-                        ? 'Creating Encrypted ZIP...'
-                        : S.of(context).creatingZIPFile),
-                  ],
+                padding: const EdgeInsets.all(24),
+                child: CanImageLoader(
+                  spinnerSize: 52,
+                  showBrand: true,
+                  message: withEncryption
+                      ? 'Creating Encrypted ZIP...'
+                      : S.of(context).creatingZIPFile,
                 ),
               ),
             ),
@@ -1003,12 +1439,9 @@ Note: Keep the password secure and do not share publicly.
         Navigator.pop(context);
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error creating ZIP: $e'),
-          backgroundColor: Colors.red,
-          duration: Duration(seconds: 3),
-        ),
+      AppSnackBar.showError(
+        context,
+        'Error creating ZIP: $e',
       );
     } finally {
       setState(() {
@@ -1036,33 +1469,25 @@ Note: Keep the password secure and do not share publicly.
 
       if (result.status == ShareResultStatus.success) {
         print(' [_shareFile] Share successful');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(isEncrypted
-                ? 'Encrypted ZIP shared successfully!'
-                : 'ZIP file shared successfully!'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 2),
-          ),
+        AppSnackBar.showSuccess(
+          context,
+          isEncrypted
+              ? 'Encrypted ZIP shared successfully!'
+              : 'ZIP file shared successfully!',
         );
       } else if (result.status == ShareResultStatus.dismissed) {
         print(' [_shareFile] Share dismissed by user');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Share cancelled'),
-            backgroundColor: Colors.orange,
-            duration: Duration(seconds: 2),
-          ),
+        AppSnackBar.showTopSnackBar(
+          context,
+          'Share cancelled',
+          isError: false,
         );
       }
     } catch (e) {
       print(' [_shareFile] Error sharing file: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error sharing file: $e'),
-          backgroundColor: Colors.red,
-          duration: Duration(seconds: 3),
-        ),
+      AppSnackBar.showError(
+        context,
+        'Error sharing file: $e',
       );
     }
   }
@@ -1077,43 +1502,12 @@ Note: Keep the password secure and do not share publicly.
 
     return WillPopScope(
       onWillPop: _onWillPop,
-      child: SafeArea(
-        child: Scaffold(
-          backgroundColor: theme.colorScheme.surface,
-          appBar: AppBar(
-            elevation: 0,
-            backgroundColor: Font.primaryColor,
-            title: Text(
-                S.of(context).resend,
-                style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 18,
-                    letterSpacing: 1,
-                    fontFamily: "Roboto"
-                )
-            ),
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
-              onPressed: () {
-                print(' [AppBar] Back button pressed');
-                Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => LandingScreen(changeLanguage: widget.changeLanguage))
-                );
-              },
-            ),
-            actions: [
-              IconButton(
-                icon: Icon(Icons.home, color: Colors.white),
-                onPressed: () {
-                  print(' [AppBar] Home button pressed');
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => LandingScreen(changeLanguage: widget.changeLanguage)),
-                  );
-                },
-              ),
+      child: Scaffold(
+        backgroundColor: theme.colorScheme.surface,
+        appBar: CommonAppBar(
+            title: S.of(context).resend,
+            actions: const [
+              CommonHomeButton(),
             ],
             bottom: TabBar(
               controller: _tabController,
@@ -1121,20 +1515,22 @@ Note: Keep the password secure and do not share publicly.
               indicatorWeight: 3,
               labelColor: Colors.white,
               unselectedLabelColor: Colors.white70,
-              labelStyle: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+              labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
               tabs: [
                 Tab(
-                  icon: Icon(Icons.error_outline),
+                  icon: const Icon(Icons.error_outline),
                   text: S.of(context).failed,
                 ),
                 Tab(
-                  icon: Icon(Icons.check_circle_outline),
+                  icon: const Icon(Icons.check_circle_outline),
                   text: S.of(context).success,
                 ),
               ],
             ),
           ),
-          body: Container(
+          body: SafeArea(
+            top: false,
+            child: Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
@@ -1257,35 +1653,31 @@ Note: Keep the password secure and do not share publicly.
                               dataRowMaxHeight: double.infinity,
                               headingRowColor: MaterialStateProperty.all(Font.primaryColor),
                               headingTextStyle: TextstyleGlobal.tableHeaderTextStyle,
-                              headingRowHeight: 40,
+                              headingRowHeight: 44,
                               dataTextStyle: TextstyleGlobal.bodyTextStyleSeeplan,
-                              showCheckboxColumn: true,
+                              showCheckboxColumn: false,
                               showBottomBorder: true,
-                              columnSpacing: 10,
+                              columnSpacing: 12,
                               columns: [
                                 if (isSuccessTab)
                                   DataColumn(label: Container(width: 50, child: Center(child: Text(S.of(context).canId, style: TextstyleGlobal.tableHeaderTextStyle)))),
                                 DataColumn(label: Container(width: 50, child: Center(child: Text(S.of(context).village, style: TextstyleGlobal.tableHeaderTextStyle)))),
                                 DataColumn(label: Container(width: 50, child: Center(child: Text(S.of(context).plan, style: TextstyleGlobal.tableHeaderTextStyle)))),
                                 DataColumn(label: Container(width: 50, child: Center(child: Text(S.of(context).printNo, style: TextstyleGlobal.tableHeaderTextStyle)))),
-                                DataColumn(label: Container(width: 60, child: Center(child: Text(S.of(context).images, style: TextstyleGlobal.tableHeaderTextStyle)))),
-                                DataColumn(label: Container(width: 60, child: Center(child: Text(S.of(context).zip, style: TextstyleGlobal.tableHeaderTextStyle)))),
-                                DataColumn(label: Container(width: 60, child: Center(child: Text(S.of(context).action, style: TextstyleGlobal.tableHeaderTextStyle)))),
-                                DataColumn(label: Container(width: 80, child: Center(child: Text(S.of(context).status, style: TextstyleGlobal.tableHeaderTextStyle)))),
+                                DataColumn(label: Container(width: 65, child: Center(child: Text(S.of(context).images, style: TextstyleGlobal.tableHeaderTextStyle)))),
+                                DataColumn(label: Container(width: 65, child: Center(child: Text(S.of(context).zip, style: TextstyleGlobal.tableHeaderTextStyle)))),
+                                if (!isSuccessTab)
+                                  DataColumn(label: Container(width: 75, child: Center(child: Text(S.of(context).action, style: TextstyleGlobal.tableHeaderTextStyle)))),
+                                DataColumn(label: Container(width: 85, child: Center(child: Text(S.of(context).status, style: TextstyleGlobal.tableHeaderTextStyle)))),
                                 DataColumn(label: Container(width: 70, child: Center(child: Text(S.of(context).details, style: TextstyleGlobal.tableHeaderTextStyle)))),
                               ],
                               rows: List.generate(
                                 filteredResponseData.length,
-                                    (index) {
+                                (index) {
                                   final response = filteredResponseData[index];
                                   final planId = response.planId;
                                   final isResending = resendingItems.contains(planId);
-                                  final isFailed = !response.isSuccess;
-                                  print(
-                                    "PlanId: ${response.planId}, "
-                                        "PrintNo: ${response.originalData.PrintNo}, "
-                                        "CAN ID: ${response.originalData.printId}",
-                                  );
+
                                   return DataRow(
                                     cells: [
                                       if (isSuccessTab)
@@ -1293,54 +1685,33 @@ Note: Keep the password secure and do not share publicly.
                                       DataCell(Center(child: Container(width: 50, child: Text(response.originalData.VillageCode ?? '', style: TextstyleGlobal.bodyTextStyleSeeplan)))),
                                       DataCell(Center(child: Container(width: 50, child: Text(response.originalData.PlanCode ?? '', style: TextstyleGlobal.bodyTextStyleSeeplan)))),
                                       DataCell(Center(child: Container(width: 50, child: Text(response.originalData.PrintNo ?? '', style: TextstyleGlobal.bodyTextStyleSeeplan)))),
-                                      DataCell(
-                                        GestureDetector(
-                                          onTap: () => _showImagePopup(response),
-                                          child: Center(
-                                            child: Container(
-                                              width: 60,
-                                              padding: EdgeInsets.symmetric(vertical: 6, horizontal: 12),
-                                              decoration: BoxDecoration(color: Font.primaryLightColor, borderRadius: BorderRadius.circular(4)),
-                                              child: Text(
-                                                S.of(context).view,
-                                                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 10, fontFamily: "Roboto"),
-                                                textAlign: TextAlign.center,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
+
+                                      // IMAGES BUTTON
                                       DataCell(
                                         Center(
-                                          child: GestureDetector(
-                                            onTap: _isCreatingZip ? null : () {
-                                              _showShareOptionsDialog(response);
-                                            },
+                                          child: InkWell(
+                                            onTap: () => _showImagePopup(response),
+                                            borderRadius: BorderRadius.circular(6),
                                             child: Container(
-                                              width: 60,
-                                              padding: EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+                                              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
                                               decoration: BoxDecoration(
-                                                color: _isCreatingZip ? Colors.grey : Colors.green,
-                                                borderRadius: BorderRadius.circular(4),
+                                                color: const Color(0xFFEFF6FF),
+                                                borderRadius: BorderRadius.circular(6),
+                                                border: Border.all(color: const Color(0xFFBFDBFE), width: 1),
                                               ),
                                               child: Row(
-                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                mainAxisSize: MainAxisSize.min,
                                                 children: [
-                                                  if (_isCreatingZip)
-                                                    SizedBox(
-                                                      width: 10,
-                                                      height: 10,
-                                                      child: CircularProgressIndicator(
-                                                        strokeWidth: 2,
-                                                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                                      ),
-                                                    )
-                                                  else
-                                                    Icon(Icons.folder_zip, color: Colors.white, size: 12),
-                                                  SizedBox(width: 2),
+                                                  const Icon(Icons.image_outlined, size: 13, color: Color(0xFF1D4ED8)),
+                                                  const SizedBox(width: 4),
                                                   Text(
-                                                    S.of(context).zip,
-                                                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 10, fontFamily: "Roboto"),
+                                                    S.of(context).view,
+                                                    style: const TextStyle(
+                                                      color: Color(0xFF1D4ED8),
+                                                      fontWeight: FontWeight.w600,
+                                                      fontSize: 11,
+                                                      fontFamily: "Roboto",
+                                                    ),
                                                   ),
                                                 ],
                                               ),
@@ -1348,43 +1719,83 @@ Note: Keep the password secure and do not share publicly.
                                           ),
                                         ),
                                       ),
+
+                                      // ZIP BUTTON
                                       DataCell(
                                         Center(
-                                          child: _tabController.index == 0   //  Only show in Failed tab
-                                              ? Container(
-                                            width: 60,
-                                            child: GestureDetector(
+                                          child: InkWell(
+                                            onTap: _isCreatingZip ? null : () => _showShareOptionsDialog(response),
+                                            borderRadius: BorderRadius.circular(6),
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFFECFDF5),
+                                                borderRadius: BorderRadius.circular(6),
+                                                border: Border.all(color: const Color(0xFFA7F3D0), width: 1),
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  if (_isCreatingZip)
+                                                    const CanImageSpinner(
+                                                      size: 13,
+                                                      primaryColor: Color(0xFF047857),
+                                                      accentColor: Color(0xFF10B981),
+                                                    )
+                                                  else
+                                                    const Icon(Icons.folder_zip_outlined, color: Color(0xFF047857), size: 13),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    S.of(context).zip,
+                                                    style: const TextStyle(
+                                                      color: Color(0xFF047857),
+                                                      fontWeight: FontWeight.w600,
+                                                      fontSize: 11,
+                                                      fontFamily: "Roboto",
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+
+                                      // RESEND ACTION BUTTON (Failed tab only)
+                                      if (!isSuccessTab)
+                                        DataCell(
+                                          Center(
+                                            child: InkWell(
                                               onTap: isResending ? null : () => _resendItem(planId),
+                                              borderRadius: BorderRadius.circular(6),
                                               child: Container(
-                                                padding: EdgeInsets.symmetric(vertical: 8, horizontal: 2),
+                                                padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
                                                 decoration: BoxDecoration(
-                                                  color: isResending
-                                                      ? Colors.grey
-                                                      : (isFailed ? Colors.red : Colors.blue),
-                                                  borderRadius: BorderRadius.circular(4),
+                                                  color: isResending ? Colors.grey[200] : const Color(0xFFDC2626),
+                                                  borderRadius: BorderRadius.circular(6),
                                                 ),
                                                 child: Row(
-                                                  mainAxisAlignment: MainAxisAlignment.center,
+                                                  mainAxisSize: MainAxisSize.min,
                                                   children: [
                                                     if (isResending) ...[
-                                                      SizedBox(
-                                                        width: 6,
-                                                        height: 6,
-                                                        child: CircularProgressIndicator(
-                                                          strokeWidth: 2,
-                                                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                                        ),
+                                                      const CanImageSpinner(
+                                                        size: 11,
+                                                        primaryColor: Colors.grey,
+                                                        accentColor: Colors.white,
                                                       ),
-                                                      SizedBox(width: 2),
+                                                      const SizedBox(width: 4),
+                                                    ] else ...[
+                                                      const Icon(Icons.replay_rounded, size: 12, color: Colors.white),
+                                                      const SizedBox(width: 3),
                                                     ],
                                                     Text(
                                                       isResending
                                                           ? S.of(context).sending
                                                           : S.of(context).resend,
                                                       style: TextStyle(
-                                                        color: Colors.white,
+                                                        color: isResending ? Colors.grey[700] : Colors.white,
                                                         fontWeight: FontWeight.w600,
-                                                        fontSize: 8,
+                                                        fontSize: 11,
                                                         fontFamily: "Roboto",
                                                       ),
                                                     ),
@@ -1392,45 +1803,81 @@ Note: Keep the password secure and do not share publicly.
                                                 ),
                                               ),
                                             ),
-                                          )
-                                              : SizedBox.shrink(), //  Hide in Success tab
-                                        ),
-                                      ),
-                                      DataCell(
-                                        Center(
-                                          child: Text(
-                                            response.isSuccess ? S.of(context).success : S.of(context).failed,
-                                            style: TextStyle(color: response.isSuccess ? Colors.green : Colors.red, fontWeight: FontWeight.w600, fontSize: 12, fontFamily: "Roboto"),
-                                            textAlign: TextAlign.center,
                                           ),
                                         ),
-                                      ),
+
+                                      // STATUS BADGE
                                       DataCell(
                                         Center(
                                           child: Container(
-                                            width: 70,
-                                            child: GestureDetector(
-                                              onTap: () => _showRemarksDialog(planId),
-                                              child: Container(
-                                                padding: EdgeInsets.symmetric(vertical: 6, horizontal: 12),
-                                                decoration: BoxDecoration(
-                                                  color: Colors.grey[600],
-                                                  borderRadius: BorderRadius.circular(4),
-                                                ),
-                                                child: Text(
-                                                  S.of(context).view,
-                                                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 10, fontFamily: "Roboto"),
-                                                  textAlign: TextAlign.center,
-                                                ),
+                                            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                                            decoration: BoxDecoration(
+                                              color: response.isSuccess ? const Color(0xFFF0FDF4) : const Color(0xFFFEF2F2),
+                                              borderRadius: BorderRadius.circular(12),
+                                              border: Border.all(
+                                                color: response.isSuccess ? const Color(0xFFBBF7D0) : const Color(0xFFFECACA),
+                                                width: 1,
                                               ),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(
+                                                  response.isSuccess ? Icons.check_circle_rounded : Icons.cancel_rounded,
+                                                  size: 12,
+                                                  color: response.isSuccess ? const Color(0xFF166534) : const Color(0xFF991B1B),
+                                                ),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  response.isSuccess ? S.of(context).success : S.of(context).failed,
+                                                  style: TextStyle(
+                                                    color: response.isSuccess ? const Color(0xFF166534) : const Color(0xFF991B1B),
+                                                    fontWeight: FontWeight.w600,
+                                                    fontSize: 11,
+                                                    fontFamily: "Roboto",
+                                                  ),
+                                                ),
+                                              ],
                                             ),
                                           ),
                                         ),
                                       ),
 
+                                      // DETAILS BUTTON
+                                      DataCell(
+                                        Center(
+                                          child: InkWell(
+                                            onTap: () => _showRemarksDialog(planId),
+                                            borderRadius: BorderRadius.circular(6),
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFFF1F5F9),
+                                                borderRadius: BorderRadius.circular(6),
+                                                border: Border.all(color: const Color(0xFFCBD5E1), width: 1),
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  const Icon(Icons.receipt_long_outlined, size: 13, color: Color(0xFF334155)),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    S.of(context).view,
+                                                    style: const TextStyle(
+                                                      color: Color(0xFF334155),
+                                                      fontWeight: FontWeight.w600,
+                                                      fontSize: 11,
+                                                      fontFamily: "Roboto",
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
                                     ],
                                   );
-
                                 },
                               ),
                             ),

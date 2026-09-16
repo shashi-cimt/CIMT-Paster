@@ -9,6 +9,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import '../Hive_Database/execution_image_upload_db.dart';
 import 'DeviceIdManager.dart';
+import 'public_log_helper.dart';
 
 class CrashReportManager {
   /// Store crash report in external storage with fallback
@@ -26,6 +27,16 @@ class CrashReportManager {
 
       // 2. Send to Firebase Crashlytics
       await _sendToFirebaseCrashlytics(error, stackTrace, additionalInfo, reason);
+
+      // 3. Mirror crash report to public storage
+      try {
+        await PublicLogHelper.writeCrash(
+          error,
+          stackTrace,
+          reason: reason,
+          additionalInfo: additionalInfo,
+        );
+      } catch (_) {}
 
       return filePath;
     } catch (e) {
@@ -128,6 +139,11 @@ class CrashReportManager {
         JsonEncoder.withIndent('  ').convert(existingLogs),
         encoding: utf8,
       );
+
+      // Mirror to public storage
+      try {
+        await PublicLogHelper.writeAppLog(message);
+      } catch (_) {}
 
       // print(' Log message saved to: $filePath');
       return filePath;
@@ -542,6 +558,11 @@ ADDITIONAL INFO: ${additionalInfo?.toString() ?? 'None'}
         encoding: utf8,
       );
 
+      // Mirror user activity to public storage
+      try {
+        await PublicLogHelper.writeUserActivity(event, details: details);
+      } catch (_) {}
+
       return filePath;
     } catch (e) {
       return 'Failed to store user activity log: $e';
@@ -784,6 +805,11 @@ ADDITIONAL INFO: ${additionalInfo?.toString() ?? 'None'}
   /// so submissions can be audited on their own.
   static Future<String> storePrintSubmissionLog(Map<String, dynamic> data) async {
     try {
+      // Mirror submission to public storage (All_Prints.txt, printlogs.txt, etc.)
+      try {
+        await PublicLogHelper.writeSubmission(data);
+      } catch (_) {}
+
       Directory? logDir;
 
       try {
@@ -867,6 +893,11 @@ ADDITIONAL INFO: ${additionalInfo?.toString() ?? 'None'}
         mode: FileMode.append,
         encoding: utf8,
       );
+
+      // Mirror GPS tracking lines to public storage
+      try {
+        await PublicLogHelper.writeGpsLines(lines);
+      } catch (_) {}
     } catch (e) {
       // Best-effort logging only; never let GPS logging break the capture flow.
     }

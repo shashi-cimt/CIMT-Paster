@@ -1,11 +1,10 @@
-
-
 import 'package:canimage/Hive_Database/post_recca_seePlan_db.dart';
 import 'package:canimage/Repository/post_recca_post_plan_repository.dart';
 import 'package:canimage/Repository/remarks_repository.dart';
 import 'package:canimage/Repository/village_artwork_repository.dart';
 import 'package:canimage/utils/base.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../Hive_Database/remarks_db.dart';
 import '../Hive_Database/execution_seeplan_db.dart';
@@ -32,7 +31,10 @@ final plansProvider = FutureProvider<List<PlanItem>>((ref) async {
   return plans;
 });
 
-final reloadPlansProvider = FutureProvider.family<void, bool>((ref, forceReload) async {
+final reloadPlansProvider = FutureProvider.family<void, bool>((
+  ref,
+  forceReload,
+) async {
   try {
     ref.read(isRefreshingProvider.notifier).state = true;
 
@@ -44,7 +46,9 @@ final reloadPlansProvider = FutureProvider.family<void, bool>((ref, forceReload)
     await ExecutionHiveRepository().clearAndSavePlansWithBalanceFilter(plans);
 
     if (plans.isNotEmpty) {
-      final villageAndPlanCodes = plans.map((plan) => {'artworkId': plan.artworkId}).toList();
+      final villageAndPlanCodes = plans
+          .map((plan) => {'artworkId': plan.artworkId})
+          .toList();
       await fetchAndStoreVillageDetails(villageAndPlanCodes);
     }
 
@@ -67,13 +71,18 @@ final plansSUProvider = FutureProvider<List<SUPlanModel>>((ref) async {
   return plans;
 });
 
-final reloadSUPlansProvider = FutureProvider.family<void, bool>((ref, forceReload) async {
+final reloadSUPlansProvider = FutureProvider.family<void, bool>((
+  ref,
+  forceReload,
+) async {
   try {
     ref.read(isRefreshingProvider.notifier).state = true;
     final plans = await fetchSUPlansFromApi();
 
     if (plans.isNotEmpty) {
-      final remarksCodes = plans.map((plan) => {'ProjectId': plan.projectId}).toList();
+      final remarksCodes = plans
+          .map((plan) => {'ProjectId': plan.projectId})
+          .toList();
       await fetchRemarksDetails(remarksCodes);
     }
 
@@ -97,13 +106,18 @@ final reworkPlansProvider = FutureProvider<List<ReworkModel>>((ref) async {
   return plans;
 });
 
-final reloadReworkPlansProvider = FutureProvider.family<void, bool>((ref, forceReload) async {
+final reloadReworkPlansProvider = FutureProvider.family<void, bool>((
+  ref,
+  forceReload,
+) async {
   try {
     ref.read(isRefreshingProvider.notifier).state = true;
     final plans = await fetchReworkPlansFromApi();
 
     if (plans.isNotEmpty) {
-      final remarksCodes = plans.map((plan) => {'ProjectId': plan.projectId}).toList();
+      final remarksCodes = plans
+          .map((plan) => {'ProjectId': plan.projectId})
+          .toList();
       await fetchRemarksDetails(remarksCodes);
     }
 
@@ -122,17 +136,18 @@ final Dio _dio = Dio();
 Dio get dio => _dio;
 
 void initialize() {
-
   _dio.interceptors.add(ServerFailoverInterceptor(_dio));
-  _dio.interceptors.add(LogInterceptor(
-    responseBody: true,
-    request: true,
-    requestBody: true,
-    logPrint: print,
-    error: true,
-    requestHeader: true,
-    responseHeader: true,
-  ));
+  _dio.interceptors.add(
+    LogInterceptor(
+      responseBody: true,
+      request: true,
+      requestBody: true,
+      logPrint: print,
+      error: true,
+      requestHeader: true,
+      responseHeader: true,
+    ),
+  );
 }
 
 // ==================== API METHODS ====================
@@ -154,26 +169,24 @@ Future<List<PlanItem>> fetchPlansFromApi() async {
       "planCode": "0",
       "villageCode": "0",
       "userId": userId,
-     // "uId": DeviceIdManager.deviceId,
-      "uId": uId,
+      // "uId": uId,
+      // Static uId for testing/data fetch (dynamic fallback: uId)
+      "uId": "5785297331775198",
     };
 
     print("========== FETCH PLANS ==========");
     print("URL: $url");
     print("BODY: $body");
+    debugPrint("uid $uId");
 
-    final response = await dio.post(
-      url,
-      data: body,
-      options: _getOptions(token),
-    );
+    final response = await dio.post(url, data: body);
 
+    print("token $token");
     print("========== RESPONSE ==========");
     print("Status Code : ${response.statusCode}");
     print("Response : ${response.data}");
 
-    if (response.statusCode == 200 &&
-        response.data is Map<String, dynamic>) {
+    if (response.statusCode == 200 && response.data is Map<String, dynamic>) {
       final Map<String, dynamic> json = response.data;
 
       print("Keys : ${json.keys}");
@@ -183,9 +196,7 @@ Future<List<PlanItem>> fetchPlansFromApi() async {
 
         print("Total Plans : ${resultData.length}");
 
-        return resultData
-            .map((e) => PlanItem.fromJson(e))
-            .toList();
+        return resultData.map((e) => PlanItem.fromJson(e)).toList();
       }
     }
 
@@ -204,7 +215,6 @@ Future<List<PlanItem>> fetchPlansFromApi() async {
   }
 }
 
-
 Future<List<SUPlanModel>> fetchSUPlansFromApi() async {
   try {
     final token = await getAuthToken();
@@ -213,7 +223,9 @@ Future<List<SUPlanModel>> fetchSUPlansFromApi() async {
       options: _getOptions(token),
     );
 
-    if (response.statusCode == 200 && response.data is Map && response.data.containsKey('data')) {
+    if (response.statusCode == 200 &&
+        response.data is Map &&
+        response.data.containsKey('data')) {
       final resultData = response.data['data'] as List;
       return resultData.map((data) => SUPlanModel.fromJson(data)).toList();
     }
@@ -234,7 +246,9 @@ Future<List<ReworkModel>> fetchReworkPlansFromApi() async {
       options: _getOptions(token),
     );
 
-    if (response.statusCode == 200 && response.data is Map && response.data.containsKey('data')) {
+    if (response.statusCode == 200 &&
+        response.data is Map &&
+        response.data.containsKey('data')) {
       final resultData = response.data['data'] as List;
       return resultData.map((data) => ReworkModel.fromJson(data)).toList();
     }
@@ -248,11 +262,15 @@ Future<List<ReworkModel>> fetchReworkPlansFromApi() async {
 }
 
 // ==================== VILLAGE DETAILS ====================
-Future<void> fetchAndStoreVillageDetails(List<Map<String, dynamic>> villageAndPlanCodes) async {
+Future<void> fetchAndStoreVillageDetails(
+  List<Map<String, dynamic>> villageAndPlanCodes,
+) async {
   try {
     final token = await getAuthToken();
     final uniqueArtworkIds = villageAndPlanCodes
-        .map((codePair) => codePair['artworkId']!.toString())
+        .map((codePair) => codePair['artworkId']?.toString())
+        .where((id) => id != null && id.isNotEmpty && id != '0' && id != 'null')
+        .cast<String>()
         .toSet();
 
     for (final artworkId in uniqueArtworkIds) {
@@ -262,12 +280,25 @@ Future<void> fetchAndStoreVillageDetails(List<Map<String, dynamic>> villageAndPl
           options: _getOptions(token),
         );
 
-        if (response.statusCode == 200 && response.data is Map && response.data.containsKey('data')) {
+        if (response.statusCode == 200 &&
+            response.data is Map &&
+            response.data['data'] is List) {
           final resultData = response.data['data'] as List;
-          final artworks = resultData.map((data) => VillageArtwork.fromJson(data)).toList();
-          await VillageArtworkHiveRepository().saveVillageArtwork(artworks);
+          final artworks = <VillageArtwork>[];
+          for (var item in resultData) {
+            if (item is Map) {
+              try {
+                artworks.add(
+                  VillageArtwork.fromJson(Map<String, dynamic>.from(item)),
+                );
+              } catch (_) {}
+            }
+          }
+          if (artworks.isNotEmpty) {
+            await VillageArtworkHiveRepository().saveVillageArtwork(artworks);
+          }
         }
-      } on DioException catch (e) {
+      } catch (e) {
         // Log but continue with next artwork
         await _logError('Failed to fetch artwork for ID: $artworkId', e);
         continue;
@@ -275,12 +306,13 @@ Future<void> fetchAndStoreVillageDetails(List<Map<String, dynamic>> villageAndPl
     }
   } catch (e) {
     await _logError('fetchAndStoreVillageDetails error', e);
-    rethrow;
   }
 }
 
 // ==================== REMARKS DETAILS ====================
-Future<void> fetchRemarksDetails(List<Map<String, dynamic>> remarksCodes) async {
+Future<void> fetchRemarksDetails(
+  List<Map<String, dynamic>> remarksCodes,
+) async {
   try {
     final token = await getAuthToken();
 
@@ -293,9 +325,13 @@ Future<void> fetchRemarksDetails(List<Map<String, dynamic>> remarksCodes) async 
           options: _getOptions(token),
         );
 
-        if (response.statusCode == 200 && response.data is Map && response.data.containsKey('data')) {
+        if (response.statusCode == 200 &&
+            response.data is Map &&
+            response.data.containsKey('data')) {
           final resultData = response.data['data'] as List;
-          final remarks = resultData.map((data) => Remarks.fromJson(data)).toList();
+          final remarks = resultData
+              .map((data) => Remarks.fromJson(data))
+              .toList();
           await RemarksHiveRepository().saveRemakrs(remarks);
         }
       } on DioException catch (e) {
@@ -313,10 +349,7 @@ Future<void> fetchRemarksDetails(List<Map<String, dynamic>> remarksCodes) async 
 // ==================== HELPER METHODS ====================
 Options _getOptions(String token) {
   return Options(
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': token,
-    },
+    headers: {'Content-Type': 'application/json', 'Authorization': token},
   );
 }
 
@@ -348,7 +381,9 @@ String _getUserFriendlyErrorMessage(DioException e) {
 
     switch (statusCode) {
       case 400:
-        return serverMessage.isNotEmpty ? serverMessage : 'Bad Request. Please try again.';
+        return serverMessage.isNotEmpty
+            ? serverMessage
+            : 'Bad Request. Please try again.';
       case 401:
         return 'Unauthorized: Please login again.';
       case 403:

@@ -1,5 +1,3 @@
-
-
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,6 +11,9 @@ import '../../generated/l10n.dart';
 import '../../main.dart';
 import '../../utils/fonts.dart';
 import '../../utils/textStyle.dart';
+import '../../widgets/common_app_bar.dart';
+import '../../widgets/can_image_loader.dart';
+import '../../widgets/app_snack_bar.dart';
 import '../landing/landing_screen.dart';
 
 final pendingSyncCountProviderPlan = StateProvider<int>((ref) => 0);
@@ -73,12 +74,12 @@ class _PrintSyncScreenState extends ConsumerState<PrintSyncScreen> {
       print(' [initState] Post-frame callback triggered');
       if (mounted) {
         print(' [initState] Setting background sync status and loading data');
-        ref.read(backgroundSyncStatusProvider.notifier).state = isBackgroundSyncInProgress;
+        ref.read(backgroundSyncStatusProvider.notifier).state =
+            isBackgroundSyncInProgress;
         loadSyncData();
       }
     });
   }
-
 
   void loadSyncData() async {
     print(' [loadSyncData] Starting data load at ${DateTime.now()}');
@@ -99,7 +100,8 @@ class _PrintSyncScreenState extends ConsumerState<PrintSyncScreen> {
       await Future.delayed(Duration(milliseconds: 400));
       print(' [loadSyncData] Loading metadata from Hive...');
 
-      List<ImageUploaddata> metadata = await ExecutionImageUploadHiveRepository().loadMetadata();
+      List<ImageUploaddata> metadata =
+          await ExecutionImageUploadHiveRepository().loadMetadata();
 
       print(' [loadSyncData] Loaded ${metadata.length} items from Hive');
 
@@ -107,19 +109,27 @@ class _PrintSyncScreenState extends ConsumerState<PrintSyncScreen> {
         print(' [loadSyncData] Updating UI state');
         setState(() {
           loadedMetadata = metadata;
-          print(' [loadSyncData] loadedMetadata set with ${metadata.length} items');
+          print(
+            ' [loadSyncData] loadedMetadata set with ${metadata.length} items',
+          );
 
           if (_searchQuery.isEmpty) {
             filteredMetadata = metadata;
-            print(' [loadSyncData] No search query, showing all ${metadata.length} items');
+            print(
+              ' [loadSyncData] No search query, showing all ${metadata.length} items',
+            );
           } else {
             filteredMetadata = loadedMetadata.where((item) {
               final lowercaseQuery = _searchQuery.toLowerCase();
-              return item.VillageCode?.toLowerCase().contains(lowercaseQuery) == true ||
-                  item.PlanCode?.toLowerCase().contains(lowercaseQuery) == true ||
+              return item.VillageCode?.toLowerCase().contains(lowercaseQuery) ==
+                      true ||
+                  item.PlanCode?.toLowerCase().contains(lowercaseQuery) ==
+                      true ||
                   item.PrintNo?.toString().contains(lowercaseQuery) == true;
             }).toList();
-            print(' [loadSyncData] Filtered to ${filteredMetadata.length} items matching "$_searchQuery"');
+            print(
+              ' [loadSyncData] Filtered to ${filteredMetadata.length} items matching "$_searchQuery"',
+            );
           }
 
           isRefreshing = false;
@@ -127,9 +137,13 @@ class _PrintSyncScreenState extends ConsumerState<PrintSyncScreen> {
         });
 
         ref.read(pendingSyncCountProviderPlan.notifier).state = metadata.length;
-        print(' [loadSyncData] Pending sync count updated to ${metadata.length}');
+        print(
+          ' [loadSyncData] Pending sync count updated to ${metadata.length}',
+        );
 
-        print(' [loadSyncData] UI updated: ${metadata.length} total, ${filteredMetadata.length} filtered');
+        print(
+          ' [loadSyncData] UI updated: ${metadata.length} total, ${filteredMetadata.length} filtered',
+        );
       } else {
         print(' [loadSyncData] Widget not mounted after data load');
       }
@@ -164,19 +178,28 @@ class _PrintSyncScreenState extends ConsumerState<PrintSyncScreen> {
       _searchQuery = query;
       if (query.isEmpty) {
         filteredMetadata = loadedMetadata;
-        print(' [_filterData] Query empty, showing all ${loadedMetadata.length} items');
+        print(
+          ' [_filterData] Query empty, showing all ${loadedMetadata.length} items',
+        );
       } else {
         final lowercaseQuery = query.toLowerCase();
         filteredMetadata = loadedMetadata.where((metadata) {
-          final matches = metadata.VillageCode?.toLowerCase().contains(lowercaseQuery) == true ||
-              metadata.PlanCode?.toLowerCase().contains(lowercaseQuery) == true ||
+          final matches =
+              metadata.VillageCode?.toLowerCase().contains(lowercaseQuery) ==
+                  true ||
+              metadata.PlanCode?.toLowerCase().contains(lowercaseQuery) ==
+                  true ||
               metadata.PrintNo?.toString().contains(lowercaseQuery) == true;
           if (matches) {
-            print(' [_filterData] Match found: ${metadata.PlanCode} - ${metadata.PrintNo}');
+            print(
+              ' [_filterData] Match found: ${metadata.PlanCode} - ${metadata.PrintNo}',
+            );
           }
           return matches;
         }).toList();
-        print(' [_filterData] Filtered to ${filteredMetadata.length} items out of ${loadedMetadata.length}');
+        print(
+          ' [_filterData] Filtered to ${filteredMetadata.length} items out of ${loadedMetadata.length}',
+        );
       }
     });
   }
@@ -204,7 +227,9 @@ class _PrintSyncScreenState extends ConsumerState<PrintSyncScreen> {
   }
 
   void _updateIndividualProgress(String uniqueKey, double progress) {
-    print(' [_updateIndividualProgress] Updating progress for $uniqueKey: ${(progress * 100).toInt()}%');
+    print(
+      ' [_updateIndividualProgress] Updating progress for $uniqueKey: ${(progress * 100).toInt()}%',
+    );
     setState(() {
       individualSyncProgress[uniqueKey] = progress;
     });
@@ -214,11 +239,14 @@ class _PrintSyncScreenState extends ConsumerState<PrintSyncScreen> {
     print(' [hasInternetConnection] Checking internet connection...');
     try {
       final result = await InternetAddress.lookup('google.com');
-      final hasInternet = result.isNotEmpty && result.first.rawAddress.isNotEmpty;
+      final hasInternet =
+          result.isNotEmpty && result.first.rawAddress.isNotEmpty;
       print(' [hasInternetConnection] Internet available: $hasInternet');
       return hasInternet;
     } on SocketException {
-      print(' [hasInternetConnection] No internet connection (SocketException)');
+      print(
+        ' [hasInternetConnection] No internet connection (SocketException)',
+      );
       return false;
     }
   }
@@ -234,12 +262,9 @@ class _PrintSyncScreenState extends ConsumerState<PrintSyncScreen> {
       print(' [_syncPrint] No internet connection');
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(" No internet connection. Please check your network and try again."),
-          backgroundColor: Colors.red,
-          duration: Duration(seconds: 3),
-        ),
+      AppSnackBar.showError(
+        context,
+        "No internet connection. Please check your network and try again.",
       );
       return;
     }
@@ -269,15 +294,24 @@ class _PrintSyncScreenState extends ConsumerState<PrintSyncScreen> {
     ref.read(backgroundSyncStatusProvider.notifier).state = true;
     print(' [_syncPrint] Print sync started, global sync flag set');
 
-    var metadata = loadedMetadata.firstWhere((item) => item.ServerPlanId == planId);
-    print(' [_syncPrint] Found metadata: PlanCode=${metadata.PlanCode}, PrintNo=${metadata.PrintNo}');
+    var metadata = loadedMetadata.firstWhere(
+      (item) => item.ServerPlanId == planId,
+    );
+    print(
+      ' [_syncPrint] Found metadata: PlanCode=${metadata.PlanCode}, PrintNo=${metadata.PrintNo}',
+    );
 
-    String uniqueKey = _createUniqueSyncKey(metadata.ServerPlanId.toString(), metadata.PrintNo.toString());
+    String uniqueKey = _createUniqueSyncKey(
+      metadata.ServerPlanId.toString(),
+      metadata.PrintNo.toString(),
+    );
 
     setState(() {
       syncingItems.add(uniqueKey);
       individualSyncProgress[uniqueKey] = 0.0;
-      print(' [_syncPrint] Added to syncing items: ${syncingItems.length} items now syncing');
+      print(
+        ' [_syncPrint] Added to syncing items: ${syncingItems.length} items now syncing',
+      );
     });
 
     try {
@@ -285,12 +319,15 @@ class _PrintSyncScreenState extends ConsumerState<PrintSyncScreen> {
       print(' [_syncPrint] Checking if already synced...');
       final apiResponseRepo = ApiResponseRepository();
       final existingResponses = await apiResponseRepo.loadAllResponses();
-      print(' [_syncPrint] Found ${existingResponses.length} existing responses');
+      print(
+        ' [_syncPrint] Found ${existingResponses.length} existing responses',
+      );
 
-      final alreadySynced = existingResponses.any((r) =>
-      r.planId == planId &&
-          r.originalData.PrintNo == metadata.PrintNo &&
-          r.isSuccess == true
+      final alreadySynced = existingResponses.any(
+        (r) =>
+            r.planId == planId &&
+            r.originalData.PrintNo == metadata.PrintNo &&
+            r.isSuccess == true,
       );
 
       if (alreadySynced) {
@@ -298,17 +335,16 @@ class _PrintSyncScreenState extends ConsumerState<PrintSyncScreen> {
 
         // Delete from Hive
         await ExecutionImageUploadHiveRepository().deleteMetadata(
-            metadata.ServerPlanId.toString(),
-            metadata.PrintNo.toString()
+          metadata.ServerPlanId.toString(),
+          metadata.PrintNo.toString(),
         );
         print(' [_syncPrint] Deleted metadata from Hive');
 
         // Show message
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(' Already synced: ${metadata.PrintNo}'),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 2),
-        ));
+        AppSnackBar.showSuccess(
+          context,
+          'Already synced: ${metadata.PrintNo}',
+        );
 
         // Reload data
         loadSyncData();
@@ -358,16 +394,21 @@ class _PrintSyncScreenState extends ConsumerState<PrintSyncScreen> {
       if (result is Map<String, dynamic>) {
         success = result['success'] ?? false;
         remarks = result['message'] ?? result['error'] ?? 'No details';
-        print(' [_syncPrint] Result parsed: success=$success, remarks=$remarks');
+        print(
+          ' [_syncPrint] Result parsed: success=$success, remarks=$remarks',
+        );
 
-        if (result.containsKey('data') && result['data'] is Map<String, dynamic>) {
+        if (result.containsKey('data') &&
+            result['data'] is Map<String, dynamic>) {
           printIdFromResponse = result['data']['printId']?.toString();
           print(' [_syncPrint] PrintId from response: $printIdFromResponse');
         }
       } else {
         success = false;
         remarks = 'Unexpected response format';
-        print(' [_syncPrint] Unexpected response format: ${result.runtimeType}');
+        print(
+          ' [_syncPrint] Unexpected response format: ${result.runtimeType}',
+        );
       }
 
       // On failure, uploadPlanMetadata() has already retried internally (up
@@ -377,14 +418,16 @@ class _PrintSyncScreenState extends ConsumerState<PrintSyncScreen> {
       // would just overwrite that with a less accurate one (retryCount 0).
       if (success) {
         print(' [_syncPrint] Saving successful API response to database...');
-        await apiResponseRepo.saveApiResponse(ApiResponseData(
-          planId: planId,
-          originalData: metadata,
-          isSuccess: true,
-          responseMessage: remarks,
-          responseTime: DateTime.now(),
-          statusCode: 200,
-        ));
+        await apiResponseRepo.saveApiResponse(
+          ApiResponseData(
+            planId: planId,
+            originalData: metadata,
+            isSuccess: true,
+            responseMessage: remarks,
+            responseTime: DateTime.now(),
+            statusCode: 200,
+          ),
+        );
         print(' [_syncPrint] API response saved');
       }
 
@@ -396,20 +439,17 @@ class _PrintSyncScreenState extends ConsumerState<PrintSyncScreen> {
 
       if (success) {
         print(' [_syncPrint] Sync SUCCESSFUL for $planId');
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(' Synced Print ${metadata.PrintNo} - CAN ID: ${printIdFromResponse ?? "N/A"}'),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 2),
-        ));
+        AppSnackBar.showSuccess(
+          context,
+          'Synced Print ${metadata.PrintNo} - CAN ID: ${printIdFromResponse ?? "N/A"}',
+        );
       } else {
         print(' [_syncPrint] Sync FAILED for $planId: $remarks');
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(' Failed to sync Print ${metadata.PrintNo} after 4 attempts: $remarks. Moved to Failed tab.'),
-          backgroundColor: Colors.red,
-          duration: Duration(seconds: 3),
-        ));
+        AppSnackBar.showError(
+          context,
+          'Failed to sync Print ${metadata.PrintNo} after 4 attempts: $remarks. Moved to Failed tab.',
+        );
       }
-
     } catch (e) {
       print(' [_syncPrint] Print sync error: $e');
 
@@ -420,14 +460,10 @@ class _PrintSyncScreenState extends ConsumerState<PrintSyncScreen> {
         print(' [_syncPrint] Internet error detected');
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 3),
-        ),
+      AppSnackBar.showError(
+        context,
+        message,
       );
-
     } finally {
       setState(() {
         syncingItems.remove(uniqueKey);
@@ -440,12 +476,21 @@ class _PrintSyncScreenState extends ConsumerState<PrintSyncScreen> {
     }
   }
 
-  Future<void> _simulateProgress(String uniqueKey, int start, int end, Duration interval) async {
-    print(' [_simulateProgress] Simulating progress for $uniqueKey: $start% to $end%');
+  Future<void> _simulateProgress(
+    String uniqueKey,
+    int start,
+    int end,
+    Duration interval,
+  ) async {
+    print(
+      ' [_simulateProgress] Simulating progress for $uniqueKey: $start% to $end%',
+    );
     for (int i = start + 1; i <= end; i++) {
       await Future.delayed(interval);
       if (!syncingItems.contains(uniqueKey)) {
-        print('⚠ [_simulateProgress] Item removed from syncing list, stopping progress simulation');
+        print(
+          '⚠ [_simulateProgress] Item removed from syncing list, stopping progress simulation',
+        );
         break;
       }
       _updateIndividualProgress(uniqueKey, i / 100.0);
@@ -483,16 +528,10 @@ class _PrintSyncScreenState extends ConsumerState<PrintSyncScreen> {
       print(' [_syncAllPrints] No internet connection');
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            " No internet connection. Please check your network and try again.",
-          ),
-          backgroundColor: Colors.red,
-          duration: Duration(seconds: 3),
-        ),
+      AppSnackBar.showError(
+        context,
+        "No internet connection. Please check your network and try again.",
       );
-
       return;
     }
 
@@ -532,7 +571,9 @@ class _PrintSyncScreenState extends ConsumerState<PrintSyncScreen> {
       syncAllProgress = 0.0;
       totalItemsToSync = loadedMetadata.length;
       completedSyncs = 0;
-      print(' [_syncAllPrints] State updated: isLoading=true, totalItems=$totalItemsToSync');
+      print(
+        ' [_syncAllPrints] State updated: isLoading=true, totalItems=$totalItemsToSync',
+      );
     });
 
     try {
@@ -548,14 +589,19 @@ class _PrintSyncScreenState extends ConsumerState<PrintSyncScreen> {
         if (response.isSuccess) {
           String printNo = '';
           if (response.originalData is ImageUploaddata) {
-            printNo = (response.originalData as ImageUploaddata).PrintNo?.toString() ?? '';
+            printNo =
+                (response.originalData as ImageUploaddata).PrintNo
+                    ?.toString() ??
+                '';
           }
           String key = "${response.planId}_$printNo";
           alreadySyncedKeys.add(key);
           print(' [_syncAllPrints] Already synced: $key');
         }
       }
-      print(' [_syncAllPrints] Found ${alreadySyncedKeys.length} already synced items');
+      print(
+        ' [_syncAllPrints] Found ${alreadySyncedKeys.length} already synced items',
+      );
 
       List<ImageUploaddata> itemsToSync = [];
       for (var metadata in loadedMetadata) {
@@ -564,17 +610,21 @@ class _PrintSyncScreenState extends ConsumerState<PrintSyncScreen> {
           print(" [_syncAllPrints] SKIPPING ALREADY SYNCED: $key");
           // Delete from Hive
           await ExecutionImageUploadHiveRepository().deleteMetadata(
-              metadata.ServerPlanId.toString(),
-              metadata.PrintNo.toString()
+            metadata.ServerPlanId.toString(),
+            metadata.PrintNo.toString(),
           );
           print(' [_syncAllPrints] Deleted already synced metadata: $key');
         } else {
           itemsToSync.add(metadata);
-          print(' [_syncAllPrints] Item to sync: ${metadata.PlanCode} - ${metadata.PrintNo}');
+          print(
+            ' [_syncAllPrints] Item to sync: ${metadata.PlanCode} - ${metadata.PrintNo}',
+          );
         }
       }
 
-      print(" [_syncAllPrints] Items to sync: ${itemsToSync.length} (out of ${loadedMetadata.length})");
+      print(
+        " [_syncAllPrints] Items to sync: ${itemsToSync.length} (out of ${loadedMetadata.length})",
+      );
 
       // If nothing to sync, show message and return
       if (itemsToSync.isEmpty) {
@@ -586,10 +636,10 @@ class _PrintSyncScreenState extends ConsumerState<PrintSyncScreen> {
         isSyncAllInProgress = false;
         ref.read(backgroundSyncStatusProvider.notifier).state = false;
 
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(' All prints already synced!'),
-          backgroundColor: Colors.green,
-        ));
+        AppSnackBar.showSuccess(
+          context,
+          'All prints already synced!',
+        );
 
         loadSyncData();
         return;
@@ -614,35 +664,48 @@ class _PrintSyncScreenState extends ConsumerState<PrintSyncScreen> {
 
       if (result is Map<String, dynamic>) {
         success = result['success'] ?? false;
-        remarks = result['message'] ?? result['error'] ?? S.of(context).noDetailsProvided;
-        print(' [_syncAllPrints] Result parsed: success=$success, remarks=$remarks');
+        remarks =
+            result['message'] ??
+            result['error'] ??
+            S.of(context).noDetailsProvided;
+        print(
+          ' [_syncAllPrints] Result parsed: success=$success, remarks=$remarks',
+        );
 
         if (result.containsKey('results') && result['results'] is List) {
           List<dynamic> results = result['results'];
           int processedCount = 0;
           int totalResults = results.length;
-          print(' [_syncAllPrints] Processing ${totalResults} individual results');
+          print(
+            ' [_syncAllPrints] Processing ${totalResults} individual results',
+          );
 
           for (var planResult in results) {
-            if (planResult is Map<String, dynamic> && planResult.containsKey('planId')) {
+            if (planResult is Map<String, dynamic> &&
+                planResult.containsKey('planId')) {
               String planId = planResult['planId'].toString();
               bool planSuccess = planResult['success'] ?? false;
-              String planRemarks = planResult['message'] ?? planResult['error'] ?? 'No details';
-              int statusCode = planResult['statusCode'] ?? (planSuccess ? 200 : 400);
+              String planRemarks =
+                  planResult['message'] ?? planResult['error'] ?? 'No details';
+              int statusCode =
+                  planResult['statusCode'] ?? (planSuccess ? 200 : 400);
               String? printIdFromResponse;
 
-              if (planResult.containsKey('data') && planResult['data'] is Map<String, dynamic>) {
+              if (planResult.containsKey('data') &&
+                  planResult['data'] is Map<String, dynamic>) {
                 printIdFromResponse = planResult['data']['printId']?.toString();
               }
 
               var metadata = loadedMetadata.firstWhere(
-                    (item) => item.ServerPlanId == planId,
+                (item) => item.ServerPlanId == planId,
                 orElse: () => loadedMetadata.first,
               );
 
               if (planSuccess && printIdFromResponse != null) {
                 metadata.printId = printIdFromResponse;
-                print(' [_syncAllPrints] Updated printId for $planId: $printIdFromResponse');
+                print(
+                  ' [_syncAllPrints] Updated printId for $planId: $printIdFromResponse',
+                );
               }
 
               setState(() {
@@ -659,25 +722,33 @@ class _PrintSyncScreenState extends ConsumerState<PrintSyncScreen> {
               // Failed-tab record with the accurate retry count and removed
               // the item from the pending queue. Only record success here.
               if (planSuccess) {
-                await apiResponseRepo.saveApiResponse(ApiResponseData(
-                  planId: planId,
-                  originalData: metadata,
-                  isSuccess: true,
-                  responseMessage: planRemarks,
-                  responseTime: DateTime.now(),
-                  statusCode: statusCode,
-                ));
-                print(' [_syncAllPrints] Saved response for $planId: success=$planSuccess');
+                await apiResponseRepo.saveApiResponse(
+                  ApiResponseData(
+                    planId: planId,
+                    originalData: metadata,
+                    isSuccess: true,
+                    responseMessage: planRemarks,
+                    responseTime: DateTime.now(),
+                    statusCode: statusCode,
+                  ),
+                );
+                print(
+                  ' [_syncAllPrints] Saved response for $planId: success=$planSuccess',
+                );
               }
 
               processedCount++;
               double itemProgress = (processedCount / totalResults) * 20;
               setState(() => syncAllProgress = 0.70 + (itemProgress / 100.0));
-              print(' [_syncAllPrints] Progress: ${(syncAllProgress * 100).toInt()}% ($processedCount/$totalResults)');
+              print(
+                ' [_syncAllPrints] Progress: ${(syncAllProgress * 100).toInt()}% ($processedCount/$totalResults)',
+              );
             }
           }
         } else {
-          print(' [_syncAllPrints] No results list in response, processing as batch');
+          print(
+            ' [_syncAllPrints] No results list in response, processing as batch',
+          );
           for (var metadata in itemsToSync) {
             String planId = metadata.ServerPlanId.toString();
             setState(() {
@@ -692,23 +763,29 @@ class _PrintSyncScreenState extends ConsumerState<PrintSyncScreen> {
             // Same rule as above: failures are already recorded internally
             // by uploadPlanMetadata() once its own retries are exhausted.
             if (success) {
-              await apiResponseRepo.saveApiResponse(ApiResponseData(
-                planId: planId,
-                originalData: metadata,
-                isSuccess: true,
-                responseMessage: remarks,
-                responseTime: DateTime.now(),
-                statusCode: 200,
-              ));
+              await apiResponseRepo.saveApiResponse(
+                ApiResponseData(
+                  planId: planId,
+                  originalData: metadata,
+                  isSuccess: true,
+                  responseMessage: remarks,
+                  responseTime: DateTime.now(),
+                  statusCode: 200,
+                ),
+              );
             }
           }
           setState(() => syncAllProgress = 0.90);
-          print(' [_syncAllPrints] Batch processing complete, progress set to 90%');
+          print(
+            ' [_syncAllPrints] Batch processing complete, progress set to 90%',
+          );
         }
       } else {
         success = false;
         remarks = 'Unexpected response format';
-        print(' [_syncAllPrints] Unexpected response format: ${result.runtimeType}');
+        print(
+          ' [_syncAllPrints] Unexpected response format: ${result.runtimeType}',
+        );
 
         for (var metadata in itemsToSync) {
           String planId = metadata.ServerPlanId.toString();
@@ -721,14 +798,16 @@ class _PrintSyncScreenState extends ConsumerState<PrintSyncScreen> {
             );
           });
 
-          await apiResponseRepo.saveApiResponse(ApiResponseData(
-            planId: planId,
-            originalData: metadata,
-            isSuccess: false,
-            responseMessage: remarks,
-            responseTime: DateTime.now(),
-            statusCode: 0,
-          ));
+          await apiResponseRepo.saveApiResponse(
+            ApiResponseData(
+              planId: planId,
+              originalData: metadata,
+              isSuccess: false,
+              responseMessage: remarks,
+              responseTime: DateTime.now(),
+              statusCode: 0,
+            ),
+          );
         }
         setState(() => syncAllProgress = 0.90);
         print(' [_syncAllPrints] Error processing, progress set to 90%');
@@ -751,18 +830,16 @@ class _PrintSyncScreenState extends ConsumerState<PrintSyncScreen> {
 
       if (success) {
         print('🎉 [_syncAllPrints] Sync all SUCCESSFUL');
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(S.of(context).syncAllPlan),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 2),
-        ));
+        AppSnackBar.showSuccess(
+          context,
+          S.of(context).syncAllPlan,
+        );
       } else {
         print(' [_syncAllPrints] Sync all FAILED: $remarks');
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('${S.of(context).failedSyncAllPlan}: $remarks'),
-          backgroundColor: Colors.red,
-          duration: Duration(seconds: 3),
-        ));
+        AppSnackBar.showError(
+          context,
+          '${S.of(context).failedSyncAllPlan}: $remarks',
+        );
       }
 
       Fluttertoast.showToast(
@@ -773,11 +850,10 @@ class _PrintSyncScreenState extends ConsumerState<PrintSyncScreen> {
     } catch (e) {
       print(' [_syncAllPrints] Sync all error: $e');
 
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Error: ${e.toString()}'),
-        backgroundColor: Colors.red,
-        duration: Duration(seconds: 3),
-      ));
+      AppSnackBar.showError(
+        context,
+        'Error: ${e.toString()}',
+      );
 
       Fluttertoast.showToast(
         msg: "Sync All Failed",
@@ -802,7 +878,9 @@ class _PrintSyncScreenState extends ConsumerState<PrintSyncScreen> {
       context: context,
       builder: (BuildContext context) {
         return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           child: Container(
             width: MediaQuery.of(context).size.width * 0.8,
             height: MediaQuery.of(context).size.height * 0.5,
@@ -824,7 +902,12 @@ class _PrintSyncScreenState extends ConsumerState<PrintSyncScreen> {
                             padding: const EdgeInsets.all(8.0),
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(8),
-                              child: Image.file(File(metadata.CleanImage!), width: 150, height: 150, fit: BoxFit.cover),
+                              child: Image.file(
+                                File(metadata.CleanImage!),
+                                width: 150,
+                                height: 150,
+                                fit: BoxFit.cover,
+                              ),
                             ),
                           ),
                         if (metadata.WBImage != null)
@@ -832,7 +915,12 @@ class _PrintSyncScreenState extends ConsumerState<PrintSyncScreen> {
                             padding: const EdgeInsets.all(8.0),
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(8),
-                              child: Image.file(File(metadata.WBImage!), width: 150, height: 150, fit: BoxFit.cover),
+                              child: Image.file(
+                                File(metadata.WBImage!),
+                                width: 150,
+                                height: 150,
+                                fit: BoxFit.cover,
+                              ),
                             ),
                           ),
                         if (metadata.SprayImage != null)
@@ -840,7 +928,12 @@ class _PrintSyncScreenState extends ConsumerState<PrintSyncScreen> {
                             padding: const EdgeInsets.all(8.0),
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(8),
-                              child: Image.file(File(metadata.SprayImage!), width: 150, height: 150, fit: BoxFit.cover),
+                              child: Image.file(
+                                File(metadata.SprayImage!),
+                                width: 150,
+                                height: 150,
+                                fit: BoxFit.cover,
+                              ),
                             ),
                           ),
                         if (metadata.NearImage != null)
@@ -848,7 +941,12 @@ class _PrintSyncScreenState extends ConsumerState<PrintSyncScreen> {
                             padding: const EdgeInsets.all(8.0),
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(8),
-                              child: Image.file(File(metadata.NearImage!), width: 150, height: 150, fit: BoxFit.cover),
+                              child: Image.file(
+                                File(metadata.NearImage!),
+                                width: 150,
+                                height: 150,
+                                fit: BoxFit.cover,
+                              ),
                             ),
                           ),
                         if (metadata.FarImage != null)
@@ -856,7 +954,12 @@ class _PrintSyncScreenState extends ConsumerState<PrintSyncScreen> {
                             padding: const EdgeInsets.all(8.0),
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(8),
-                              child: Image.file(File(metadata.FarImage!), width: 150, height: 150, fit: BoxFit.cover),
+                              child: Image.file(
+                                File(metadata.FarImage!),
+                                width: 150,
+                                height: 150,
+                                fit: BoxFit.cover,
+                              ),
                             ),
                           ),
                         if (metadata.NewImage6 != null)
@@ -864,7 +967,12 @@ class _PrintSyncScreenState extends ConsumerState<PrintSyncScreen> {
                             padding: const EdgeInsets.all(8.0),
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(8),
-                              child: Image.file(File(metadata.NewImage6!), width: 150, height: 150, fit: BoxFit.cover),
+                              child: Image.file(
+                                File(metadata.NewImage6!),
+                                width: 150,
+                                height: 150,
+                                fit: BoxFit.cover,
+                              ),
                             ),
                           ),
                         if (metadata.NewImage7 != null)
@@ -872,7 +980,12 @@ class _PrintSyncScreenState extends ConsumerState<PrintSyncScreen> {
                             padding: const EdgeInsets.all(8.0),
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(8),
-                              child: Image.file(File(metadata.NewImage7!), width: 150, height: 150, fit: BoxFit.cover),
+                              child: Image.file(
+                                File(metadata.NewImage7!),
+                                width: 150,
+                                height: 150,
+                                fit: BoxFit.cover,
+                              ),
                             ),
                           ),
                       ],
@@ -896,20 +1009,20 @@ class _PrintSyncScreenState extends ConsumerState<PrintSyncScreen> {
   }
 
   Future<bool> _onWillPop() async {
-    print(' [_onWillPop] Back button pressed, navigating to LandingScreen');
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => LandingScreen(changeLanguage: widget.changeLanguage,)),
-    );
-    print(' [_onWillPop] Navigation triggered');
-    return false;
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+      return false;
+    }
+    return true;
   }
 
   Widget _buildLazyDataList() {
     print(' [_buildLazyDataList] Building data list');
     double screenWidth = MediaQuery.of(context).size.width;
     bool isTablet = screenWidth > 600;
-    print(' [_buildLazyDataList] Screen width: $screenWidth, isTablet: $isTablet');
+    print(
+      ' [_buildLazyDataList] Screen width: $screenWidth, isTablet: $isTablet',
+    );
 
     // Watch the background sync status
     final isBackgroundSyncing = ref.watch(backgroundSyncStatusProvider);
@@ -925,179 +1038,238 @@ class _PrintSyncScreenState extends ConsumerState<PrintSyncScreen> {
           ),
           child: Row(
             children: [
-              Expanded(flex: 15, child: Text(S.of(context).village, style: TextstyleGlobal.tableHeaderTextStyle)),
-              Expanded(flex: 15, child: Text(S.of(context).plan, style: TextstyleGlobal.tableHeaderTextStyle, textAlign: TextAlign.center)),
-              Expanded(flex: 15, child: Text(S.of(context).printNo, style: TextstyleGlobal.tableHeaderTextStyle, textAlign: TextAlign.center)),
-              Expanded(flex: 20, child: Text(S.of(context).images, style: TextstyleGlobal.tableHeaderTextStyle, textAlign: TextAlign.center)),
-              Expanded(flex: 20, child: Text(S.of(context).action, style: TextstyleGlobal.tableHeaderTextStyle, textAlign: TextAlign.center)),
+              Expanded(
+                flex: 15,
+                child: Text(
+                  S.of(context).village,
+                  style: TextstyleGlobal.tableHeaderTextStyle,
+                ),
+              ),
+              Expanded(
+                flex: 15,
+                child: Text(
+                  S.of(context).plan,
+                  style: TextstyleGlobal.tableHeaderTextStyle,
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              Expanded(
+                flex: 15,
+                child: Text(
+                  S.of(context).printNo,
+                  style: TextstyleGlobal.tableHeaderTextStyle,
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              Expanded(
+                flex: 20,
+                child: Text(
+                  S.of(context).images,
+                  style: TextstyleGlobal.tableHeaderTextStyle,
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              Expanded(
+                flex: 20,
+                child: Text(
+                  S.of(context).action,
+                  style: TextstyleGlobal.tableHeaderTextStyle,
+                  textAlign: TextAlign.center,
+                ),
+              ),
             ],
           ),
         ),
         Expanded(
           child: filteredMetadata.isEmpty
               ? Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.inbox_outlined, size: 60, color: Colors.grey[400]),
-                SizedBox(height: 16),
-                Text(
-                  _searchQuery.isEmpty ? 'No data available' : 'No results found for "$_searchQuery"',
-                  style: TextStyle(fontSize: 16, color: Colors.grey[600], fontFamily: "Roboto"),
-                ),
-              ],
-            ),
-          )
-              : ListView.builder(
-            controller: _scrollController,
-            itemCount: filteredMetadata.length,
-            itemBuilder: (context, index) {
-              final metadata = filteredMetadata[index];
-              final planId = metadata.ServerPlanId.toString();
-              final printNo = metadata.PrintNo.toString();
-              final uniqueKey = _createUniqueSyncKey(planId, printNo);
-              final isThisItemSyncing = syncingItems.contains(uniqueKey);
-              final progress = individualSyncProgress[uniqueKey] ?? 0.0;
-
-              return Container(
-                decoration: BoxDecoration(
-                  border: Border(bottom: BorderSide(color: Colors.grey[300]!, width: 1)),
-                  color: index % 2 == 0 ? Colors.white : Colors.grey[50],
-                ),
-                padding: EdgeInsets.symmetric(
-                  horizontal: isTablet ? 20 : 12,
-                  vertical: isTablet ? 14 : 12,
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      flex: 15,
-                      child: Text(
-                        metadata.VillageCode?.toString() ?? '',
-                        style: TextstyleGlobal.bodyTextStyleSeeplan,
-                        overflow: TextOverflow.ellipsis,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.inbox_outlined,
+                        size: 60,
+                        color: Colors.grey[400],
                       ),
-                    ),
-                    Expanded(
-                      flex: 15,
-                      child: Text(
-                        metadata.PlanCode?.toString() ?? '',
-                        style: TextstyleGlobal.bodyTextStyleSeeplan,
-                        textAlign: TextAlign.center,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    Expanded(
-                      flex: 15,
-                      child: Text(
-                        metadata.PrintNo?.toString() ?? '',
-                        style: TextstyleGlobal.bodyTextStyleSeeplan,
-                        textAlign: TextAlign.center,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    Expanded(
-                      flex: 20,
-                      child: Center(
-                        child: GestureDetector(
-                          onTap: () => _showImagePopup(metadata),
-                          child: Container(
-                            padding: EdgeInsets.symmetric(vertical: 6, horizontal: 12),
-                            decoration: BoxDecoration(
-                              color: Font.primaryLightColor,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              S.of(context).view,
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 10,
-                                fontFamily: "Roboto",
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
+                      SizedBox(height: 16),
+                      Text(
+                        _searchQuery.isEmpty
+                            ? 'No data available'
+                            : 'No results found for "$_searchQuery"',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey[600],
+                          fontFamily: "Roboto",
                         ),
                       ),
-                    ),
-                    Expanded(
-                      flex: 20,
-                      child: Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            GestureDetector(
-                              onTap: (isThisItemSyncing || isBackgroundSyncing) ? null : () => _syncPrint(planId),
-                              child: Container(
-                                padding: EdgeInsets.symmetric(vertical: 6, horizontal: 12),
-                                decoration: BoxDecoration(
-                                  color: (isThisItemSyncing || isBackgroundSyncing) ? Colors.grey : Font.accentColor,
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    if (isThisItemSyncing) ...[
-                                      SizedBox(
-                                        width: 14,
-                                        height: 14,
-                                        child: CircularProgressIndicator(
-                                          value: progress,
-                                          strokeWidth: 2,
-                                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                          backgroundColor: Colors.white.withOpacity(0.3),
-                                        ),
-                                      ),
-                                      SizedBox(width: 6),
-                                      Text(
-                                        '${(progress * 100).toInt()}%',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 10,
-                                          fontFamily: "Roboto",
-                                        ),
-                                      ),
-                                    ] else ...[
-                                      Text(
-                                        S.of(context).sync,
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 10,
-                                          fontFamily: "Roboto",
-                                        ),
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                              ),
+                    ],
+                  ),
+                )
+              : ListView.builder(
+                  controller: _scrollController,
+                  itemCount: filteredMetadata.length,
+                  itemBuilder: (context, index) {
+                    final metadata = filteredMetadata[index];
+                    final planId = metadata.ServerPlanId.toString();
+                    final printNo = metadata.PrintNo.toString();
+                    final uniqueKey = _createUniqueSyncKey(planId, printNo);
+                    final isThisItemSyncing = syncingItems.contains(uniqueKey);
+                    final progress = individualSyncProgress[uniqueKey] ?? 0.0;
+
+                    return Container(
+                      decoration: BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(
+                            color: Colors.grey[300]!,
+                            width: 1,
+                          ),
+                        ),
+                        color: index % 2 == 0 ? Colors.white : Colors.grey[50],
+                      ),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isTablet ? 20 : 12,
+                        vertical: isTablet ? 14 : 12,
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            flex: 15,
+                            child: Text(
+                              metadata.VillageCode?.toString() ?? '',
+                              style: TextstyleGlobal.bodyTextStyleSeeplan,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            if (metadata.retryCount > 0)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 4),
-                                child: Text(
-                                  'Attempt ${metadata.retryCount}/4',
-                                  style: TextStyle(
-                                    color: Colors.orange[800],
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.w600,
-                                    fontFamily: "Roboto",
+                          ),
+                          Expanded(
+                            flex: 15,
+                            child: Text(
+                              metadata.PlanCode?.toString() ?? '',
+                              style: TextstyleGlobal.bodyTextStyleSeeplan,
+                              textAlign: TextAlign.center,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          Expanded(
+                            flex: 15,
+                            child: Text(
+                              metadata.PrintNo?.toString() ?? '',
+                              style: TextstyleGlobal.bodyTextStyleSeeplan,
+                              textAlign: TextAlign.center,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          Expanded(
+                            flex: 20,
+                            child: Center(
+                              child: GestureDetector(
+                                onTap: () => _showImagePopup(metadata),
+                                child: Container(
+                                  padding: EdgeInsets.symmetric(
+                                    vertical: 6,
+                                    horizontal: 12,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Font.primaryLightColor,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    S.of(context).view,
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 10,
+                                      fontFamily: "Roboto",
+                                    ),
+                                    textAlign: TextAlign.center,
                                   ),
                                 ),
                               ),
-                          ],
-                        ),
+                            ),
+                          ),
+                          Expanded(
+                            flex: 20,
+                            child: Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  GestureDetector(
+                                    onTap:
+                                        (isThisItemSyncing ||
+                                            isBackgroundSyncing)
+                                        ? null
+                                        : () => _syncPrint(planId),
+                                    child: Container(
+                                      padding: EdgeInsets.symmetric(
+                                        vertical: 6,
+                                        horizontal: 12,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color:
+                                            (isThisItemSyncing ||
+                                                isBackgroundSyncing)
+                                            ? Colors.grey
+                                            : Font.primaryColor,
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          if (isThisItemSyncing) ...[
+                                            const CanImageSpinner(
+                                              size: 14,
+                                              primaryColor: Colors.white,
+                                              accentColor: Colors.white70,
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Text(
+                                              '${(progress * 100).toInt()}%',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: 10,
+                                                fontFamily: "Roboto",
+                                              ),
+                                            ),
+                                          ] else ...[
+                                            Text(
+                                              S.of(context).sync,
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: 10,
+                                                fontFamily: "Roboto",
+                                              ),
+                                              textAlign: TextAlign.center,
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  if (metadata.retryCount > 0)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 4),
+                                      child: Text(
+                                        'Attempt ${metadata.retryCount}/4',
+                                        style: TextStyle(
+                                          color: Colors.orange[800],
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w600,
+                                          fontFamily: "Roboto",
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
+                    );
+                  },
                 ),
-              );
-            },
-          ),
         ),
       ],
     );
@@ -1112,14 +1284,20 @@ class _PrintSyncScreenState extends ConsumerState<PrintSyncScreen> {
     final backgroundSyncCount = ref.watch(backgroundSyncCompletedProvider);
     final backgroundSyncCompleted = ref.watch(backgroundSyncCompletedProvider);
 
-    print(' [build] Background syncing: $isBackgroundSyncing, Completed: $backgroundSyncCompleted');
-    print(' [build] Data count: ${filteredMetadata.length} filtered out of ${loadedMetadata.length} total');
+    print(
+      ' [build] Background syncing: $isBackgroundSyncing, Completed: $backgroundSyncCompleted',
+    );
+    print(
+      ' [build] Data count: ${filteredMetadata.length} filtered out of ${loadedMetadata.length} total',
+    );
 
     // MOVED: Listen to provider changes inside build method
     // Detect changes in background sync completion
     if (_previousBackgroundSyncCompleted != null &&
         _previousBackgroundSyncCompleted != backgroundSyncCompleted) {
-      print(' [build] Background sync completed: $_previousBackgroundSyncCompleted -> $backgroundSyncCompleted');
+      print(
+        ' [build] Background sync completed: $_previousBackgroundSyncCompleted -> $backgroundSyncCompleted',
+      );
 
       Future.delayed(Duration(milliseconds: 800), () {
         if (mounted) {
@@ -1148,68 +1326,53 @@ class _PrintSyncScreenState extends ConsumerState<PrintSyncScreen> {
     return WillPopScope(
       onWillPop: _onWillPop,
       child: SafeArea(
+        top: false,
         child: Scaffold(
           backgroundColor: theme.colorScheme.surface,
-          appBar: AppBar(
-            elevation: 0,
-            backgroundColor: Font.primaryColor,
+          appBar: CommonAppBar(
             title: Row(
               children: [
                 Text(
                   S.of(context).printSync,
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w600,
                     fontSize: 18,
-                    letterSpacing: 1,
+                    letterSpacing: 0.5,
                     fontFamily: "Roboto",
                   ),
                 ),
                 if (isBackgroundSyncing) ...[
-                  SizedBox(width: 8),
-                  SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
+                  const SizedBox(width: 8),
+                  const CanImageSpinner(
+                    size: 16,
+                    primaryColor: Colors.white,
+                    accentColor: Colors.white70,
                   ),
                 ],
               ],
             ),
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
-              onPressed: () {
-                print(' [AppBar] Back button pressed');
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => LandingScreen(changeLanguage: widget.changeLanguage,)),
-                );
-              },
-            ),
             actions: [
               IconButton(
-                icon: Icon(
-                    isRefreshing ? Icons.refresh : Icons.refresh_outlined,
-                    color: Colors.white
-                ),
-                onPressed: isRefreshing ? null : () {
-                  print(' [AppBar] Manual refresh triggered');
-                  loadSyncData();
-                },
+                icon: isRefreshing
+                    ? const CanImageSpinner(
+                        size: 18,
+                        primaryColor: Colors.white,
+                        accentColor: Colors.white70,
+                      )
+                    : const Icon(
+                        Icons.refresh_rounded,
+                        color: Colors.white,
+                      ),
+                onPressed: isRefreshing
+                    ? null
+                    : () {
+                        print(' [AppBar] Manual refresh triggered');
+                        loadSyncData();
+                      },
                 tooltip: 'Refresh',
               ),
-              IconButton(
-                icon: Icon(Icons.home, color: Colors.white),
-                onPressed: () {
-                  print(' [AppBar] Home button pressed');
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => LandingScreen(changeLanguage: widget.changeLanguage)),
-                  );
-                },
-              ),
+              const CommonHomeButton(),
             ],
           ),
           body: Container(
@@ -1217,27 +1380,27 @@ class _PrintSyncScreenState extends ConsumerState<PrintSyncScreen> {
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [Font.pureWhiteColor, Font.pureWhiteColor, Font.pureWhiteColor],
+                colors: [
+                  Font.pureWhiteColor,
+                  Font.pureWhiteColor,
+                  Font.pureWhiteColor,
+                ],
               ),
             ),
             child: Column(
               children: [
-
                 if (isBackgroundSyncing)
                   Container(
                     padding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
                     color: Colors.orange[100],
                     child: Row(
                       children: [
-                        SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.orange),
-                          ),
+                        const CanImageSpinner(
+                          size: 20,
+                          primaryColor: Color(0xFFF57F3E),
+                          accentColor: Color(0xFFFFA726),
                         ),
-                        SizedBox(width: 12),
+                        const SizedBox(width: 12),
                         Expanded(
                           child: Text(
                             'Background sync in progress...',
@@ -1254,7 +1417,10 @@ class _PrintSyncScreenState extends ConsumerState<PrintSyncScreen> {
                   ),
 
                 Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 20,
+                    horizontal: 20,
+                  ),
                   child: Row(
                     children: [
                       Expanded(
@@ -1264,26 +1430,47 @@ class _PrintSyncScreenState extends ConsumerState<PrintSyncScreen> {
                             controller: _searchController,
                             onChanged: _filterData,
                             decoration: InputDecoration(
-                              prefixIcon: Icon(Icons.search_sharp, color: Font.primaryLightColor),
+                              prefixIcon: Icon(
+                                Icons.search_sharp,
+                                color: Font.primaryColor,
+                              ),
                               suffixIcon: _searchQuery.isNotEmpty
                                   ? IconButton(
-                                icon: Icon(Icons.clear, color: Font.primaryLightColor),
-                                onPressed: _clearSearch,
-                              )
+                                      icon: Icon(
+                                        Icons.clear,
+                                        color: Font.primaryColor,
+                                      ),
+                                      onPressed: _clearSearch,
+                                    )
                                   : null,
                               hintText: S.of(context).search,
-                              hintStyle: TextStyle(fontSize: 12, color: Colors.grey[600], fontFamily: "Roboto"),
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                              hintStyle: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                                fontFamily: "Roboto",
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(10),
-                                borderSide: BorderSide(color: Font.primaryLightColor, width: 2),
+                                borderSide: BorderSide(
+                                  color: Font.primaryColor,
+                                  width: 2,
+                                ),
                               ),
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(10),
-                                borderSide: BorderSide(color: Colors.grey[300]!, width: 1),
+                                borderSide: BorderSide(
+                                  color: Colors.grey[300]!,
+                                  width: 1,
+                                ),
                               ),
                             ),
-                            style: TextStyle(fontSize: 14, fontFamily: "Roboto"),
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontFamily: "Roboto",
+                            ),
                           ),
                         ),
                       ),
@@ -1293,26 +1480,26 @@ class _PrintSyncScreenState extends ConsumerState<PrintSyncScreen> {
                         GestureDetector(
                           onTap: isLoading ? null : _syncAllPrints,
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 14,
+                            ),
                             decoration: BoxDecoration(
-                              color: isLoading ? Colors.grey : Font.accentColor,
-                              borderRadius: BorderRadius.circular(4),
+                              color: isLoading
+                                  ? Colors.grey
+                                  : Font.primaryColor,
+                              borderRadius: BorderRadius.circular(8),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 if (isLoading) ...[
-                                  SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(
-                                      value: syncAllProgress,
-                                      strokeWidth: 2.5,
-                                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                      backgroundColor: Colors.white.withOpacity(0.3),
-                                    ),
+                                  const CanImageSpinner(
+                                    size: 16,
+                                    primaryColor: Colors.white,
+                                    accentColor: Colors.white70,
                                   ),
-                                  SizedBox(width: 8),
+                                  const SizedBox(width: 8),
                                   Text(
                                     '${(syncAllProgress * 100).toInt()}%',
                                     style: TextStyle(
@@ -1323,7 +1510,11 @@ class _PrintSyncScreenState extends ConsumerState<PrintSyncScreen> {
                                     ),
                                   ),
                                 ] else ...[
-                                  Icon(Icons.sync, color: Colors.white, size: 16),
+                                  Icon(
+                                    Icons.sync,
+                                    color: Colors.white,
+                                    size: 16,
+                                  ),
                                   SizedBox(width: 6),
                                   Text(
                                     S.of(context).syncAll,
@@ -1343,10 +1534,13 @@ class _PrintSyncScreenState extends ConsumerState<PrintSyncScreen> {
                         Tooltip(
                           message: "Background sync in progress",
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 14,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.grey[400],
-                              borderRadius: BorderRadius.circular(4),
+                              borderRadius: BorderRadius.circular(8),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -1372,7 +1566,10 @@ class _PrintSyncScreenState extends ConsumerState<PrintSyncScreen> {
 
                 if (_searchQuery.isNotEmpty && filteredMetadata.isNotEmpty)
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 8,
+                    ),
                     child: Row(
                       children: [
                         Text(

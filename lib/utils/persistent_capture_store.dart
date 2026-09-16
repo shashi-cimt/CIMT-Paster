@@ -31,8 +31,7 @@ class PersistentCaptureStore {
       }
 
       final String destPath =
-          '${dir.path}/ '
-          '+${DateTime.now().microsecondsSinceEpoch}.jpg';
+          '${dir.path}/capture_${DateTime.now().microsecondsSinceEpoch}.jpg';
 
       final File source = File(sourcePath);
       try {

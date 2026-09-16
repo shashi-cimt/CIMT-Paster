@@ -4,12 +4,18 @@ import 'package:canimage/Screens/landing/landing_screen.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:flutter/material.dart';
+import '../../widgets/common_app_bar.dart';
+import '../../widgets/can_image_loader.dart';
+import '../../widgets/app_snack_bar.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../utils/image_compression_helper.dart';
+import '../../utils/app_storage_helper.dart';
+import '../../utils/image_orientation_utils.dart';
 import '../../Hive_Database/post_recca_image_upload_db.dart';
 import '../../Hive_Database/remarks_db.dart';
 import '../../Model/recca_remarks_model.dart';
@@ -83,23 +89,15 @@ class _WCCUploadSeePlanScreenState extends State<WCCUploadSeePlanScreen> {
     }
   }
 
-  Future<String> _storeImageInInternalDocuments(String imagePath) async {
-    // Get the application document directory (internal storage)
-    Directory? appDocDir = await getExternalStorageDirectory();
-    if (appDocDir == null) {
-      throw 'Unable to access external storage';
-    }
-
-    // Create the nested folder structure:
-    Directory dwPaintingDir = Directory('${appDocDir.path}/CIMTDWP/PostRecca/Supervisor/${widget.projectID}/${widget.planCode}/${widget.villageCode}/${widget.printId}/Images');
-
-    // Create the folder if it does not exist
-    if (!await dwPaintingDir.exists()) {
-      await dwPaintingDir.create(recursive: true);
-    }
-
+  Future<String> _storeImageInInternalDocuments(
+      String imagePath, {
+        required int slotIndex,
+      }) async {
     // Read the image file into bytes
     File imageFile = File(imagePath);
+    if (!await imageFile.exists()) {
+      throw 'Source image file does not exist: $imagePath';
+    }
     var imageBytes = await imageFile.readAsBytes();
 
     // Compress the image bytes to reduce size, targeting 100-150 KB
@@ -109,15 +107,28 @@ class _WCCUploadSeePlanScreenState extends State<WCCUploadSeePlanScreen> {
       targetMaxKB: 150,
     );
 
-    // Define the image name
-    String imageName = 'Img_${DateTime.now().toIso8601String().replaceAll(RegExp('[^0-9]'), '')}.jpg';
+    final String printName = (widget.printNo != null && widget.printNo!.trim().isNotEmpty)
+        ? widget.printNo!.trim()
+        : (widget.printId?.toString().trim() ?? 'Print');
 
-    // Define the full path where the image will be stored
-    String imagePathInStorage = '${dwPaintingDir.path}/$imageName';
+    final String imagePathInStorage = await AppStorageHelper.getPhotoFilePath(
+      projectId: widget.projectID?.toString() ?? 'UnknownProject',
+      planServerId: (widget.printId != null && widget.printId!.trim().isNotEmpty)
+          ? widget.printId!.trim()
+          : 'UnknownServerID',
+      planId: widget.planCode?.trim() ?? 'UnknownPlanId',
+      villageCode: widget.villageCode?.toString().trim() ?? 'UnknownVillage',
+      printName: printName,
+      photoNumber: slotIndex + 1,
+    );
 
     // Create a new file from the compressed result and save it
     File compressedImage = File(imagePathInStorage);
     await compressedImage.writeAsBytes(result);
+
+    try {
+      await imageFile.delete();
+    } catch (_) {}
 
     return imagePathInStorage;
   }
@@ -195,11 +206,11 @@ class _WCCUploadSeePlanScreenState extends State<WCCUploadSeePlanScreen> {
   }
 
   Future<bool> _onWillPop() async {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => SUSeePlanScreen(changeLanguage: widget.changeLanguage,)),
-    );
-    return false;
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+      return false;
+    }
+    return true;
   }
 
   // New method for grid image preview
@@ -301,11 +312,30 @@ class _WCCUploadSeePlanScreenState extends State<WCCUploadSeePlanScreen> {
       return;
     }
 
+    final cameraStatus = await Permission.camera.request();
+    if (!cameraStatus.isGranted) {
+      Fluttertoast.showToast(
+        msg: "Camera permission is required to capture images",
+        toastLength: Toast.LENGTH_LONG,
+        gravity: ToastGravity.BOTTOM,
+      );
+      return;
+    }
+
+    if (!mounted) return;
+    final hasStorage = await AppStorageHelper.ensureStoragePermission(context: context);
+    if (!hasStorage) {
+      return;
+    }
+
     try {
       final ImageSource source = ImageSource.camera;
       final XFile? pickedFile = await _picker.pickImage(source: source);
 
       if (pickedFile != null) {
+        // Normalize orientation to vertical portrait and bake EXIF tags
+        await ImageOrientationUtils.normalizeImageFile(File(pickedFile.path));
+
         Position currentPosition = await Geolocator.getCurrentPosition(
             desiredAccuracy: LocationAccuracy.high);
 
@@ -723,12 +753,9 @@ class _WCCUploadSeePlanScreenState extends State<WCCUploadSeePlanScreen> {
       await file.writeAsBytes(await pdf.save());
 
       // Show success message with file path
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('PDF saved successfully!\nPath: $filePath'),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 4),
-        ),
+      AppSnackBar.showSuccess(
+        context,
+        'PDF saved successfully!\nPath: $filePath',
       );
 
       print('PDF saved at: $filePath');
@@ -747,41 +774,30 @@ class _WCCUploadSeePlanScreenState extends State<WCCUploadSeePlanScreen> {
     return WillPopScope(
       onWillPop: _onWillPop,
       child: SafeArea(
+        top: false,
         child: Scaffold(
           backgroundColor: Color(0xFFF8F9FA),
           resizeToAvoidBottomInset: true,
-          appBar: AppBar(
-            elevation: 0,
-            backgroundColor: primaryColor,
-            title: Text(
-              S.of(context).printDetails,
-              style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 18,
-                  letterSpacing: 1,
-                  fontFamily: "Poppins"
-              ),
-            ),
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => LandingScreen(changeLanguage: widget.changeLanguage,)),
-                );
-              },
-            ),
+          appBar: CommonAppBar(
+            title: S.of(context).printDetails,
             actions: [
               IconButton(
-                icon: Icon(Icons.info_outline, color: Colors.white),
+                icon: const Icon(Icons.info_outline, color: Colors.white),
                 onPressed: () {
                   // Info action
                 },
               ),
+              const CommonHomeButton(),
             ],
           ),
-          body: loader == true ? Center(child: CircularProgressIndicator(color: Colors.blue,)) : SingleChildScrollView(
+          body: loader == true
+              ? const Center(
+                  child: CanImageLoader(
+                    spinnerSize: 52,
+                    showBrand: true,
+                  ),
+                )
+              : SingleChildScrollView(
             child: Column(
               children: [
                 // Enhanced Header Card
@@ -977,11 +993,9 @@ class _WCCUploadSeePlanScreenState extends State<WCCUploadSeePlanScreen> {
                           onTap: () async {
                             final uploadedCount = images.where((img) => img.imagePath != null).length;
                             if (uploadedCount < 1) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text("Please upload at least 1 image to generate PDF"),
-                                  backgroundColor: Colors.red,
-                                ),
+                              AppSnackBar.showError(
+                                context,
+                                "Please upload at least 1 image to generate PDF",
                               );
                               return;
                             }
@@ -1031,15 +1045,12 @@ class _WCCUploadSeePlanScreenState extends State<WCCUploadSeePlanScreen> {
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 if (isRefreshing) ...[
-                                  SizedBox(
-                                    width: 12,
-                                    height: 12,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                    ),
+                                  const CanImageSpinner(
+                                    size: 14,
+                                    primaryColor: Colors.white70,
+                                    accentColor: Colors.white,
                                   ),
-                                  SizedBox(width: 8),
+                                  const SizedBox(width: 8),
                                 ] else...[
                                   Icon(Icons.cloud_upload_outlined, size: 15, color: Colors.white,),
                                   SizedBox(width: 8),
@@ -1082,10 +1093,10 @@ class _WCCUploadSeePlanScreenState extends State<WCCUploadSeePlanScreen> {
     String remarksString = remarksIds.join(", ");
 
     if (_selectedRemarks.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(S.of(context).selectRemarks),
-        backgroundColor: Colors.red,
-      ));
+      AppSnackBar.showError(
+        context,
+        S.of(context).selectRemarks,
+      );
       setState(() {
         isRefreshing = false;
       });
@@ -1095,10 +1106,10 @@ class _WCCUploadSeePlanScreenState extends State<WCCUploadSeePlanScreen> {
     // Check if at least 1 image is uploaded
     final uploadedCount = images.where((img) => img.imagePath != null).length;
     if (uploadedCount < 1) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text("Please upload at least 1 image"),
-        backgroundColor: Colors.red,
-      ));
+      AppSnackBar.showError(
+        context,
+        "Please upload at least 1 image",
+      );
       setState(() {
         isRefreshing = false;
       });
@@ -1108,7 +1119,10 @@ class _WCCUploadSeePlanScreenState extends State<WCCUploadSeePlanScreen> {
     // Compress images before submitting
     for (var i = 0; i < images.length; i++) {
       if (images[i].imagePath != null) {
-        final compressedImagePath = await _storeImageInInternalDocuments(images[i].imagePath!);
+        final compressedImagePath = await _storeImageInInternalDocuments(
+          images[i].imagePath!,
+          slotIndex: i,
+        );
         images[i].imagePath = compressedImagePath;
       }
     }
@@ -1158,10 +1172,10 @@ class _WCCUploadSeePlanScreenState extends State<WCCUploadSeePlanScreen> {
     );
 
     // Show success message and navigate to the next screen
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(S.of(context).submitPlan),
-      backgroundColor: Colors.green,
-    ));
+    AppSnackBar.showSuccess(
+      context,
+      S.of(context).submitPlan,
+    );
     setState(() {
       isRefreshing = false;
     });

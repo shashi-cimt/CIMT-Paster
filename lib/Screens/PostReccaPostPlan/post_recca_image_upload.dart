@@ -10,6 +10,9 @@ import '../Common/camera_capture_screen.dart';
 import 'package:canimage/Screens/landing/landing_screen.dart';
 import 'package:canimage/Screens/printSync/execution_print_sync_screen.dart';
 import 'package:flutter/material.dart';
+import '../../widgets/common_app_bar.dart';
+import '../../widgets/can_image_loader.dart';
+import '../../widgets/app_snack_bar.dart';
 import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:geolocator/geolocator.dart';
@@ -19,6 +22,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../utils/image_compression_helper.dart';
+import '../../utils/app_storage_helper.dart';
+import '../../utils/image_orientation_utils.dart';
 import '../../utils/persistent_capture_store.dart';
 import '../../APIService/auth_service.dart';
 import '../../Hive_Database/post_recca_image_upload_db.dart';
@@ -395,9 +400,17 @@ class _SUUploadSeePlanScreenState extends State<SUUploadSeePlanScreen> with Widg
         return;
       }
 
-      // ========== REQUEST CAMERA PERMISSIONS ==========
+      // ========== REQUEST CAMERA & STORAGE PERMISSIONS ==========
       try {
         await _requestCameraPermissions();
+        final hasStorage = await AppStorageHelper.ensureStoragePermission(context: context);
+        if (!hasStorage) {
+          setState(() {
+            isPickingImage = false;
+            _isPickerActiveList[index] = false;
+          });
+          return;
+        }
       } catch (e) {
         setState(() {
           isPickingImage = false;
@@ -422,6 +435,9 @@ class _SUUploadSeePlanScreenState extends State<SUUploadSeePlanScreen> with Widg
         pickedFile = await _picker.pickImage(
           source: ImageSource.camera,
           preferredCameraDevice: CameraDevice.rear,
+          maxWidth: 1920,
+          maxHeight: 1920,
+          imageQuality: 85,
         ).timeout(
           Duration(seconds: 120),
           onTimeout: () {
@@ -462,24 +478,20 @@ class _SUUploadSeePlanScreenState extends State<SUUploadSeePlanScreen> with Widg
       }
 
       // Process the captured image
-      if (pickedFile  != null) {
+      if (pickedFile != null) {
         try {
           final file = File(pickedFile.path);
           if (!await file.exists()) {
             throw Exception('Captured image file not found');
           }
 
-          await file.length();
-
-          // Move out of the camera screen's temp dir into permanent storage
-          // immediately — leaving it in temp until Submit risks the OS
-          // reclaiming it (and crashing the app) under low memory before the
-          // user ever gets there.
+          // Move out of the camera screen's temp dir into permanent storage immediately
           final String permanentPath = await PersistentCaptureStore.persist(
             pickedFile.path,
             subfolder: 'PostRecca',
           );
 
+          // Show the captured image immediately without delay!
           if (mounted) {
             setState(() {
               images[index].imagePath = permanentPath;
@@ -662,11 +674,12 @@ class _SUUploadSeePlanScreenState extends State<SUUploadSeePlanScreen> with Widg
 
     if (isCritical || shouldRetry == false) {
       if (mounted) {
-        Navigator.pushReplacement(
+        Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(
             builder: (context) => SUSeePlanScreen(changeLanguage: widget.changeLanguage),
           ),
+          (route) => route.isFirst,
         );
       }
     } else if (shouldRetry == true) {
@@ -678,13 +691,9 @@ class _SUUploadSeePlanScreenState extends State<SUUploadSeePlanScreen> with Widg
   }
 
   Future<void> _requestCameraPermissions() async {
-    final permissions = await [
-      Permission.camera,
-      Permission.storage,
-      Permission.photos,
-    ].request();
+    final status = await Permission.camera.request();
 
-    if (permissions[Permission.camera] != PermissionStatus.granted) {
+    if (!status.isGranted) {
       throw PlatformException(
         code: "CAMERA_PERMISSION_DENIED",
         message: S.of(context).cameraPermission,
@@ -731,30 +740,12 @@ class _SUUploadSeePlanScreenState extends State<SUUploadSeePlanScreen> with Widg
   }
 
   // ========== IMPROVED COMPRESSION METHOD (100-150 KB) ==========
-  Future<String> _storeImageInInternalDocuments(String imagePath) async {
+  Future<String> _storeImageInInternalDocuments(
+      String imagePath, {
+        required int slotIndex,
+      }) async {
     try {
       print(' Storing image with compression...');
-
-      // Get external storage directory
-      Directory? externalDir = await getExternalStorageDirectory();
-      if (externalDir == null) {
-        throw 'Unable to access external storage directory';
-      }
-
-      Directory appDocDir = Directory('${externalDir.path}/CIMTDWP');
-      if (!await appDocDir.exists()) {
-        await appDocDir.create(recursive: true);
-        print(' CIMTDWP folder created at: ${appDocDir.path}');
-      }
-      print(' Using external storage: ${appDocDir.path}');
-
-      // Create the nested folder structure for PostRecca/Supervisor
-      Directory dwPaintingDir = Directory('${appDocDir.path}/PostRecca/Supervisor/${widget.projectID}/${widget.planCode}/${widget.villageCode}/${widget.printId}/Images');
-
-      if (!await dwPaintingDir.exists()) {
-        await dwPaintingDir.create(recursive: true);
-        print(' Nested folders created: ${dwPaintingDir.path}');
-      }
 
       File imageFile = File(imagePath);
       if (!await imageFile.exists()) {
@@ -764,48 +755,30 @@ class _SUUploadSeePlanScreenState extends State<SUUploadSeePlanScreen> with Widg
       // Read original image bytes as Uint8List
       List<int> imageBytesList = await imageFile.readAsBytes();
       Uint8List imageBytes = Uint8List.fromList(imageBytesList);
-      double originalSizeKB = imageBytes.length / 1024;
 
       const int targetMinKB = 100;
       const int targetMaxKB = 150;
-
-      debugPrint('==================================================');
-      debugPrint('📸 IMAGE COMPRESSION STARTED (Post Recca)');
-      debugPrint('📁 Original Size: ${originalSizeKB.toStringAsFixed(2)} KB');
-      debugPrint('🎯 Target Range: $targetMinKB - $targetMaxKB KB');
-      debugPrint('==================================================');
 
       final bestCompressedBytes = await ImageCompressionHelper.compressToTargetSize(
         imageBytes,
         targetMinKB: targetMinKB,
         targetMaxKB: targetMaxKB,
       );
-      final bestSize = bestCompressedBytes.length;
 
-      // Final size check
-      double finalSizeKB = bestSize / 1024;
+      final String printName = (widget.printNo != null && widget.printNo!.trim().isNotEmpty)
+          ? widget.printNo!.trim()
+          : (widget.printId?.toString().trim() ?? 'Print');
 
-      debugPrint('==================================================');
-      debugPrint('📊 COMPRESSION SUMMARY');
-      debugPrint('📁 Original Size: ${originalSizeKB.toStringAsFixed(2)} KB');
-      debugPrint('📁 Final Size: ${finalSizeKB.toStringAsFixed(2)} KB');
-      debugPrint('📉 Space Saved: ${(originalSizeKB - finalSizeKB).toStringAsFixed(2)} KB');
-      debugPrint('📊 Compression Ratio: ${((originalSizeKB - finalSizeKB) / originalSizeKB * 100).toStringAsFixed(1)}%');
-
-      if (bestSize >= targetMinKB * 1024 && bestSize <= targetMaxKB * 1024) {
-        debugPrint('✅ STATUS: WITHIN TARGET RANGE ($targetMinKB-$targetMaxKB KB) ✅');
-      } else if (bestSize < targetMinKB * 1024) {
-        debugPrint('⚠️ STATUS: BELOW TARGET (${finalSizeKB.toStringAsFixed(2)} KB < $targetMinKB KB)');
-      } else {
-        debugPrint('⚠️ STATUS: ABOVE TARGET (${finalSizeKB.toStringAsFixed(2)} KB > $targetMaxKB KB)');
-      }
-      debugPrint('==================================================');
-
-      // Define the image name
-      String imageName = 'Img_${DateTime.now().millisecondsSinceEpoch}.jpg';
-
-      // Define the full path where the image will be stored
-      String imagePathInStorage = '${dwPaintingDir.path}/$imageName';
+      final String imagePathInStorage = await AppStorageHelper.getPhotoFilePath(
+        projectId: widget.projectID?.toString() ?? 'UnknownProject',
+        planServerId: (widget.printId != null && widget.printId!.trim().isNotEmpty)
+            ? widget.printId!.trim()
+            : 'UnknownServerID',
+        planId: widget.planCode?.trim() ?? 'UnknownPlanId',
+        villageCode: widget.villageCode?.toString().trim() ?? 'UnknownVillage',
+        printName: printName,
+        photoNumber: slotIndex + 1,
+      );
 
       // Save compressed image
       File compressedImage = File(imagePathInStorage);
@@ -815,17 +788,12 @@ class _SUUploadSeePlanScreenState extends State<SUUploadSeePlanScreen> with Widg
         throw 'Failed to write compressed image to storage';
       }
 
-      int diskSize = await compressedImage.length();
-      double diskSizeKB = diskSize / 1024;
-      debugPrint('💾 Disk Size: ${diskSizeKB.toStringAsFixed(2)} KB');
-      debugPrint('==================================================');
+      try {
+        await imageFile.delete();
+      } catch (_) {}
 
       print('🎉 SUCCESS! Image stored at: $imagePathInStorage');
-      print('📱 Storage location: ${appDocDir.path}');
-      print('📂 Full path: PostRecca → Supervisor → ${widget.projectID} → ${widget.planCode} → ${widget.villageCode} → ${widget.printId} → Images');
-
       return imagePathInStorage;
-
     } catch (e) {
       print('❌ Error storing image: $e');
       throw 'Failed to store image: $e';
@@ -894,9 +862,17 @@ class _SUUploadSeePlanScreenState extends State<SUUploadSeePlanScreen> with Widg
   }
 
   Future<bool> _onWillPop() async {
-    Navigator.push(
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+      return false;
+    }
+    Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(builder: (context) => SUSeePlanScreen(changeLanguage: widget.changeLanguage,)),
+      MaterialPageRoute(
+        builder: (context) =>
+            SUSeePlanScreen(changeLanguage: widget.changeLanguage),
+      ),
+      (route) => route.isFirst,
     );
     return false;
   }
@@ -909,46 +885,39 @@ class _SUUploadSeePlanScreenState extends State<SUUploadSeePlanScreen> with Widg
 
     return WillPopScope(
       onWillPop: _onWillPop,
-      child: SafeArea(
-        child: Scaffold(
-          backgroundColor: Color(0xFFF8F9FA),
-          resizeToAvoidBottomInset: true,
-          appBar: AppBar(
-            elevation: 0,
-            backgroundColor: Font.primaryColor,
-            title: Text(
-              S.of(context).printDetails,
-              style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 18,
-                  letterSpacing: 1,
-                  fontFamily: "Roboto"
-              ),
-            ),
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => LandingScreen(changeLanguage: widget.changeLanguage,)),
-                );
-              },
-            ),
-            actions: [
-              IconButton(
-                icon: Icon(Icons.home, color: Colors.white),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => LandingScreen(changeLanguage: widget.changeLanguage)),
-                  );
-                },
-              ),
-            ],
-          ),
-          body: loader == true ? Center(child: CircularProgressIndicator(color: Colors.blue,)) : SingleChildScrollView(
-            child: Column(
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF8F9FA),
+        resizeToAvoidBottomInset: true,
+        appBar: CommonAppBar(
+          title: S.of(context).printDetails,
+          onBackPressed: () {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            } else {
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      SUSeePlanScreen(changeLanguage: widget.changeLanguage),
+                ),
+                (route) => route.isFirst,
+              );
+            }
+          },
+          actions: const [CommonHomeButton()],
+        ),
+        body: SafeArea(
+          top: false,
+          child: loader == true
+              ? const Center(
+                  child: CanImageLoader(
+                    spinnerSize: 52,
+                    showBrand: true,
+                  ),
+                )
+              : SingleChildScrollView(
+                  padding: const EdgeInsets.only(bottom: 24),
+                  child: Column(
               children: [
                 // Enhanced Header Card
                 Container(
@@ -1154,15 +1123,12 @@ class _SUUploadSeePlanScreenState extends State<SUUploadSeePlanScreen> with Widg
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           if (isRefreshing) ...[
-                            SizedBox(
-                              width: 12,
-                              height: 12,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                              ),
+                            const CanImageSpinner(
+                              size: 14,
+                              primaryColor: Colors.white70,
+                              accentColor: Colors.white,
                             ),
-                            SizedBox(width: 8),
+                            const SizedBox(width: 8),
                           ] else if (_isAnyPickerActive) ...[
                             Icon(Icons.camera_alt, size: 20, color: Colors.white),
                             SizedBox(width: 8),
@@ -1278,14 +1244,7 @@ class _SUUploadSeePlanScreenState extends State<SUUploadSeePlanScreen> with Widg
                       ),
                     ),
                     if (isThisCardActive)
-                      SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
-                        ),
-                      )
+                      const CanImageSpinner(size: 16)
                     else
                       Icon(
                         hasImage ? Icons.check_circle : Icons.radio_button_unchecked,
@@ -1329,7 +1288,7 @@ class _SUUploadSeePlanScreenState extends State<SUUploadSeePlanScreen> with Widg
               }
               return Container(
                 color: Colors.grey[300],
-                child: Center(child: CircularProgressIndicator()),
+                child: const Center(child: CanImageSpinner(size: 28)),
               );
             },
           ),
@@ -1390,14 +1349,7 @@ class _SUUploadSeePlanScreenState extends State<SUUploadSeePlanScreen> with Widg
               borderRadius: BorderRadius.circular(20),
             ),
             child: isThisCardActive
-                ? SizedBox(
-              width: 24,
-              height: 24,
-              child: CircularProgressIndicator(
-                color: Colors.blue,
-                strokeWidth: 2,
-              ),
-            )
+                ? const CanImageSpinner(size: 24)
                 : Icon(Icons.add_a_photo, size: 24, color: Font.primaryColor),
           ),
           SizedBox(height: 8),
@@ -1430,13 +1382,10 @@ class _SUUploadSeePlanScreenState extends State<SUUploadSeePlanScreen> with Widg
       print(remarksString);
       print("remarksIds:");
 
-      // Validate remarks selection
       if (_selectedRemarks.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content: Text(S.of(context).selectRemarks),
-                backgroundColor: Colors.red
-            )
+        AppSnackBar.showError(
+          context,
+          S.of(context).selectRemarks,
         );
         setState(() {
           isRefreshing = false;
@@ -1447,11 +1396,9 @@ class _SUUploadSeePlanScreenState extends State<SUUploadSeePlanScreen> with Widg
       // Validate all images are uploaded
       final uploadedCount = images.where((img) => img.imagePath != null).length;
       if (uploadedCount != 2) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content: Text(S.of(context).pleaseUploadAllImages),
-                backgroundColor: Colors.red
-            )
+        AppSnackBar.showError(
+          context,
+          S.of(context).pleaseUploadAllImages,
         );
         setState(() {
           isRefreshing = false;
@@ -1473,7 +1420,10 @@ class _SUUploadSeePlanScreenState extends State<SUUploadSeePlanScreen> with Widg
 
           debugPrint('📷 Image ${i+1} Original Size: ${originalSizeKB.toStringAsFixed(2)} KB');
 
-          final compressedImagePath = await _storeImageInInternalDocuments(images[i].imagePath!);
+          final compressedImagePath = await _storeImageInInternalDocuments(
+            images[i].imagePath!,
+            slotIndex: i,
+          );
           images[i].imagePath = compressedImagePath;
 
           File compressedFile = File(compressedImagePath);
@@ -1580,22 +1530,21 @@ class _SUUploadSeePlanScreenState extends State<SUUploadSeePlanScreen> with Widg
       );
 
       // Show success message and navigate
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(S.of(context).submitPlan),
-            backgroundColor: Colors.green,
-          )
+      AppSnackBar.showSuccess(
+        context,
+        S.of(context).submitPlan,
       );
 
       setState(() {
         isRefreshing = false;
       });
 
-      Navigator.pushReplacement(
+      Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(
               builder: (context) => SUSeePlanScreen(changeLanguage: widget.changeLanguage)
-          )
+          ),
+          (route) => route.isFirst,
       );
 
     } catch (e) {
@@ -1609,6 +1558,10 @@ class _SUUploadSeePlanScreenState extends State<SUUploadSeePlanScreen> with Widg
         },
       );
 
+      AppSnackBar.showError(
+        context,
+        S.of(context).errorOccurredSubmitting,
+      );
       setState(() {
         isRefreshing = false;
       });

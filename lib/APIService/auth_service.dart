@@ -1,5 +1,3 @@
-
-
 import 'dart:convert';
 import 'dart:io';
 import 'package:canimage/Model/execution_dashboard_summary_details_model.dart';
@@ -7,6 +5,7 @@ import 'package:canimage/Model/login_model.dart';
 import 'package:canimage/utils/base.dart';
 import 'package:canimage/utils/sync_crash_manager.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../Hive_Database/post_recca_image_upload_db.dart';
@@ -23,52 +22,54 @@ import '../Repository/post_recca_image_upload_repository.dart';
 import '../utils/DeviceIdManager.dart';
 import '../utils/crash_manager.dart';
 import '../utils/error_log.dart';
-import '../utils/print_crash_manager.dart';
 import '../utils/server_failover_interceptor.dart';
 import '../utils/shared_preference.dart';
 import '../utils/token_manager.dart';
-import '../Model/login_model.dart' hide Data;
 
 class Auth {
   static final Dio _dio = Dio();
   static Dio get dio => _dio;
 
   static void initialize() {
+    debugPrint("******** Auth.initialize() ********");
 
-    print("******** Auth.initialize() ********");
+    _dio.options.connectTimeout = const Duration(seconds: 15);
+    _dio.options.receiveTimeout = const Duration(seconds: 20);
+    _dio.options.sendTimeout = const Duration(seconds: 15);
 
     _dio.interceptors.clear();
 
     _dio.interceptors.add(AuthInterceptor());
     _dio.interceptors.add(ServerFailoverInterceptor(_dio));
 
-    print("Interceptor Count: ${_dio.interceptors.length}");
-    _dio.interceptors.add(AuthInterceptor());
-    _dio.interceptors.add(LogInterceptor(
-      responseBody: true,
-      request: true,
-      requestBody: true,
-      logPrint: print,
-      error: true,
-      requestHeader: true,
-      responseHeader: true,
-    ));
+    debugPrint("Interceptor Count: ${_dio.interceptors.length}");
+    _dio.interceptors.add(
+      LogInterceptor(
+        responseBody: true,
+        request: true,
+        requestBody: true,
+        logPrint: print,
+        error: true,
+        requestHeader: true,
+        responseHeader: true,
+      ),
+    );
   }
 
   // ==================== REGISTRATION ====================
   Future<RegistrationAuthModel?> registration(
-      String firstName,
-      String lastName,
-      String phoneNumber,
-      String password,
-      String uid,
-      String role, {
-        File? userImage,
-      }) async {
+    String firstName,
+    String lastName,
+    String phoneNumber,
+    String password,
+    String uid,
+    String role, {
+    File? userImage,
+  }) async {
     try {
       String deviceId = await DeviceIdManager.getDeviceId();
 
-      print(deviceId);
+      debugPrint(deviceId);
 
       await _logRequest('REGISTRATION', {
         'firstName': firstName,
@@ -94,35 +95,32 @@ class Auth {
           ),
       });
 
-      print("========== FORM DATA ==========");
+      debugPrint("========== FORM DATA ==========");
       for (final field in formData.fields) {
-        print("${field.key}: ${field.value}");
+        debugPrint("${field.key}: ${field.value}");
       }
 
       for (final file in formData.files) {
-        print("${file.key}: ${file.value.filename}");
+        debugPrint("${file.key}: ${file.value.filename}");
       }
-      print("===============================");
+      debugPrint("===============================");
 
       final response = await dio.post(
         '${APIURLs.baseURL}${APIURLs.registerURL}',
         data: formData,
         options: Options(
-          headers: {
-            'Content-Type': 'multipart/form-data',
-            'accept': '*/*',
-          },
+          headers: {'Content-Type': 'multipart/form-data', 'accept': '*/*'},
         ),
       );
-      print("========== REGISTRATION PAYLOAD ==========");
-      print("FirstName : $firstName");
-      print("LastName  : $lastName");
-      print("Phone     : $phoneNumber");
-      print("Password  : $password");
-      print("UID        : $uid");
-      print("Role       : $role");
-      print("Image      : ${userImage?.path}");
-      print("=========================================");
+      debugPrint("========== REGISTRATION PAYLOAD ==========");
+      debugPrint("FirstName : $firstName");
+      debugPrint("LastName  : $lastName");
+      debugPrint("Phone     : $phoneNumber");
+      debugPrint("Password  : $password");
+      debugPrint("UID        : $uid");
+      debugPrint("Role       : $role");
+      debugPrint("Image      : ${userImage?.path}");
+      debugPrint("=========================================");
 
       await _logResponse('REGISTRATION', response);
 
@@ -152,7 +150,10 @@ class Auth {
     }
   }
 
-  RegistrationAuthModel _handleRegistrationError(DioException e, String phoneNumber) {
+  RegistrationAuthModel _handleRegistrationError(
+    DioException e,
+    String phoneNumber,
+  ) {
     final errorMessage = _getErrorMessage(e, 'Registration');
 
     if (e.response?.data != null) {
@@ -162,33 +163,31 @@ class Auth {
       } catch (_) {}
     }
 
-    return RegistrationAuthModel(
-      isSuccess: false,
-      message: errorMessage,
-    );
+    return RegistrationAuthModel(isSuccess: false, message: errorMessage);
   }
 
   // ==================== LOGIN ====================
   Future<LoginAuthModel?> login(
-      String phoneNumber,
-      String password,
-      String userID,
-      String UID,
-      ) async {
+    String phoneNumber,
+    String password,
+    String userID,
+    String UID,
+  ) async {
     try {
       String deviceId = await DeviceIdManager.getDeviceId();
 
-      print(deviceId);
+      debugPrint(deviceId);
 
       final query = {
         'loginId': phoneNumber,
         'password': password,
-       // 'uId': DeviceIdManager.deviceId,
+        // 'uId': DeviceIdManager.deviceId,
         'uId': UID,
+
         /// Paster login
         //'uId': '1204884291782376',
         /// Can image User  login
-       /// 'uId': '3842013021782376',
+        /// 'uId': '3842013021782376',
       };
 
       await _logRequest('LOGIN', query);
@@ -196,9 +195,7 @@ class Auth {
       final response = await dio.post(
         '${APIURLs.baseURL}${APIURLs.loginURL}',
         data: query,
-        options: Options(
-          headers: {'Content-Type': 'application/json'},
-        ),
+        options: Options(headers: {'Content-Type': 'application/json'}),
       );
 
       await _logResponse('LOGIN', response);
@@ -207,7 +204,8 @@ class Auth {
         final result = LoginAuthModel.fromJson(response.data);
 
         if (result.isSuccess == true && result.data != null) {
-          await _saveUserData(result.data!);
+          // Note: Session data is saved in login_screen.dart only after
+          // role verification succeeds, preventing premature or mismatched sessions.
           await CrashReportManager.storeLogMessage(
             'LOGIN SUCCESS: userId=${result.data!.userId}, role=${result.data!.roleName}',
           );
@@ -243,8 +241,16 @@ class Auth {
 
     if (e.response?.data != null) {
       try {
-        final result = LoginAuthModel.fromJson(e.response!.data);
-        return result;
+        dynamic data = e.response!.data;
+        if (data is String) {
+          try {
+            data = jsonDecode(data);
+          } catch (_) {}
+        }
+        if (data is Map<String, dynamic>) {
+          final result = LoginAuthModel.fromJson(data);
+          return result;
+        }
       } catch (_) {}
     }
 
@@ -296,10 +302,10 @@ class Auth {
   Future<SeePlanModel> fetchSeePlanModel() async {
     try {
       final token = await getAuthToken();
-     final String userId = (await getUserID()).toString();
+      final String userId = (await getUserID()).toString();
       final String uId = (await getFirstUID()).toString();
-     //  final String userId = '20481';
-     //  final String uId = 'TP1A.220624.014|20481';
+      //  final String userId = '20481';
+      //  final String uId = 'TP1A.220624.014|20481';
 
       final url = "${APIURLs.URL}${APIURLs.seePlanURL}";
 
@@ -307,12 +313,14 @@ class Auth {
         "planCode": "0",
         "villageCode": "0",
         "userId": userId,
-        "uId": uId,
+        // "uId": uId,
+        // Static uId for testing/data fetch (dynamic fallback: uId)
+        "uId": "5785297331775198",
       };
 
-      print("========== FETCH SEE PLAN ==========");
-      print("URL : $url");
-      print("BODY : $body");
+      debugPrint("========== FETCH SEE PLAN ==========");
+      debugPrint("URL : $url");
+      debugPrint("BODY : $body");
 
       final response = await dio.post(
         url,
@@ -320,35 +328,35 @@ class Auth {
         options: _getOptions(token),
       );
 
-      print("========== RESPONSE ==========");
-      print(response.data);
+      debugPrint("========== RESPONSE ==========");
+      debugPrint(response.data);
 
       final model = SeePlanModel.fromJson(response.data);
 
-      print("Status : ${model.status}");
-      print("Message : ${model.message}");
-      print("Total Plans : ${model.data?.length}");
+      debugPrint("Status : ${model.status}");
+      debugPrint("Message : ${model.message}");
+      debugPrint("Total Plans : ${model.data?.length}");
 
       return model;
     } on DioException catch (e) {
-      print(e.response?.data);
+      debugPrint(e.response?.data);
       return SeePlanModel(data: []);
     } catch (e) {
-      print(e);
+      debugPrint(e.toString());
       return SeePlanModel(data: []);
     }
   }
 
   Future<ExecutionDashboardSummaryModel?> fetchExecutionDashboardSummary(
-      String startDate,
-      String endDate,
-      String projectID,
-      ) async {
+    String startDate,
+    String endDate,
+    String projectID,
+  ) async {
     try {
       final token = await getAuthToken();
       final response = await dio.get(
         '${APIURLs.baseURL}${APIURLs.executionDashoardSummary}'
-            '?ProjectId=$projectID&StartDate=$startDate&EndDate=$endDate',
+        '?ProjectId=$projectID&StartDate=$startDate&EndDate=$endDate',
         options: _getOptions(token),
       );
 
@@ -364,17 +372,18 @@ class Auth {
     }
   }
 
-  Future<ExecutionDashboardSummaryDetailsModel?> fetchExecutionDashboardSummaryDetails(
-      String plan,
-      String startDate,
-      String endDate,
-      String projectID,
-      ) async {
+  Future<ExecutionDashboardSummaryDetailsModel?>
+  fetchExecutionDashboardSummaryDetails(
+    String plan,
+    String startDate,
+    String endDate,
+    String projectID,
+  ) async {
     try {
       final token = await getAuthToken();
       final response = await dio.get(
         '${APIURLs.baseURL}${APIURLs.executionDashoardSummaryDetails}'
-            '?ProjectId=$projectID&StartDate=$startDate&EndDate=$endDate&Flag=$plan',
+        '?ProjectId=$projectID&StartDate=$startDate&EndDate=$endDate&Flag=$plan',
         options: _getOptions(token),
       );
 
@@ -396,10 +405,7 @@ class Auth {
 
   Options _getOptions(String token) {
     return Options(
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': token,
-      },
+      headers: {'Content-Type': 'application/json', 'Authorization': token},
     );
   }
 
@@ -421,8 +427,9 @@ class Auth {
       );
 
       if (response.statusCode == 200) {
-        await PostReccaImageUploadHiveRepository()
-            .deleteMetadataFromHive(metadata.printId);
+        await PostReccaImageUploadHiveRepository().deleteMetadataFromHive(
+          metadata.printId,
+        );
         await _logSync('Post Recca Sync Data', metadata.printId);
         return true;
       }
@@ -436,7 +443,9 @@ class Auth {
   }
 
   Future<FormData> _buildReccaFormData(SUImageUploaddata metadata) async {
-    final currentDate = DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now());
+    final currentDate = DateFormat(
+      'yyyy-MM-dd HH:mm:ss',
+    ).format(DateTime.now());
 
     return FormData.fromMap({
       'PrintId': metadata.printId,
@@ -465,9 +474,12 @@ class Auth {
 
       // Handle duplicate error
       if (serverMessage.toLowerCase().contains('duplicate')) {
-        PostReccaImageUploadHiveRepository()
-            .deleteMetadataFromHive(metadata.printId);
-        throw Exception('DUPLICATE_IMAGE_ERROR: This print has already been uploaded.');
+        PostReccaImageUploadHiveRepository().deleteMetadataFromHive(
+          metadata.printId,
+        );
+        throw Exception(
+          'DUPLICATE_IMAGE_ERROR: This print has already been uploaded.',
+        );
       }
     }
 
@@ -475,56 +487,73 @@ class Auth {
   }
 
   // ==================== EXECUTION UPLOAD ====================
-  Future<Map<String, dynamic>> uploadPlanMetadata(ImageUploaddata metadata) async {
+  Future<Map<String, dynamic>> uploadPlanMetadata(
+    ImageUploaddata metadata,
+  ) async {
     try {
       // ========== DEBUG: PRINT PAYLOAD ==========
-      print("==============================================");
-      print(" EXECUTION UPLOAD PAYLOAD");
-      print("==============================================");
-      print("ServerPlanId: ${metadata.ServerPlanId}");
-      print("locateId: ${metadata.locateId}");
-      print("PlanCode: ${metadata.PlanCode}");
-      print("PrintNo: ${metadata.PrintNo}");
-      print("VillageCode: ${metadata.VillageCode}");
-      print("Address: ${metadata.Address}");
-      print("ExecutionDate: ${metadata.ExecutionDate}");
-      print("UploadDate: ${metadata.UploadDate}");
-      print("NetworkStatus: ${metadata.networkFlagString}");
-      print("UploadType: ${metadata.uploadType ?? 'execution'}");
-      print("----------------------------------------------");
-      print(" GPS Coordinates:");
-      print("  Clean: (${metadata.CleanLatitude}, ${metadata.CleanLongitude})");
-      print("  WB: (${metadata.WBLatitude}, ${metadata.WBLongitude})");
-      print("  Spray: (${metadata.SprayLatitude}, ${metadata.SprayLongitude})");
-      print("  Near: (${metadata.NearLatitude}, ${metadata.NearLongitude})");
-      print("  Far: (${metadata.FarLatitude}, ${metadata.FarLongitude})");
-      print("  New6: (${metadata.New6Latitude}, ${metadata.New6Longitude})");
-      print("  New7: (${metadata.New7Latitude}, ${metadata.New7Longitude})");
-      print("----------------------------------------------");
-      print(" Images:");
-      print("  CleanImage: ${metadata.CleanImage?.split('/').last}");
-      print("  WBImage: ${metadata.WBImage?.split('/').last}");
-      print("  SprayImage: ${metadata.SprayImage?.split('/').last}");
-      print("  NearImage: ${metadata.NearImage?.split('/').last}");
-      print("  FarImage: ${metadata.FarImage?.split('/').last}");
-      print("  NewImage6: ${metadata.NewImage6?.split('/').last}");
-      print("  NewImage7: ${metadata.NewImage7?.split('/').last}");
-      print("==============================================");
+      debugPrint("==============================================");
+      debugPrint(" EXECUTION UPLOAD PAYLOAD");
+      debugPrint("==============================================");
+      debugPrint("ServerPlanId: ${metadata.ServerPlanId}");
+      debugPrint("locateId: ${metadata.locateId}");
+      debugPrint("PlanCode: ${metadata.PlanCode}");
+      debugPrint("debugPrintNo: ${metadata.PrintNo}");
+      debugPrint("VillageCode: ${metadata.VillageCode}");
+      debugPrint("Address: ${metadata.Address}");
+      debugPrint("ExecutionDate: ${metadata.ExecutionDate}");
+      debugPrint("UploadDate: ${metadata.UploadDate}");
+      debugPrint("NetworkStatus: ${metadata.networkFlagString}");
+      debugPrint("UploadType: ${metadata.uploadType ?? 'execution'}");
+      debugPrint("----------------------------------------------");
+      debugPrint(" GPS Coordinates:");
+      debugPrint(
+        "  Clean: (${metadata.CleanLatitude}, ${metadata.CleanLongitude})",
+      );
+      debugPrint("  WB: (${metadata.WBLatitude}, ${metadata.WBLongitude})");
+      debugPrint(
+        "  Spray: (${metadata.SprayLatitude}, ${metadata.SprayLongitude})",
+      );
+      debugPrint(
+        "  Near: (${metadata.NearLatitude}, ${metadata.NearLongitude})",
+      );
+      debugPrint("  Far: (${metadata.FarLatitude}, ${metadata.FarLongitude})");
+      debugPrint(
+        "  New6: (${metadata.New6Latitude}, ${metadata.New6Longitude})",
+      );
+      debugPrint(
+        "  New7: (${metadata.New7Latitude}, ${metadata.New7Longitude})",
+      );
+      debugPrint("----------------------------------------------");
+      debugPrint(" Images:");
+      debugPrint("  CleanImage: ${metadata.CleanImage?.split('/').last}");
+      debugPrint("  WBImage: ${metadata.WBImage?.split('/').last}");
+      debugPrint("  SprayImage: ${metadata.SprayImage?.split('/').last}");
+      debugPrint("  NearImage: ${metadata.NearImage?.split('/').last}");
+      debugPrint("  FarImage: ${metadata.FarImage?.split('/').last}");
+      debugPrint("  NewImage6: ${metadata.NewImage6?.split('/').last}");
+      debugPrint("  NewImage7: ${metadata.NewImage7?.split('/').last}");
+      debugPrint("==============================================");
       // ========== END DEBUG ==========
 
       // ========== CHECK FOR ALREADY SYNCED ==========
-      final existingResponses = await ApiResponseRepository().loadAllResponses();
+      final existingResponses = await ApiResponseRepository()
+          .loadAllResponses();
 
       for (var response in existingResponses) {
         String existingPrintNo = '';
         if (response.originalData is ImageUploaddata) {
-          existingPrintNo = (response.originalData as ImageUploaddata).PrintNo?.toString() ?? '';
+          existingPrintNo =
+              (response.originalData as ImageUploaddata).PrintNo?.toString() ??
+              '';
         }
 
         if (response.planId == metadata.ServerPlanId &&
             existingPrintNo == metadata.PrintNo &&
             response.isSuccess == true) {
-          print(" ALREADY SYNCED: ${metadata.ServerPlanId}_${metadata.PrintNo}");
+          debugPrint(
+            " ALREADY SYNCED: ${metadata.ServerPlanId}_${metadata.PrintNo}",
+          );
 
           await ExecutionImageUploadHiveRepository().deleteMetadata(
             metadata.ServerPlanId!,
@@ -534,9 +563,7 @@ class Auth {
           return {
             'success': true,
             'message': 'Already synced',
-            'data': {
-              'printId': response.originalData.printId ?? 'N/A',
-            }
+            'data': {'printId': response.originalData.printId ?? 'N/A'},
           };
         }
       }
@@ -544,15 +571,22 @@ class Auth {
       final uploadType = (metadata.uploadType ?? 'execution').toLowerCase();
       final token = await getAuthToken();
 
-      if (metadata.ServerPlanId == null || metadata.PlanCode == null || metadata.PrintNo == null) {
-        return {'success': false, 'message': 'Missing required metadata fields'};
+      if (metadata.ServerPlanId == null ||
+          metadata.PlanCode == null ||
+          metadata.PrintNo == null) {
+        return {
+          'success': false,
+          'message': 'Missing required metadata fields',
+        };
       }
 
       if (uploadType == 'rework' && metadata.printId == null) {
         return {'success': false, 'message': 'Rework upload requires printId'};
       }
 
-      final apiUrl = uploadType == 'rework' ? APIURLs.ReworkUpload : APIURLs.executionPost;
+      final apiUrl = uploadType == 'rework'
+          ? APIURLs.ReworkUpload
+          : APIURLs.executionPost;
 
       Response response;
 
@@ -563,7 +597,7 @@ class Auth {
         attempt++;
 
         try {
-          print("Upload Attempt: $attempt / $maxRetry");
+          debugPrint("Upload Attempt: $attempt / $maxRetry");
 
           // Rebuild FormData every attempt: MultipartFile file streams are
           // consumed once they're sent, so retrying with the same instance
@@ -584,7 +618,7 @@ class Auth {
           // Success -> stop retrying
           break;
         } on DioException catch (e) {
-          print("Attempt $attempt failed: ${e.message}");
+          debugPrint("Attempt $attempt failed: ${e.message}");
 
           if (attempt >= maxRetry) {
             return await _handleExecutionError(e, metadata, attempt);
@@ -606,36 +640,36 @@ class Auth {
         }
       }
 
-
-      print("==============================================");
-      print(" EXECUTION UPLOAD RESPONSE");
-      print("Status Code: ${response.statusCode}");
-      print("Response: ${response.data}");
-      print("==============================================");
+      debugPrint("==============================================");
+      debugPrint(" EXECUTION UPLOAD RESPONSE");
+      debugPrint("Status Code: ${response.statusCode}");
+      debugPrint("Response: ${response.data}");
+      debugPrint("==============================================");
       // ========== END DEBUG ==========
 
       return await _handleExecutionResponse(response, metadata, uploadType);
-
     } on DioException catch (e) {
       // ========== DEBUG: PRINT ERROR ==========
-      print("==============================================");
-      print(" EXECUTION UPLOAD ERROR");
-      print("Status Code: ${e.response?.statusCode}");
-      print("Error: ${e.message}");
-      print("Response: ${e.response?.data}");
-      print("==============================================");
+      debugPrint("==============================================");
+      debugPrint(" EXECUTION UPLOAD ERROR");
+      debugPrint("Status Code: ${e.response?.statusCode}");
+      debugPrint("Error: ${e.message}");
+      debugPrint("Response: ${e.response?.data}");
+      debugPrint("==============================================");
       // ========== END DEBUG ==========
       return await _handleExecutionError(e, metadata);
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Unexpected error: ${e.toString()}',
-      };
+      return {'success': false, 'message': 'Unexpected error: ${e.toString()}'};
     }
   }
 
-  Future<FormData> _buildExecutionFormData(ImageUploaddata metadata, String uploadType) async {
-    final currentDate = DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now());
+  Future<FormData> _buildExecutionFormData(
+    ImageUploaddata metadata,
+    String uploadType,
+  ) async {
+    final currentDate = DateFormat(
+      'yyyy-MM-dd HH:mm:ss',
+    ).format(DateTime.now());
     final addressValue = _getValidAddress(metadata.Address);
 
     metadata.PrintNo = metadata.PrintNo?.trim().toUpperCase();
@@ -689,22 +723,24 @@ class Auth {
     return 'No Data';
   }
 
-  Future<void> _addImageToFormData(FormData formData, String key, String? path) async {
+  Future<void> _addImageToFormData(
+    FormData formData,
+    String key,
+    String? path,
+  ) async {
     if (path != null) {
       final file = File(path);
       if (await file.exists()) {
-        formData.files.add(
-          MapEntry(key, await MultipartFile.fromFile(path)),
-        );
+        formData.files.add(MapEntry(key, await MultipartFile.fromFile(path)));
       }
     }
   }
 
   Future<Map<String, dynamic>> _handleExecutionResponse(
-      Response response,
-      ImageUploaddata metadata,
-      String uploadType,
-      ) async {
+    Response response,
+    ImageUploaddata metadata,
+    String uploadType,
+  ) async {
     final responseData = response.data as Map<String, dynamic>?;
 
     if (responseData == null) {
@@ -723,12 +759,12 @@ class Auth {
     String? printIdFromResponse = dataMap?['printId']?.toString();
 
     // ========== DEBUG: PRINT PRINT ID ==========
-    print("==============================================");
-    print(" PRINT ID FROM RESPONSE");
-    print("printId: $printIdFromResponse");
-    print("isSuccess: $isSuccess");
-    print("message: $message");
-    print("==============================================");
+    debugPrint("==============================================");
+    debugPrint(" debugPrint ID FROM RESPONSE");
+    debugPrint("debugPrintId: $printIdFromResponse");
+    debugPrint("isSuccess: $isSuccess");
+    debugPrint("message: $message");
+    debugPrint("==============================================");
     // ========== END DEBUG ==========
 
     if (isSuccess || response.statusCode == 200) {
@@ -741,8 +777,10 @@ class Auth {
         metadata.PrintNo!,
       );
 
-      await _logSync('Sync Data (${uploadType.toUpperCase()})',
-          printIdFromResponse ?? metadata.printId ?? 'null');
+      await _logSync(
+        'Sync Data (${uploadType.toUpperCase()})',
+        printIdFromResponse ?? metadata.printId ?? 'null',
+      );
 
       return {
         'success': true,
@@ -752,41 +790,53 @@ class Auth {
           'serverPlanId': dataMap?['serverPlanId']?.toString(),
           'planCode': dataMap?['planCode']?.toString(),
           'printNo': dataMap?['printNo']?.toString(),
-        }
+        },
       };
     }
 
-    return {'success': false, 'message': message.isNotEmpty ? message : 'Upload failed'};
+    return {
+      'success': false,
+      'message': message.isNotEmpty ? message : 'Upload failed',
+    };
   }
 
-  Future<Map<String, dynamic>> _handleExecutionError(DioException e, ImageUploaddata metadata, [int attemptCount = 1]) async {
+  Future<Map<String, dynamic>> _handleExecutionError(
+    DioException e,
+    ImageUploaddata metadata, [
+    int attemptCount = 1,
+  ]) async {
     String serverMessage = _getServerMessage(e);
-    String errorMessage = serverMessage.isNotEmpty ? serverMessage : _getErrorMessage(e, 'Execution Upload');
+    String errorMessage = serverMessage.isNotEmpty
+        ? serverMessage
+        : _getErrorMessage(e, 'Execution Upload');
 
-    bool isAlreadyOnServer = serverMessage.toLowerCase().contains('already executed') ||
+    bool isAlreadyOnServer =
+        serverMessage.toLowerCase().contains('already executed') ||
         serverMessage.toLowerCase().contains('duplicate');
 
     bool isSuccess = isAlreadyOnServer;
 
     // ========== DEBUG: PRINT ERROR ==========
-    print("==============================================");
-    print(" HANDLE EXECUTION ERROR");
-    print("serverMessage: $serverMessage");
-    print("isAlreadyOnServer: $isAlreadyOnServer");
-    print("errorMessage: $errorMessage");
-    print("==============================================");
+    debugPrint("==============================================");
+    debugPrint(" HANDLE EXECUTION ERROR");
+    debugPrint("serverMessage: $serverMessage");
+    debugPrint("isAlreadyOnServer: $isAlreadyOnServer");
+    debugPrint("errorMessage: $errorMessage");
+    debugPrint("==============================================");
     // ========== END DEBUG ==========
 
     final apiResponseRepo = ApiResponseRepository();
-    await apiResponseRepo.saveApiResponse(ApiResponseData(
-      planId: metadata.ServerPlanId!,
-      originalData: metadata,
-      isSuccess: isSuccess,
-      responseMessage: errorMessage,
-      responseTime: DateTime.now(),
-      statusCode: e.response?.statusCode ?? 0,
-      retryCount: attemptCount,
-    ));
+    await apiResponseRepo.saveApiResponse(
+      ApiResponseData(
+        planId: metadata.ServerPlanId!,
+        originalData: metadata,
+        isSuccess: isSuccess,
+        responseMessage: errorMessage,
+        responseTime: DateTime.now(),
+        statusCode: e.response?.statusCode ?? 0,
+        retryCount: attemptCount,
+      ),
+    );
 
     await ExecutionImageUploadHiveRepository().deleteMetadata(
       metadata.ServerPlanId!,
@@ -797,16 +847,11 @@ class Auth {
       return {
         'success': true,
         'message': 'Already on server',
-        'data': {
-          'printId': metadata.printId ?? 'N/A',
-        }
+        'data': {'printId': metadata.printId ?? 'N/A'},
       };
     }
 
-    return {
-      'success': false,
-      'message': errorMessage,
-    };
+    return {'success': false, 'message': errorMessage};
   }
 
   String _getServerMessage(DioException e) {
@@ -818,43 +863,43 @@ class Auth {
 
   // ==================== RESEND METHOD (NEW) ====================
 
-
   Future<Map<String, dynamic>> resendPlanMetadata(
-      ImageUploaddata metadata) async {
+    ImageUploaddata metadata,
+  ) async {
     try {
       // Normalize data
       metadata.PrintNo = metadata.PrintNo?.trim().toUpperCase();
 
       final token = await getAuthToken();
-      final currentDate =
-      DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now());
+      final currentDate = DateFormat(
+        'yyyy-MM-dd HH:mm:ss',
+      ).format(DateTime.now());
 
-      final formData =
-      await _buildResendFormData(metadata, currentDate);
+      final formData = await _buildResendFormData(metadata, currentDate);
 
       // ================= DEBUG =================
-      print("==================================================");
-      print(" RESEND REQUEST START");
-      print("==================================================");
-      print("API : ${APIURLs.baseURL}${APIURLs.executionPost}");
-      print("TOKEN : $token");
-      print("");
+      debugPrint("==================================================");
+      debugPrint(" RESEND REQUEST START");
+      debugPrint("==================================================");
+      debugPrint("API : ${APIURLs.baseURL}${APIURLs.executionPost}");
+      debugPrint("TOKEN : $token");
+      debugPrint("");
 
-      print("--------------- PAYLOAD ----------------");
+      debugPrint("--------------- PAYLOAD ----------------");
 
       for (final field in formData.fields) {
-        print("${field.key} : ${field.value}");
+        debugPrint("${field.key} : ${field.value}");
       }
 
-      print("");
+      debugPrint("");
 
-      print("--------------- FILES ----------------");
+      debugPrint("--------------- FILES ----------------");
 
       for (final file in formData.files) {
-        print("${file.key} : ${file.value.filename}");
+        debugPrint("${file.key} : ${file.value.filename}");
       }
 
-      print("==================================================");
+      debugPrint("==================================================");
 
       dio.options.connectTimeout = const Duration(seconds: 60);
       dio.options.receiveTimeout = const Duration(seconds: 60);
@@ -871,23 +916,20 @@ class Auth {
         ),
       );
 
-      print("==================================================");
-      print(" RESEND RESPONSE");
-      print("Status Code : ${response.statusCode}");
-      print("Data : ${response.data}");
-      print("==================================================");
+      debugPrint("==================================================");
+      debugPrint(" RESEND RESPONSE");
+      debugPrint("Status Code : ${response.statusCode}");
+      debugPrint("Data : ${response.data}");
+      debugPrint("==================================================");
 
-      if (response.statusCode == 200 &&
-          response.data is Map<String, dynamic>) {
+      if (response.statusCode == 200 && response.data is Map<String, dynamic>) {
         final Map<String, dynamic> responseData = response.data;
 
         bool success = responseData["isSuccess"] == true;
 
-        String message =
-            responseData["message"]?.toString() ?? "";
+        String message = responseData["message"]?.toString() ?? "";
 
-        if (!success &&
-            message.toLowerCase().contains("already executed")) {
+        if (!success && message.toLowerCase().contains("already executed")) {
           success = true;
           message = "Already Executed (Synced Successfully)";
         }
@@ -899,18 +941,15 @@ class Auth {
         };
       }
 
-      return {
-        "success": false,
-        "message": "Unexpected server response.",
-      };
+      return {"success": false, "message": "Unexpected server response."};
     } on DioException catch (e) {
-      print("==================================================");
-      print(" DIO ERROR");
-      print("Type : ${e.type}");
-      print("Message : ${e.message}");
-      print("Status Code : ${e.response?.statusCode}");
-      print("Response : ${e.response?.data}");
-      print("==================================================");
+      debugPrint("==================================================");
+      debugPrint(" DIO ERROR");
+      debugPrint("Type : ${e.type}");
+      debugPrint("Message : ${e.message}");
+      debugPrint("Status Code : ${e.response?.statusCode}");
+      debugPrint("Response : ${e.response?.data}");
+      debugPrint("==================================================");
 
       String errorMessage;
 
@@ -928,50 +967,41 @@ class Auth {
           break;
 
         case DioExceptionType.connectionError:
-          errorMessage =
-          "No Internet Connection.";
+          errorMessage = "No Internet Connection.";
           break;
 
         case DioExceptionType.badResponse:
-          errorMessage =
-          "Server Error (${e.response?.statusCode})";
+          errorMessage = "Server Error (${e.response?.statusCode})";
           break;
 
         default:
-          errorMessage =
-              e.message ?? "Unknown Network Error";
+          errorMessage = e.message ?? "Unknown Network Error";
       }
 
       if (e.response?.data is Map<String, dynamic>) {
-        final serverMessage =
-        e.response!.data["message"]?.toString();
+        final serverMessage = e.response!.data["message"]?.toString();
 
-        if (serverMessage != null &&
-            serverMessage.isNotEmpty) {
+        if (serverMessage != null && serverMessage.isNotEmpty) {
           errorMessage = serverMessage;
         }
       }
 
-      return {
-        "success": false,
-        "message": errorMessage,
-      };
+      return {"success": false, "message": errorMessage};
     } catch (e, s) {
-      print("==================================================");
-      print(" UNEXPECTED ERROR");
-      print(e);
-      print(s);
-      print("==================================================");
+      debugPrint("==================================================");
+      debugPrint(" UNEXPECTED ERROR");
+      debugPrint(e.toString());
+      debugPrint(s.toString());
+      debugPrint("==================================================");
 
-      return {
-        "success": false,
-        "message": e.toString(),
-      };
+      return {"success": false, "message": e.toString()};
     }
   }
 
   // ==================== BATCH SYNC ====================
-  Future<Map<String, dynamic>> syncAllPlanMetadata(List<ImageUploaddata> metadataList) async {
+  Future<Map<String, dynamic>> syncAllPlanMetadata(
+    List<ImageUploaddata> metadataList,
+  ) async {
     List<Map<String, dynamic>> results = [];
     int successCount = 0;
     int failureCount = 0;
@@ -983,7 +1013,7 @@ class Auth {
       String key = "${metadata.ServerPlanId}_${metadata.PrintNo}";
 
       if (processedKeys.contains(key)) {
-        print(" SKIPPING DUPLICATE: $key");
+        debugPrint(" SKIPPING DUPLICATE: $key");
         continue;
       }
       processedKeys.add(key);
@@ -1013,7 +1043,8 @@ class Auth {
         }
       } on DioError catch (e) {
         failureCount++;
-        String errorMessage = 'Network error: Please check your internet connection.';
+        String errorMessage =
+            'Network error: Please check your internet connection.';
 
         results.add({
           'planId': metadata.ServerPlanId.toString(),
@@ -1060,7 +1091,10 @@ class Auth {
     return anySuccess;
   }
 
-  Future<FormData> _buildResendFormData(ImageUploaddata metadata, String currentDate) async {
+  Future<FormData> _buildResendFormData(
+    ImageUploaddata metadata,
+    String currentDate,
+  ) async {
     final formData = FormData.fromMap({
       'ServerPlanId': metadata.ServerPlanId,
       'PlanCode': metadata.PlanCode,
@@ -1128,7 +1162,11 @@ class Auth {
     );
   }
 
-  Future<void> _logError(String message, [String? identifier, dynamic error]) async {
+  Future<void> _logError(
+    String message, [
+    String? identifier,
+    dynamic error,
+  ]) async {
     await ErrorReportManager.storeErrorReport(
       error: '$message${error != null ? ': $error' : ''}',
       level: ErrorLevel.error,
@@ -1141,9 +1179,7 @@ class Auth {
     await SyncCrashReportManager.storeCrashReport(
       error: '$label: $id',
       stackTrace: StackTrace.current.toString(),
-      additionalInfo: {
-        'timestamp': DateTime.now().toIso8601String(),
-      },
+      additionalInfo: {'timestamp': DateTime.now().toIso8601String()},
     );
   }
 
@@ -1164,14 +1200,20 @@ class AuthInterceptor extends Interceptor {
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) async {
     if (err.response?.statusCode == 401) {
-      await TokenManager().logout('Your session has expired. Please login again.');
+      await TokenManager().logout(
+        'Your session has expired. Please login again.',
+      );
     }
     super.onError(err, handler);
   }
 
   @override
-  void onRequest(RequestOptions options, RequestInterceptorHandler handler) async {
-    final isAuthEndpoint = options.path.contains('api/Auth/sign-in') ||
+  void onRequest(
+    RequestOptions options,
+    RequestInterceptorHandler handler,
+  ) async {
+    final isAuthEndpoint =
+        options.path.contains('api/Auth/sign-in') ||
         options.path.contains('api/User/register-user') ||
         options.path.contains('Auth/sign-in') ||
         options.path.contains('User/register-user');

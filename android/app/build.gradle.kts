@@ -9,7 +9,7 @@ plugins {
 android {
     namespace = "canimagemediatech.com.canimage"
     compileSdk = 36
-    ndkVersion = "27.0.12077973"
+    ndkVersion = "28.2.13676358"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -57,12 +57,21 @@ flutter {
 
 dependencies {
     implementation(platform("com.google.firebase:firebase-bom:34.3.0"))
-    implementation("com.google.firebase:firebase-crashlytics-ndk")
     implementation("com.google.firebase:firebase-crashlytics")
     implementation("com.google.firebase:firebase-analytics")
 
-    // Add these for better camera stability
-    implementation("androidx.camera:camera-camera2:1.3.1")
-    implementation("androidx.camera:camera-lifecycle:1.3.1")
-    implementation("androidx.camera:camera-view:1.3.1")
+    // CameraX 1.4.2+ (16 KB page size compatible)
+    implementation("androidx.camera:camera-core:1.4.2")
+    implementation("androidx.camera:camera-camera2:1.4.2")
+    implementation("androidx.camera:camera-lifecycle:1.4.2")
+    implementation("androidx.camera:camera-view:1.4.2")
+}
+
+configurations.all {
+    resolutionStrategy {
+        force("androidx.camera:camera-core:1.4.2")
+        force("androidx.camera:camera-camera2:1.4.2")
+        force("androidx.camera:camera-lifecycle:1.4.2")
+        force("androidx.camera:camera-view:1.4.2")
+    }
 }

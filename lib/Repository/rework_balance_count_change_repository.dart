@@ -58,6 +58,20 @@ class ReworkBalanceCountChangeRepository {
     }
   }
 
+  Future<Map<String, int>> getAllOfflineCountsMap() async {
+    if (_offlineCountBox == null) {
+      _offlineCountBox = await Hive.openBox<OfflineCount>('offlineCount');
+    }
+    final Map<String, int> counts = {};
+    for (var key in _offlineCountBox!.keys) {
+      final item = _offlineCountBox!.get(key);
+      if (item != null) {
+        counts[key.toString()] = item.submittedCount;
+      }
+    }
+    return counts;
+  }
+
   Future<void> clearAllOfflineCounts() async {
     if (_offlineCountBox == null) {
       _offlineCountBox = await Hive.openBox<OfflineCount>('offlineCount');

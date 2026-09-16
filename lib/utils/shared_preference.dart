@@ -50,15 +50,16 @@ setAuthToken(String data) async {
 
 Future<String> getAuthToken() async {
   SharedPreferences prefs = await SharedPreferences.getInstance();
-  if (prefs.getString('token') != null &&
-      prefs.getString('token')!.isNotEmpty) {
-    // print("MyAuthToken" + "Bearer "+prefs.getString('token').toString());
-  } else {
-    print("Token is  Empty");
+  final token = prefs.getString('token');
+  if (token != null && token.trim().isNotEmpty) {
+    return "Bearer ${token.trim()}";
   }
-  return prefs.getString('token') != null
-      ? "Bearer "+prefs.getString('token').toString()
-      : "";
+  return "";
+}
+
+Future<String> getRawToken() async {
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+  return prefs.getString('token')?.trim() ?? "";
 }
 
 setUserId(String userID) async {
@@ -143,10 +144,14 @@ Future<void> saveUserName(String name) async {
   await prefs.setString("fname", name);
 }
 
+Future<void> setFname(String name) => saveUserName(name);
+
 Future<void> saveRoleName(String role) async {
   final prefs = await SharedPreferences.getInstance();
   await prefs.setString("roleName", role);
 }
+
+Future<void> setroleName(String role) => saveRoleName(role);
 
 Future<String> getUserName() async {
   final prefs = await SharedPreferences.getInstance();
@@ -168,4 +173,25 @@ Future<String> getDeviceId() async {
     print("Device ID is Empty");
     return "";
   }
+}
+
+/// Completely clears all authentication and session data from SharedPreferences.
+/// Preserves user preferences like 'language' and 'deviceId'.
+Future<void> clearUserSession() async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.remove('token');
+  await prefs.remove('token_expiry');
+  await prefs.remove('auth_token');
+  await prefs.remove('UIDFirst');
+  await prefs.remove('UIDLogin');
+  await prefs.remove('uId');
+  await prefs.remove('login_uid');
+  await prefs.remove('userID');
+  await prefs.remove('userIDLogin');
+  await prefs.remove('userId');
+  await prefs.remove('user_id_login');
+  await prefs.remove('roleFlag');
+  await prefs.remove('role_flag');
+  await prefs.remove('roleName');
+  await prefs.remove('fname');
 }

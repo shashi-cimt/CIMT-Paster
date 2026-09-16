@@ -37,7 +37,7 @@ class TextstyleGlobal {
 
   static final TextStyle tableHeaderTextStyle = TextStyle(
     color: Font.pureWhiteColor,
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: FontWeight.w700,
     fontFamily: "Roboto",
   );
@@ -51,8 +51,8 @@ class TextstyleGlobal {
 
   static final TextStyle bodyTextStyleSeeplan = TextStyle(
     color: Font.neutralDarkColor,
-    fontSize: 10,
-    fontWeight: FontWeight.w500,
+    fontSize: 13,
+    fontWeight: FontWeight.w600,
     fontFamily: "Roboto",
   );
 }

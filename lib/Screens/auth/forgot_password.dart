@@ -1,6 +1,8 @@
 import 'package:canimage/Screens/auth/login_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../widgets/can_image_loader.dart';
+import '../../widgets/app_snack_bar.dart';
 import '../../generated/l10n.dart';
 import '../../utils/fonts.dart';
 import '../../utils/textStyle.dart';
@@ -15,6 +17,7 @@ class ForgotPasswordScreen extends ConsumerStatefulWidget {
 
 class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   String emailOrPhone = ''; // Variable to hold the email or phone number input
+  bool isLoading = false;
 
   @override
   Widget build(BuildContext context) {
@@ -24,17 +27,15 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
 
         body: SingleChildScrollView(
           child: Container(
-            decoration: BoxDecoration(color: Colors.white),
+            decoration: const BoxDecoration(color: Colors.white),
             child: Column(
               children: [
-                Padding(
-                  padding: const EdgeInsets.only(top: 50),
-                  child: Container(
-                    width: 250,
-                    height: 100,
-                    child: Image.asset(
-                      'assets/logo.png1',
-                      fit: BoxFit.contain,
+                const Padding(
+                  padding: EdgeInsets.only(top: 50),
+                  child: Center(
+                    child: CanImageLoader(
+                      spinnerSize: 54,
+                      showBrand: true,
                     ),
                   ),
                 ),
@@ -50,21 +51,21 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                             S.of(context).forgotPassword,
                             style: TextstyleGlobal.headerTextStyle
                         ),
-                        SizedBox(height: 10),
+                        const SizedBox(height: 10),
                         Text(
                             S.of(context).forgotText,
                             style: TextstyleGlobal.bodyTextStyle
                         ),
-                        SizedBox(height: 20),
+                        const SizedBox(height: 20),
 
                         // Email or Phone Number TextField
                         Text(S.of(context).phoneNo, style: TextstyleGlobal.labelTextStyle),
-                        SizedBox(height: 5),
+                        const SizedBox(height: 5),
                         TextField(
                           keyboardType: TextInputType.phone,
                           onChanged: (value) {
                             setState(() {
-                              // You can add logic to handle changes if needed
+                              emailOrPhone = value;
                             });
                           },
                           maxLength: 10, // Enforcing 10 digits length
@@ -80,27 +81,50 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                             filled: true,
                           ),
                         ),
-                        SizedBox(height: 20),
+                        const SizedBox(height: 20),
 
                         // Button to submit the reset password request
                         ElevatedButton(
-                          onPressed: () {
-
-                          },
+                          onPressed: isLoading
+                              ? null
+                              : () async {
+                                  if (emailOrPhone.trim().length != 10) {
+                                    AppSnackBar.showError(
+                                      context,
+                                      S.of(context).enterPhoneNo,
+                                    );
+                                    return;
+                                  }
+                                  setState(() {
+                                    isLoading = true;
+                                  });
+                                  await Future.delayed(const Duration(seconds: 2));
+                                  if (mounted) {
+                                    setState(() {
+                                      isLoading = false;
+                                    });
+                                  }
+                                },
                           style: ElevatedButton.styleFrom(
-                            padding: EdgeInsets.symmetric(vertical: 16),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
                             backgroundColor: Font.primaryColor,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            minimumSize: Size(double.infinity, 10),
+                            minimumSize: const Size(double.infinity, 10),
                           ),
                           child: Center(
-                            child: Text(
-                              S.of(context).resetPass,
-                              textAlign: TextAlign.center,
-                              style: TextStyle(fontSize: 18, color: Colors.white, fontFamily: "Roboto"),
-                            ),
+                            child: isLoading
+                                ? const CanImageSpinner(
+                                    size: 22,
+                                    primaryColor: Colors.white70,
+                                    accentColor: Colors.white,
+                                  )
+                                : Text(
+                                    S.of(context).resetPass,
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(fontSize: 18, color: Colors.white, fontFamily: "Roboto"),
+                                  ),
                           ),
                         ),
                         SizedBox(height: 20),

@@ -1,36 +1,113 @@
+import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show compute;
 import 'package:image/image.dart' as img;
 
-/// Bakes a JPEG's EXIF orientation into its pixel data so the file is
-/// physically upright on disk, independent of whether a given viewer honors
-/// the EXIF tag. Returns null if the bytes aren't a decodable JPEG.
-///
-/// Skips the decode/encode round trip entirely when the EXIF tag already
-/// says "normal" (1) or is absent — which is the common case, since most
-/// devices' native camera/picker pipeline already writes upright pixels.
-/// Only pays for the full decode+encode (a slow, non-hardware-accelerated
-/// pure-Dart JPEG codec) when the tag says the pixels are actually rotated.
-///
-/// Top-level (not a class member) so it can be handed to `compute()`, which
-/// runs it on a background isolate.
-Uint8List? bakeJpegOrientation(Uint8List rawBytes) {
-  if (_readJpegOrientationTag(rawBytes) == 1) {
-    return rawBytes;
+/// Bakes a JPEG's EXIF orientation into its physical pixels so the image is
+/// physically upright on disk, matching how the camera was held (portrait or landscape),
+/// independent of whether a given viewer honors the EXIF tag.
+class ImageOrientationUtils {
+  ImageOrientationUtils._();
+
+  /// Normalizes an image file on disk in place:
+  /// - Bakes EXIF orientation into physical pixel data so it displays upright
+  ///   as captured by the camera without altering the natural aspect ratio.
+  /// - Leaves normal orientation (tag 1) files untouched for optimal performance.
+  /// - Safe: Returns original file path if file does not exist or decoding fails.
+  static Future<String> normalizeImageFile(File file) async {
+    try {
+      if (!await file.exists()) {
+        return file.path;
+      }
+
+      final Uint8List rawBytes = await file.readAsBytes();
+      if (rawBytes.isEmpty) {
+        return file.path;
+      }
+
+      // Fast check: If already normal orientation (1) or absent, no baking is needed.
+      final int exifTag = _readJpegOrientationTag(rawBytes);
+      if (exifTag == 1) {
+        return file.path;
+      }
+
+      // Execute in background isolate via compute to prevent UI jank
+      final Uint8List normalizedBytes = await compute(ensurePortraitJpeg, rawBytes);
+
+      if (normalizedBytes.isNotEmpty && normalizedBytes.length != rawBytes.length) {
+        await file.writeAsBytes(normalizedBytes, flush: true);
+      }
+      return file.path;
+    } catch (_) {
+      // Non-fatal: if normalization fails, fallback to the original file
+      return file.path;
+    }
   }
 
-  final img.Image? decoded = img.decodeJpg(rawBytes);
-  if (decoded == null) return null;
-
-  final img.Image upright = img.bakeOrientation(decoded);
-  return img.encodeJpg(upright, quality: 95);
+  /// Rotates an image file by 90 degrees clockwise on disk and saves it back.
+  static Future<bool> rotateImageFile90(File file) async {
+    try {
+      if (!await file.exists()) return false;
+      final Uint8List rawBytes = await file.readAsBytes();
+      if (rawBytes.isEmpty) return false;
+      final Uint8List rotated = await compute(_rotate90Jpeg, rawBytes);
+      if (rotated.isNotEmpty) {
+        await file.writeAsBytes(rotated, flush: true);
+        return true;
+      }
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
 }
 
+/// Bakes EXIF orientation into physical pixels so the image is upright as captured.
+/// Top-level function suitable for [compute].
+Uint8List ensurePortraitJpeg(Uint8List rawBytes) {
+  try {
+    final int exifTag = _readJpegOrientationTag(rawBytes);
+
+    // Fast-path: If EXIF orientation is already normal (1), return rawBytes immediately.
+    if (exifTag == 1) {
+      return rawBytes;
+    }
+
+    final img.Image? decoded = img.decodeImage(rawBytes);
+    if (decoded == null) return rawBytes;
+
+    // Bake EXIF orientation into the pixels so it is physically upright
+    // without altering the natural aspect ratio (portrait stays portrait, landscape stays landscape).
+    final img.Image upright = img.bakeOrientation(decoded);
+
+    // Encode as high-quality JPEG
+    return Uint8List.fromList(img.encodeJpg(upright, quality: 95));
+  } catch (_) {
+    return rawBytes;
+  }
+}
+
+/// Rotates JPEG bytes 90 degrees clockwise in background isolate.
+Uint8List _rotate90Jpeg(Uint8List rawBytes) {
+  try {
+    final img.Image? decoded = img.decodeImage(rawBytes);
+    if (decoded == null) return rawBytes;
+    final img.Image rotated = img.copyRotate(decoded, angle: 90);
+    return Uint8List.fromList(img.encodeJpg(rotated, quality: 95));
+  } catch (_) {
+    return rawBytes;
+  }
+}
+
+/// Backwards compatibility helper for existing callers.
+Uint8List? bakeJpegOrientation(Uint8List rawBytes) {
+  return ensurePortraitJpeg(rawBytes);
+}
+
+
 /// Reads the EXIF "Orientation" tag (0x0112) straight out of the JPEG's
-/// APP1 segment by walking markers, without decoding any pixel data — a
-/// header-only scan of a few hundred bytes instead of a full-image decode.
-/// Returns 1 ("normal"/no rotation) if the tag or EXIF segment is missing,
-/// which is the correct default per the EXIF spec.
+/// APP1 segment by walking markers, without decoding any pixel data.
 int _readJpegOrientationTag(Uint8List bytes) {
   if (bytes.length < 4 || bytes[0] != 0xFF || bytes[1] != 0xD8) return 1;
 
@@ -42,7 +119,7 @@ int _readJpegOrientationTag(Uint8List bytes) {
     final int marker = bytes[offset + 1];
     offset += 2;
 
-    // Start-of-scan / end-of-image: pixel data follows, no more metadata.
+    // Start-of-scan / end-of-image
     if (marker == 0xDA || marker == 0xD9) break;
 
     if (offset + 2 > bytes.length) break;

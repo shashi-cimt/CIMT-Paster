@@ -5,7 +5,7 @@ buildscript {
     }
     dependencies {
         classpath("com.google.gms:google-services:4.4.0")  // Add the correct version of the plugin
-        classpath("com.android.tools.build:gradle:8.1.0") // or the latest compatible version
+        classpath("com.android.tools.build:gradle:8.5.1") // 16 KB page size alignment support
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.22") // Ensure Kotlin plugin version is correct
         classpath("com.google.firebase:firebase-crashlytics-gradle:3.0.6") // Add this line
     }

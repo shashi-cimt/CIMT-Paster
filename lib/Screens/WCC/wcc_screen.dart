@@ -7,6 +7,9 @@ import '../../Hive_Database/post_recca_seePlan_db.dart';
 import '../../Provider/can_image_provider.dart';
 import '../../generated/l10n.dart';
 import '../PostReccaPostPlan/post_recca_Sub_see_maps.dart';
+import '../../widgets/common_app_bar.dart';
+import '../../widgets/can_image_loader.dart';
+import '../../widgets/app_snack_bar.dart';
 
 
 // Color Palette
@@ -126,23 +129,17 @@ class _WCCSeePlanScreenState extends ConsumerState<WCCSeePlanScreen> {
 
       // Show success message
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: Colors.green,
-            content: Text(S.of(context).reccaPlan, style: TextStyle(fontFamily: "Roboto")),
-            duration: Duration(seconds: 2),
-          ),
+        AppSnackBar.showSuccess(
+          context,
+          S.of(context).reccaPlan,
         );
       }
     } catch (e) {
       // Show error message
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${S.of(context).failedRecca}: $e', style: TextStyle(fontFamily: "Roboto")),
-            backgroundColor: Colors.red,
-            duration: Duration(seconds: 3),
-          ),
+        AppSnackBar.showError(
+          context,
+          '${S.of(context).failedRecca}: $e',
         );
       }
     } finally {
@@ -166,11 +163,11 @@ class _WCCSeePlanScreenState extends ConsumerState<WCCSeePlanScreen> {
   }
 
   Future<bool> _onWillPop() async {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => LandingScreen(changeLanguage: widget.changeLanguage,)),
-    );
-    return false;
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+      return false;
+    }
+    return true;
   }
 
   @override
@@ -182,41 +179,23 @@ class _WCCSeePlanScreenState extends ConsumerState<WCCSeePlanScreen> {
 
     return WillPopScope(
       onWillPop: _onWillPop,
-      child: SafeArea(
-        child: Scaffold(
-          backgroundColor: theme.colorScheme.surface,
-          appBar: AppBar(
-            elevation: 0,
-            backgroundColor: primaryColor,
-            title: Text(
-              S.of(context).reccaPlanTitle,
-              style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 18,
-                  letterSpacing: 1,
-                  fontFamily: "Roboto"
-              ),
-            ),
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => LandingScreen(changeLanguage: widget.changeLanguage)),
-                );
-              },
-            ),
+      child: Scaffold(
+        backgroundColor: theme.colorScheme.surface,
+        appBar: CommonAppBar(
+            title: S.of(context).reccaPlanTitle,
             actions: [
               IconButton(
-                icon: Icon(Icons.info_outline, color: Colors.white),
+                icon: const Icon(Icons.info_outline, color: Colors.white),
                 onPressed: () {
                   // Info action
                 },
               ),
+              const CommonHomeButton(),
             ],
           ),
-          body: Container(
+          body: SafeArea(
+            top: false,
+            child: Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
@@ -287,15 +266,12 @@ class _WCCSeePlanScreenState extends ConsumerState<WCCSeePlanScreen> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               if (isRefreshing) ...[
-                                SizedBox(
-                                  width: 12,
-                                  height: 12,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                  ),
+                                const CanImageSpinner(
+                                  size: 14,
+                                  primaryColor: Colors.white70,
+                                  accentColor: Colors.white,
                                 ),
-                                SizedBox(width: 8),
+                                const SizedBox(width: 8),
                               ],
                               Text(
                                 isRefreshing ? S.of(context).loading : S.of(context).reload,
@@ -571,7 +547,12 @@ class _WCCSeePlanScreenState extends ConsumerState<WCCSeePlanScreen> {
                                   ],
                                 );
                               },
-                              loading: () => const Center(child: CircularProgressIndicator()),
+                              loading: () => const Center(
+                                child: CanImageLoader(
+                                  spinnerSize: 48,
+                                  showBrand: true,
+                                ),
+                              ),
                               error: (e, stack) => Container(
                                 height: MediaQuery.of(context).size.height * 0.6,
                                 child: Center(

@@ -7,6 +7,8 @@ import 'package:fluttertoast/fluttertoast.dart';
 import '../../generated/l10n.dart';
 import '../../utils/fonts.dart';
 import '../PostReccaPostPlan/post_recca_image_upload.dart';
+import '../../widgets/common_app_bar.dart';
+import '../../widgets/can_image_loader.dart';
 import 'post_recca_see_plans.dart';
 
 class PhotoDisplayScreen extends StatefulWidget {
@@ -130,7 +132,7 @@ class _PhotoDisplayScreenState extends State<PhotoDisplayScreen> {
                   const Icon(Icons.broken_image, size: 50, color: Colors.grey),
                   loadingBuilder: (context, child, progress) {
                     if (progress == null) return child;
-                    return const Center(child: CircularProgressIndicator());
+                    return const Center(child: CanImageSpinner(size: 32));
                   },
                 ),
               ),
@@ -192,14 +194,11 @@ class _PhotoDisplayScreenState extends State<PhotoDisplayScreen> {
           disabledBackgroundColor: Colors.grey,
         ),
         child: isLoadingLocation
-            ? SizedBox(
-          width: 20,
-          height: 20,
-          child: CircularProgressIndicator(
-            color: Colors.white,
-            strokeWidth: 2,
-          ),
-        )
+            ? const CanImageSpinner(
+                size: 20,
+                primaryColor: Colors.white70,
+                accentColor: Colors.white,
+              )
             : Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -328,11 +327,11 @@ class _PhotoDisplayScreenState extends State<PhotoDisplayScreen> {
   }
 
   Future<bool> _onWillPop() async {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => SUSeePlanScreen(changeLanguage: widget.changeLanguage,)),
-    );
-    return false;
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+      return false;
+    }
+    return true;
   }
 
   @override
@@ -341,41 +340,12 @@ class _PhotoDisplayScreenState extends State<PhotoDisplayScreen> {
     return WillPopScope(
       onWillPop: _onWillPop,
       child: SafeArea(
+        top: false,
         child: Scaffold(
           backgroundColor: theme.colorScheme.surface,
-          appBar: AppBar(
-            elevation: 0,
-            backgroundColor: Font.primaryColor,
-            title: Text(
-              '',
-              style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 18,
-                  letterSpacing: 1,
-                  fontFamily: "Roboto"
-              ),
-            ),
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => SUSeePlanScreen(changeLanguage: widget.changeLanguage,)),
-                );
-              },
-            ),
-            actions: [
-              IconButton(
-                icon: Icon(Icons.home, color: Colors.white),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => LandingScreen(changeLanguage: widget.changeLanguage)),
-                  );
-                },
-              ),
-            ],
+          appBar: const CommonAppBar(
+            title: "Photo Capture",
+            actions: [CommonHomeButton()],
           ),
           body: Column(
             children: [

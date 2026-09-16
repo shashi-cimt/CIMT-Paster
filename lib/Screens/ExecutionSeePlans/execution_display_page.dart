@@ -8,6 +8,8 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../generated/l10n.dart';
 import '../../utils/fonts.dart';
+import '../../widgets/common_app_bar.dart';
+import '../../widgets/can_image_loader.dart';
 import '../Rework/Rework_upload_see_plans.dart' as ColorsConst;
 
 class ExecutionDisplayPage extends StatefulWidget {
@@ -223,27 +225,10 @@ class _ExecutionDisplayPageState extends State<ExecutionDisplayPage> {
                   Container(
                     color: Colors.white,
                     child: const Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          CircularProgressIndicator(),
-                          SizedBox(height: 16),
-                          Text(
-                            "Loading 360° Street View...",
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey,
-                            ),
-                          ),
-                          SizedBox(height: 8),
-                          Text(
-                            "Please wait",
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey,
-                            ),
-                          ),
-                        ],
+                      child: CanImageLoader(
+                        spinnerSize: 52,
+                        showBrand: true,
+                        message: "Loading 360° Street View...",
                       ),
                     ),
                   ),
@@ -321,7 +306,11 @@ class _ExecutionDisplayPageState extends State<ExecutionDisplayPage> {
         ),
         onPressed: isLoadingLocation ? null : _onContinue,
         child: isLoadingLocation
-            ? const CircularProgressIndicator(color: Colors.white)
+            ? const CanImageSpinner(
+                size: 22,
+                primaryColor: Colors.white70,
+                accentColor: Colors.white,
+              )
             : const Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -376,15 +365,11 @@ class _ExecutionDisplayPageState extends State<ExecutionDisplayPage> {
   }
 
   Future<bool> _onWillPop() async {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => SeePlanScreen(
-          changeLanguage: widget.changeLanguage,
-        ),
-      ),
-    );
-    return false;
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+      return false;
+    }
+    return true;
   }
 
   @override
@@ -394,27 +379,15 @@ class _ExecutionDisplayPageState extends State<ExecutionDisplayPage> {
     return WillPopScope(
       onWillPop: _onWillPop,
       child: SafeArea(
+        top: false,
         child: Scaffold(
           backgroundColor: Colors.grey.shade100,
-          appBar: AppBar(
-            elevation: 0,
-            backgroundColor: Font.primaryColor,
-            title: Text(
-              title,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-              onPressed: () {
-                Navigator.pop(context);
-              },
-            ),
+          appBar: CommonAppBar(
+            title: title,
             actions: [
               IconButton(
-                icon: const Icon(Icons.home, color: Colors.white),
+                icon: const Icon(Icons.streetview_rounded, color: Colors.white, size: 24),
+                tooltip: '360° View',
                 onPressed: () {
                   if (_currentPosition == null) return;
                   Navigator.push(
@@ -561,10 +534,9 @@ class _Execution360ViewScreenState extends State<Execution360ViewScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title),
+      appBar: CommonAppBar(
+        title: widget.title,
         centerTitle: true,
-        backgroundColor: Font.primaryColor,
       ),
       body: Stack(
         children: [
@@ -573,13 +545,10 @@ class _Execution360ViewScreenState extends State<Execution360ViewScreen> {
             Container(
               color: Colors.white,
               child: const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    CircularProgressIndicator(),
-                    SizedBox(height: 16),
-                    Text("Loading 360° Street View..."),
-                  ],
+                child: CanImageLoader(
+                  spinnerSize: 52,
+                  showBrand: true,
+                  message: "Loading 360° Street View...",
                 ),
               ),
             ),

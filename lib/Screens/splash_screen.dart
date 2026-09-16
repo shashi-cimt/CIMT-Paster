@@ -1,12 +1,9 @@
 import 'dart:io';
-import 'package:flutter/material.dart';
-import 'package:device_info_plus/device_info_plus.dart';
 import 'package:android_id/android_id.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
+import '../main.dart' show appInitializationFuture;
 import '../utils/crash_manager.dart' show CrashReportManager;
 import '../utils/inactivity_detector.dart';
 import '../utils/shared_preference.dart';
@@ -29,8 +26,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   String? uid;
   late AnimationController _animationController;
   late Animation<double> _boomerangAnimation;
-  bool _permissionsRequested = false;
-  String _statusMessage = "Initializing...";
+
 
   @override
   void initState() {
@@ -39,13 +35,13 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     CrashReportManager.storeLogMessage("Splash Screen Started");
 
     _animationController = AnimationController(
-      duration: const Duration(milliseconds: 2000),
+      duration: const Duration(milliseconds: 1800),
       vsync: this,
     );
 
     _boomerangAnimation = TweenSequence<double>([
       TweenSequenceItem(
-        tween: Tween<double>(begin: 0.0, end: 1.3)
+        tween: Tween<double>(begin: 1.0, end: 1.3)
             .chain(CurveTween(curve: Curves.easeOutBack)),
         weight: 30,
       ),
@@ -66,19 +62,55 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       ),
     ]).animate(_animationController);
 
-    _startBoomerangAnimation();
-    _requestAllPermissions();
+    _startSplashSequence();
   }
 
-  void _startBoomerangAnimation() {
-    _animationController.forward().then((_) {
-      Future.delayed(Duration(milliseconds: 500), () {
-        if (mounted) {
-          _animationController.reset();
-          _animationController.forward();
-        }
-      });
-    });
+  Future<void> _startSplashSequence() async {
+    // 1. Start boomerang animation
+    final animFuture = _animationController.forward();
+
+    // 2. Initialize folder structure
+    final folderFuture = _initializeFolderStructure();
+
+    // 3. Wait for the full animation to complete AND all background initialization to finish
+    await Future.wait([
+      animFuture,
+      folderFuture,
+      if (appInitializationFuture != null) appInitializationFuture!,
+    ]);
+
+    // Small graceful pause with logo fully settled at 1.0
+    await Future.delayed(const Duration(milliseconds: 250));
+
+    if (!mounted) return;
+
+    final accessToken = await getAuthToken();
+    final isValid = await TokenManager().isTokenValid();
+
+    if (!mounted) return;
+
+    if (accessToken.isNotEmpty && isValid) {
+      await TokenManager().initializeTokenMonitoring(accessToken);
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => InactivityDetector(
+            child: LandingScreen(changeLanguage: widget.changeLanguage),
+          ),
+        ),
+      );
+    } else {
+      await clearUserSession();
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) =>
+              LoginScreen(changeLanguage: widget.changeLanguage),
+        ),
+      );
+    }
   }
 
   @override
@@ -88,133 +120,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     super.dispose();
   }
 
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      Future.delayed(Duration(milliseconds: 500), () {
-        if (mounted && _permissionsRequested) {
-          // Removed security recheck
-        }
-      });
-    }
-  }
-
-  Future<void> _requestAllPermissions() async {
-    setState(() {
-      _statusMessage = "Requesting permissions...";
-    });
-
-    try {
-      DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
-      int androidVersion = 0;
-      if (Platform.isAndroid) {
-        AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
-        androidVersion = androidInfo.version.sdkInt;
-      }
-
-      List<Permission> essentialPermissions = [
-        Permission.camera,
-        Permission.microphone,
-        Permission.location,
-        Permission.phone,
-        Permission.contacts,
-        Permission.sms,
-        Permission.notification,
-      ];
-
-      if (androidVersion >= 33) {
-        essentialPermissions.addAll([
-          Permission.videos,
-          Permission.audio,
-        ]);
-      }
-
-      if (androidVersion >= 31) {
-        essentialPermissions.addAll([
-          Permission.bluetoothScan,
-          Permission.bluetoothConnect,
-          Permission.bluetoothAdvertise,
-        ]);
-      }
-
-      if (androidVersion < 30) {
-        essentialPermissions.add(Permission.storage);
-      }
-
-      Map<Permission, PermissionStatus> finalStatuses = {};
-
-      for (Permission permission in essentialPermissions) {
-        setState(() {
-          _statusMessage = "Requesting ${_getPermissionName(permission)} permission...";
-        });
-
-        await Future.delayed(Duration(milliseconds: 300));
-
-        PermissionStatus currentStatus = await permission.status;
-        if (currentStatus.isGranted) {
-          finalStatuses[permission] = currentStatus;
-          continue;
-        }
-
-        PermissionStatus status = await permission.request();
-        finalStatuses[permission] = status;
-
-        await Future.delayed(Duration(milliseconds: 200));
-      }
-
-      int grantedCount = finalStatuses.values.where((status) => status.isGranted).length;
-      int totalCount = finalStatuses.length;
-
-      setState(() {
-        if (grantedCount == totalCount) {
-          _statusMessage = "All permissions granted! ($grantedCount/$totalCount)";
-        } else {
-          _statusMessage = "Permissions granted: $grantedCount/$totalCount";
-        }
-      });
-
-      _permissionsRequested = true;
-      _initializeFolderStructure();
-
-    } catch (e) {
-      setState(() {
-        _statusMessage = "Error requesting permissions";
-      });
-
-      _permissionsRequested = true;
-      _initializeFolderStructure();
-    }
-  }
-
-  String _getPermissionName(Permission permission) {
-    switch (permission) {
-      case Permission.storage:
-        return "Storage";
-      case Permission.camera:
-        return "Camera";
-      case Permission.location:
-        return "Location";
-      case Permission.phone:
-        return "Phone";
-      case Permission.notification:
-        return "Notification";
-      case Permission.bluetoothScan:
-        return "Bluetooth Scan";
-      case Permission.bluetoothConnect:
-        return "Bluetooth Connect";
-      case Permission.bluetoothAdvertise:
-        return "Bluetooth Advertise";
-      default:
-        return permission.toString().split('.').last;
-    }
-  }
-
   // Initialize folder structure for both Pastor and Supervisor
   Future<void> _initializeFolderStructure() async {
-    setState(() {
-      _statusMessage = "Setting up application...";
-    });
-
     try {
       Directory? externalDir = await getExternalStorageDirectory();
       if (externalDir == null) {
@@ -225,51 +132,22 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       await _createRoleFolderWithUID(externalDir.path, 'CIMTDWP', 'Pastor');
 
       // Create folders for Supervisor: /CIMTDWPSUP
-      await _createRoleFolderWithUID(externalDir.path, 'CIMTDWPSUP', 'Supervisor');
-
-      // print(' Both Pastor and Supervisor folders initialized');
-
+      await _createRoleFolderWithUID(
+        externalDir.path,
+        'CIMTDWPSUP',
+        'Supervisor',
+      );
     } catch (e) {
-      // print(' Error initializing folder structure: $e');
+      // Error initializing folder structure
     }
-
-    setState(() {
-      _statusMessage = "Ready to launch...";
-    });
-
-    Future.delayed(Duration(seconds: 1), () async {
-      final accessToken = await getAuthToken();
-      final isValid = await TokenManager().isTokenValid();
-
-      if (accessToken != null && accessToken.isNotEmpty && isValid) {
-        await TokenManager().initializeTokenMonitoring(accessToken);
-
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => InactivityDetector(
-              child: LandingScreen(changeLanguage: widget.changeLanguage),
-            ),
-          ),
-        );
-      } else {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-              builder: (context) => LoginScreen(
-                changeLanguage: widget.changeLanguage,
-              )),
-        );
-      }
-    });
   }
 
   // Create role-specific folder and check/create UID
   Future<void> _createRoleFolderWithUID(
-      String basePath,
-      String folderName,
-      String role,
-      ) async {
+    String basePath,
+    String folderName,
+    String role,
+  ) async {
     try {
       Directory roleDir = Directory('$basePath/$folderName/Appfiles');
 
@@ -294,6 +172,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       print('Error: $e');
     }
   }
+
   Future<String> _getAndroidId() async {
     if (Platform.isAndroid) {
       try {
@@ -309,13 +188,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     return "UNKNOWN_DEVICE";
   }
 
-  Future<String> _getDeviceInfo() async {
-    if (Platform.isAndroid) {
-      return await _getAndroidId();
-    }
-
-    return "UNKNOWN_DEVICE";
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -334,10 +206,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(15),
                     ),
-                    child: Image.asset(
-                      'assets/logo.png',
-                      height: 80,
-                    ),
+                    child: Image.asset('assets/logo.png', height: 80),
                   ),
                 );
               },

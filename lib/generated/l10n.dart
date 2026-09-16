@@ -573,8 +573,8 @@ class S {
   /// `Pastor`
   String get pastor {
     return Intl.message(
-      'Pastor',
-      name: 'pastor',
+      'Paster',
+      name: 'paster',
       desc: '',
       args: [],
     );

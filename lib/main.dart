@@ -11,7 +11,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'Hive_Database/Map_pointer_locate_db.dart';
@@ -38,54 +37,79 @@ import 'Repository/execution_resend_repository.dart';
 import 'Screens/splash_screen.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'generated/l10n.dart';
+import 'utils/fonts.dart';
+import 'utils/public_log_helper.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'dart:async';
 
-/// Version 2.0.1 code Live
-/// Navneet
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  ApiProvider.initialize();
-  SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-  ]);
+Future<void>? appInitializationFuture;
 
-  await Firebase.initializeApp();
-  await _setupCrashlytics();
-  /// New Developermode code add
-  if (kReleaseMode) {
-    FlutterError.onError =
-        FirebaseCrashlytics.instance.recordFlutterFatalError;
-  }
-  ///
-
+Future<void> _initializeApp() async {
   try {
+    await Future.wait([
+      Firebase.initializeApp().then((_) async {
+        await _setupCrashlytics();
+        if (kReleaseMode) {
+          FlutterError.onError =
+              FirebaseCrashlytics.instance.recordFlutterFatalError;
+        }
+      }),
+      _initializeHive(),
+    ]);
+
     Auth.initialize();
-    await _initializeHive();
-    runApp(ProviderScope(child: MyApp()));
+    unawaited(PublicLogHelper.syncExistingSubmissions());
   } catch (e, stackTrace) {
-    await FirebaseCrashlytics.instance.recordError(
-      e,
-      stackTrace,
-      fatal: false,
-      information: [
-        'Error during app initialization',
-        'Phase: App Initialization',
-        'Timestamp: ${DateTime.now().toIso8601String()}',
-      ],
-    );
+    try {
+      await FirebaseCrashlytics.instance.recordError(
+        e,
+        stackTrace,
+        fatal: false,
+        information: [
+          'Error during app initialization',
+          'Phase: App Initialization',
+          'Timestamp: ${DateTime.now().toIso8601String()}',
+        ],
+      );
+    } catch (_) {}
 
-    await CrashReportManager.storeCrashReport(
-      error: "Error during app initialization: $e",
-      stackTrace: stackTrace.toString(),
-      additionalInfo: {
-        'phase': 'App Initialization',
-        'timestamp': DateTime.now().toIso8601String(),
-      },
-    );
-
-    runApp(ProviderScope(child: MyApp()));
+    try {
+      await CrashReportManager.storeCrashReport(
+        error: "Error during app initialization: $e",
+        stackTrace: stackTrace.toString(),
+        additionalInfo: {
+          'phase': 'App Initialization',
+          'timestamp': DateTime.now().toIso8601String(),
+        },
+      );
+    } catch (_) {}
   }
+}
+
+/// Version 2.0.1 code Live
+
+void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  // Restrict ImageCache size to prevent Out-Of-Memory (OOM) kills when launching camera
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 40 * 1024 * 1024; // 40 MB max
+  PaintingBinding.instance.imageCache.maximumSize = 30; // Max 30 images cached
+  ApiProvider.initialize();
+  SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+  SystemChrome.setSystemUIOverlayStyle(
+    SystemUiOverlayStyle(
+      statusBarColor: Font.primaryColor,
+      statusBarIconBrightness: Brightness.light,
+      statusBarBrightness: Brightness.dark,
+      systemNavigationBarColor: Colors.white,
+      systemNavigationBarIconBrightness: Brightness.dark,
+    ),
+  );
+
+  // Start initialization in background immediately
+  appInitializationFuture = _initializeApp();
+
+  // Run the app immediately so SplashScreen renders without blank white screen delay
+  runApp(const ProviderScope(child: MyApp()));
 }
 
 Future<void> _setupCrashlytics() async {
@@ -101,7 +125,9 @@ Future<void> _setupCrashlytics() async {
 
   CrashReportManager.setupGlobalErrorHandling();
   await CrashReportManager.storeLogMessage("App starting up...");
-  await FirebaseCrashlytics.instance.setUserIdentifier("user_${DateTime.now().millisecondsSinceEpoch}");
+  await FirebaseCrashlytics.instance.setUserIdentifier(
+    "user_${DateTime.now().millisecondsSinceEpoch}",
+  );
 
   if (kDebugMode) {
     // await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(false);
@@ -124,7 +150,7 @@ Future<void> _initializeHive() async {
   Hive.registerAdapter(RemarksAdapter());
   Hive.registerAdapter(ApiResponseDataAdapter());
   Hive.registerAdapter(PlanOfflineCountAdapter());
-  Hive.registerAdapter(UploadCountDataAdapter()) ;
+  Hive.registerAdapter(UploadCountDataAdapter());
   Hive.registerAdapter(ReworkModelAdapter());
   Hive.registerAdapter(ReworkImageUploadDataAdapter());
   Hive.registerAdapter(LocationItemAdapter());
@@ -133,7 +159,8 @@ Future<void> _initializeHive() async {
 }
 
 bool isManualSyncing = false;
-bool isBackgroundSyncInProgress = false;  // NEW: Track background sync separately
+bool isBackgroundSyncInProgress =
+    false; // NEW: Track background sync separately
 bool isPrintSyncInProgress = false;
 bool isSyncAllInProgress = false;
 final backgroundSyncCompletedProvider = StateProvider<int>((ref) => 0);
@@ -150,7 +177,7 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   final Auth _apiService = Auth();
   final ExecutionImageUploadHiveRepository _hiveRepository =
-  ExecutionImageUploadHiveRepository();
+      ExecutionImageUploadHiveRepository();
   Locale _locale = Locale('en');
 
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
@@ -192,11 +219,15 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   // NEW: Listen for connectivity changes
   void _startConnectivityListener() {
     _connectivitySubscription = Connectivity().onConnectivityChanged.listen(
-          (List<ConnectivityResult> results) {
+      (List<ConnectivityResult> results) {
         _updateConnectionStatus(results);
       },
       onError: (error) async {
-        await FirebaseCrashlytics.instance.recordError(error, null, fatal: false);
+        await FirebaseCrashlytics.instance.recordError(
+          error,
+          null,
+          fatal: false,
+        );
       },
     );
   }
@@ -204,10 +235,11 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   // NEW: Update connection status and trigger sync when network comes back
   void _updateConnectionStatus(List<ConnectivityResult> results) {
     bool wasConnected = _isConnected;
-    _isConnected = results.any((result) =>
-    result == ConnectivityResult.mobile ||
-        result == ConnectivityResult.wifi ||
-        result == ConnectivityResult.ethernet
+    _isConnected = results.any(
+      (result) =>
+          result == ConnectivityResult.mobile ||
+          result == ConnectivityResult.wifi ||
+          result == ConnectivityResult.ethernet,
     );
 
     // If connection was restored, trigger sync
@@ -251,7 +283,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     try {
       final container = ProviderScope.containerOf(context, listen: false);
       container.read(backgroundSyncStatusProvider.notifier).state = false;
-
     } catch (e) {
       // print(' Error updating background sync status provider: $e');
     }
@@ -269,9 +300,13 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         return;
       }
 
-      // Check authentication
+      // Check authentication and role (role 6 = Pastor)
       final tokenCheck = await getAuthToken();
-      if (tokenCheck == null || tokenCheck.isEmpty) {
+      if (tokenCheck.isEmpty) {
+        return;
+      }
+      final currentRole = await getRoleFlag();
+      if (currentRole != '6') {
         return;
       }
 
@@ -308,12 +343,14 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           List<dynamic> results = result['results'];
 
           for (var planResult in results) {
-            if (planResult is Map<String, dynamic> && planResult.containsKey('planId')) {
+            if (planResult is Map<String, dynamic> &&
+                planResult.containsKey('planId')) {
               String planId = planResult['planId'].toString();
               bool planSuccess = planResult['success'] ?? false;
               String? printIdFromResponse;
 
-              if (planResult.containsKey('data') && planResult['data'] is Map<String, dynamic>) {
+              if (planResult.containsKey('data') &&
+                  planResult['data'] is Map<String, dynamic>) {
                 printIdFromResponse = planResult['data']['printId']?.toString();
               }
 
@@ -322,19 +359,26 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
               if (planResult['data'] != null) {
                 responsePrintNo =
-                    planResult['data']['printNo']?.toString().trim().toUpperCase() ?? '';
+                    planResult['data']['printNo']
+                        ?.toString()
+                        .trim()
+                        .toUpperCase() ??
+                    '';
               }
 
-              var metadata = metadataList.firstWhere(
-                    (item) =>
-                item.ServerPlanId == planId &&
-                    (item.PrintNo ?? '').trim().toUpperCase() == responsePrintNo,
-                orElse: () {
-                  throw Exception(
-                    'Metadata not found for PlanId=$planId PrintNo=$responsePrintNo',
-                  );
-                },
+              var matchingMetadata = metadataList.where(
+                (item) =>
+                    item.ServerPlanId == planId &&
+                    (item.PrintNo ?? '').trim().toUpperCase() ==
+                        responsePrintNo,
               );
+              
+              if (matchingMetadata.isEmpty) {
+                 debugPrint('Metadata not found for PlanId=$planId PrintNo=$responsePrintNo');
+                 continue;
+              }
+              
+              var metadata = matchingMetadata.first;
 
               String printNo = metadata.PrintNo.toString();
               String uniqueKey = "${planId}_${printNo}";
@@ -361,14 +405,16 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                 print("Response Print: $responsePrintNo");
                 print("PlanId        : $planId");
                 print("==============");
-                await apiResponseRepo.saveApiResponse(ApiResponseData(
-                  planId: planId,
-                  originalData: metadata,
-                  isSuccess: true,
-                  responseMessage: 'Background sync: Success',
-                  responseTime: DateTime.now(),
-                  statusCode: 200,
-                ));
+                await apiResponseRepo.saveApiResponse(
+                  ApiResponseData(
+                    planId: planId,
+                    originalData: metadata,
+                    isSuccess: true,
+                    responseMessage: 'Background sync: Success',
+                    responseTime: DateTime.now(),
+                    statusCode: 200,
+                  ),
+                );
               } else {
                 failureCount++;
                 // print(' Sync failed for print $printNo');
@@ -380,7 +426,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
       // print(' Background sync completed: $successCount success, $failureCount failed');
       await FirebaseCrashlytics.instance.log(
-          'Background sync: $successCount success, $failureCount failed'
+        'Background sync: $successCount success, $failureCount failed',
       );
 
       // Wait for all Hive operations to complete
@@ -412,13 +458,17 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           textColor: Colors.white,
         );
       }
-
     } catch (e, stackTrace) {
       // print(' Background sync error: $e');
-      await FirebaseCrashlytics.instance.recordError(e, stackTrace, fatal: false);
+      await FirebaseCrashlytics.instance.recordError(
+        e,
+        stackTrace,
+        fatal: false,
+      );
 
       Fluttertoast.showToast(
-        msg: "Background sync failed: ${e.toString().substring(0, min(50, e.toString().length))}",
+        msg:
+            "Background sync failed: ${e.toString().substring(0, min(50, e.toString().length))}",
         toastLength: Toast.LENGTH_LONG,
         gravity: ToastGravity.BOTTOM,
         backgroundColor: Colors.red,
@@ -444,7 +494,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       await Future.delayed(Duration(milliseconds: 500));
 
       // Update pending count with actual remaining count
-      container.read(pendingSyncCountProviderPlan.notifier).state = remainingCount;
+      container.read(pendingSyncCountProviderPlan.notifier).state =
+          remainingCount;
       // print(' Updated pendingSyncCountProviderPlan to: $remainingCount');
 
       // Increment completion counter to trigger listeners
@@ -457,14 +508,11 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       await Future.delayed(Duration(milliseconds: 500));
 
       // print(0 UI refresh notification completed');
-
     } catch (e) {
       // print(' Error in _notifyPrintSyncRefresh: $e');
       await FirebaseCrashlytics.instance.recordError(e, null, fatal: false);
     }
   }
-
-
 
   // UPDATED: Check network before syncing
   Future<void> _SUcheckAndSyncPendingUploads() async {
@@ -472,7 +520,19 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
     // Check network connectivity first
     if (!_isConnected) {
-      await FirebaseCrashlytics.instance.log('SU Sync skipped: No network connectivity');
+      await FirebaseCrashlytics.instance.log(
+        'SU Sync skipped: No network connectivity',
+      );
+      return;
+    }
+
+    // Check authentication and role (role 7 = Supervisor)
+    final tokenCheck = await getAuthToken();
+    if (tokenCheck.isEmpty) {
+      return;
+    }
+    final currentRole = await getRoleFlag();
+    if (currentRole != '7') {
       return;
     }
 
@@ -484,7 +544,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         return; // Nothing to sync
       }
 
-      await FirebaseCrashlytics.instance.log('Starting SU background sync for ${metadataList.length} items');
+      await FirebaseCrashlytics.instance.log(
+        'Starting SU background sync for ${metadataList.length} items',
+      );
       await _apiService.syncAllMetadata(metadataList);
       await FirebaseCrashlytics.instance.log('SU background sync completed');
     } catch (e, stackTrace) {
@@ -502,15 +564,18 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused && !isManualSyncing && _isConnected && _shouldSync()) {
-      _checkAndSyncPendingUploads();
-      _SUcheckAndSyncPendingUploads();
-    }
-    // Also check when app resumes
-    else if (state == AppLifecycleState.resumed && !isManualSyncing && _isConnected && _shouldSync()) {
-      Future.delayed(Duration(seconds: 1), () {
-        _checkAndSyncPendingUploads();
-        _SUcheckAndSyncPendingUploads();
+    // Only trigger sync when app resumes to foreground.
+    // Triggering heavy file uploads in background (paused) without a Foreground Service
+    // causes Android OS (LMK/battery optimizer) to immediately terminate the process.
+    if (state == AppLifecycleState.resumed &&
+        !isManualSyncing &&
+        _isConnected &&
+        _shouldSync()) {
+      Future.delayed(const Duration(seconds: 1), () {
+        if (mounted) {
+          _checkAndSyncPendingUploads();
+          _SUcheckAndSyncPendingUploads();
+        }
       });
     }
   }
@@ -530,7 +595,11 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         _locale = savedLanguage != null ? Locale(savedLanguage) : Locale('en');
       });
     } catch (e, stackTrace) {
-      await FirebaseCrashlytics.instance.recordError(e, stackTrace, fatal: false);
+      await FirebaseCrashlytics.instance.recordError(
+        e,
+        stackTrace,
+        fatal: false,
+      );
     }
   }
 
@@ -539,8 +608,21 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     return MaterialApp(
       title: 'Can Image',
       debugShowCheckedModeBanner: false,
-
-      navigatorKey: _navigatorKey, //
+      theme: ThemeData(
+        scaffoldBackgroundColor: Colors.white,
+        appBarTheme: AppBarTheme(
+          backgroundColor: Font.primaryColor,
+          elevation: 0,
+          systemOverlayStyle: SystemUiOverlayStyle(
+            statusBarColor: Font.primaryColor,
+            statusBarIconBrightness: Brightness.light,
+            statusBarBrightness: Brightness.dark,
+            systemNavigationBarColor: Colors.white,
+            systemNavigationBarIconBrightness: Brightness.dark,
+          ),
+        ),
+      ),
+      navigatorKey: _navigatorKey,
       locale: _locale,
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
@@ -548,7 +630,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         GlobalCupertinoLocalizations.delegate,
         S.delegate,
       ],
-      supportedLocales: [
+      supportedLocales: const [
         Locale('en', ''),
         Locale('hi', ''),
         Locale('mr', ''),
@@ -556,24 +638,12 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         Locale('ta', ''),
         Locale('gu', ''),
       ],
-      // CRITICAL FIX: Use builder to wrap entire app
-      // builder: (context, child) {
-      //   return SecurityGuard(
-      //     enablePeriodicCheck: true,
-      //     onSecurityViolation: () {
-      //       print('Security violation detected!');
-      //       // Log to Crashlytics
-      //       // FirebaseCrashlytics.instance.log('Security violation: Developer mode or mock location detected');
-      //     },
-      //     child: child ?? SizedBox.shrink(),
-      //   );
-      // },
-      // Remove SecurityGuard from home - it's now wrapping everything via builder
-      /// developer mode add on releaseMode
       builder: (context, child) {
+        Widget content = child ?? const SizedBox.shrink();
+
         // 🔴 Only wrap in RELEASE mode
         if (kReleaseMode) {
-          return SecurityGuard(
+          content = SecurityGuard(
             enablePeriodicCheck: true,
             onSecurityViolation: () {
               // Log to Crashlytics in release only
@@ -587,14 +657,22 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                 fatal: false,
               );
             },
-            child: child ?? const SizedBox.shrink(),
+            child: content,
           );
         }
 
-        // 🟢 Debug / Profile → normal app
-        return child ?? const SizedBox.shrink();
+        // Apply SystemUiOverlayStyle globally across EVERY screen
+        return AnnotatedRegion<SystemUiOverlayStyle>(
+          value: SystemUiOverlayStyle(
+            statusBarColor: Font.primaryColor,
+            statusBarIconBrightness: Brightness.light,
+            statusBarBrightness: Brightness.dark,
+            systemNavigationBarColor: Colors.white,
+            systemNavigationBarIconBrightness: Brightness.dark,
+          ),
+          child: content,
+        );
       },
-      ///
       home: SplashScreen(changeLanguage: _changeLanguage),
     );
   }

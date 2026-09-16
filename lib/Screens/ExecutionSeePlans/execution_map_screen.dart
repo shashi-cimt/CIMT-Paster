@@ -9,6 +9,8 @@ import 'package:fluttertoast/fluttertoast.dart';
 import '../../generated/l10n.dart';
 import '../../utils/fonts.dart';
 import '../landing/landing_screen.dart';
+import '../../widgets/common_app_bar.dart';
+import '../../widgets/can_image_loader.dart';
 
 class MapScreen extends StatefulWidget {
   String? planCode;
@@ -21,6 +23,7 @@ class MapScreen extends StatefulWidget {
   var tensil;
   var artworkId;
   final String? locateId;
+  final String? projectId;
   final Function(String) changeLanguage;
 
   MapScreen({
@@ -35,7 +38,8 @@ class MapScreen extends StatefulWidget {
     required this.brand,
     required this.tensil,
     required this.artworkId,
-     this.locateId,
+    this.locateId,
+    this.projectId,
   });
 
   @override
@@ -85,7 +89,15 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
 
-    if (state == AppLifecycleState.resumed) {
+    if (state == AppLifecycleState.paused) {
+      // Pause GPS refresh in background to prevent OS killing app for background location violations
+      _periodicRefreshTimer?.cancel();
+      _periodicRefreshTimer = null;
+    } else if (state == AppLifecycleState.resumed) {
+      // Resume periodic refresh when app returns to foreground
+      if (_periodicRefreshTimer == null) {
+        _startPeriodicLocationRefresh();
+      }
       // App came back to foreground, check if location is now available
       if (!_isLocationFetched && !_isGettingAccurateLocation) {
         _checkAndRetryLocation();
@@ -734,54 +746,25 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
   }
 
   Future<bool> _onWillPop() async {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => SeePlanScreen(changeLanguage: widget.changeLanguage)),
-    );
-    return false;
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+      return false;
+    }
+    return true;
   }
 
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: _onWillPop,
-      child: SafeArea(
-        child: Scaffold(
-          appBar: AppBar(
-            elevation: 0,
-            backgroundColor: Font.primaryColor,
-            title: Text(
-              S.of(context).geoLoc,
-              style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 18,
-                  letterSpacing: 1,
-                  fontFamily: "Roboto"
-              ),
-            ),
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
-              onPressed: () {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => SeePlanScreen(changeLanguage: widget.changeLanguage)),
-                );
-              },
-            ),
-            actions: [
-              IconButton(
-                icon: Icon(Icons.home, color: Colors.white),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => LandingScreen(changeLanguage: widget.changeLanguage)),
-                  );
-                },
-              ),
-            ],
-          ),
-          body: _isLocationFetched
+      child: Scaffold(
+        appBar: CommonAppBar(
+          title: S.of(context).geoLoc,
+          actions: const [CommonHomeButton()],
+        ),
+        body: SafeArea(
+          top: false,
+          child: _isLocationFetched
               ? Stack(
             children: [
               GoogleMap(
@@ -820,32 +803,7 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
               ),
 
 
-              // Street View
-              // Positioned(
-              //   right: 10,
-              //   bottom: 100,
-              //   child: FloatingActionButton(
-              //     heroTag: "street",
-              //     backgroundColor: Font.primaryColor,
-              //     onPressed: () {
-              //       if (_currentPosition == null) return;
-              //
-              //       Navigator.push(
-              //         context,
-              //         MaterialPageRoute(
-              //           builder: (_) => Execution360ViewScreen(
-              //             latitude: _currentPosition!.latitude,
-              //             longitude: _currentPosition!.longitude,
-              //           ),
-              //         ),
-              //       );
-              //     },
-              //     child: const Icon(
-              //       Icons.travel_explore,
-              //       color: Colors.white,
-              //     ),
-              //   ),
-              // ),
+
 
               // NEXT BUTTON
               if (_showNextButton)
@@ -875,15 +833,18 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
             ],
           )
               : Center(
-            child: CircularProgressIndicator(),
-          ),
+                  child: CanImageLoader(
+                    spinnerSize: 52,
+                    showBrand: true,
+                    message: S.of(context).getingLocation,
+                  ),
+                ),
         ),
       ),
     );
   }
 
   void _proceedToNextScreen() {
-    print("🔍 MapScreen passing locateId: ${widget.locateId}");
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
@@ -902,6 +863,7 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
             tensil: widget.tensil,
             artworkId: widget.artworkId,
             locateId: widget.locateId,
+            projectId: widget.projectId,
           )
       ),
     );
