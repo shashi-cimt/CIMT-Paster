@@ -34,6 +34,16 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+
+    signingConfigs {
+        create("release") {
+            keyAlias = "CIMT"
+            keyPassword = "Cimt@2026"
+            storeFile = file("key/CIMT.jks")
+            storePassword = "Cimt@2026"
+        }
+    }
+
     buildTypes {
         getByName("debug") {
             // Add debug-specific optimizations
@@ -43,7 +53,7 @@ android {
         }
 
         getByName("release") {
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
             // Disable resource shrinking for stability
             isMinifyEnabled = false
             isShrinkResources = false

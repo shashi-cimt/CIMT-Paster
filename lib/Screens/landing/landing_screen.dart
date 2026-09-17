@@ -13,7 +13,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:pull_down_button/pull_down_button.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:archive/archive.dart';
@@ -43,6 +42,7 @@ import '../auth/login_screen.dart';
 import '../printSync/execution_print_sync_screen.dart';
 import '../resend/execution_resend_screen.dart';
 import '../../widgets/can_image_loader.dart';
+import '../../update_controller.dart';
 
 // State Management with Riverpod
 final currentScreenProvider = StateProvider<String>((ref) => 'landing');
@@ -104,6 +104,7 @@ class _LandingScreenState extends ConsumerState<LandingScreen>
     refreshPendingCounts();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeData();
+      ref.read(updateProvider).checkForUpdate(context);
     });
   }
 

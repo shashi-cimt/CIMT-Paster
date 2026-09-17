@@ -19,6 +19,7 @@ import '../../utils/uid_file_helper.dart';
 import '../landing/landing_screen.dart';
 import '../../widgets/can_image_loader.dart';
 import '../../widgets/app_snack_bar.dart';
+import '../../update_controller.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   final Function(String) changeLanguage;
@@ -50,6 +51,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.initState();
     userDetails();
     _loadRememberedData();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(updateProvider).checkForUpdate(context);
+    });
   }
 
   _loadRememberedData() async {
